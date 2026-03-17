@@ -1,0 +1,39 @@
+# Claude Code Instructions — RegPulse
+
+> **Read `MEMORY.md` before starting any task.** It contains architecture decisions, business rules, directory structure, database schema, and coding conventions that must be followed.
+
+## Quick Reference
+
+- **API prefix:** All endpoints at `/api/v1/`
+- **Python:** ruff + black (line-length=100) + mypy strict. Run `make lint` before completing any task.
+- **TypeScript:** `strict: true` in tsconfig, ESLint + Prettier
+- **Migrations:** Alembic. Every schema change needs `alembic revision --autogenerate -m "describe_change"`
+- **Tests:** pytest (backend), Vitest (frontend), Playwright (E2E)
+- **No secrets in code** — all keys/tokens from environment variables via `Settings` class
+
+## Key Rules
+
+1. **Never import from `scraper/` in `backend/`** — use `backend/app/services/embedding_service.py` for embeddings
+2. **Never send PII to the LLM** — no user name, email, or org_name in prompts
+3. **Always validate citations** — strip circular numbers not in retrieved chunks
+4. **Credits deducted only on success** — use `SELECT FOR UPDATE` atomic deduction
+5. **Admin router split** — use `routers/admin/` sub-routers, not a monolithic file
+6. **Pydantic schemas in `schemas/`** — not inline in routers
+7. **SQLAlchemy models in `models/`** — use 2.0 `Mapped[]` annotations
+8. **Services via `Depends()`** — never instantiate in route bodies
+9. **All errors** return `{"success": false, "error": "message", "code": "ERROR_CODE"}`
+
+## Build Prompts
+
+The project is built using 50 sequential Claude Code prompts in `../files/RegPulse_ClaudeCode_50Prompts.docx`. See `../Improv_Regpulse_v1.md` for the improvement analysis that should be applied during build.
+
+## File Reference
+
+| File | Purpose |
+|------|---------|
+| `MEMORY.md` | Full project context — architecture, schema, rules, patterns |
+| `../files/RegPulse_ClaudeCode_50Prompts.docx` | 50 build prompts |
+| `../files/RegPulse_PRD_v1.0.docx` | Product Requirements Document |
+| `../files/RegPulse_FSD_v1.0.docx` | Functional Specification Document |
+| `../Improv_Regpulse_v1.md` | Improvement analysis (40 items across 9 categories) |
+| `../regpulse_mockup_all_screens.html` | UI mockup prototypes |
