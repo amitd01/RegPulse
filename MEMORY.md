@@ -398,12 +398,13 @@ Update store optimistically after API calls. Do not re-fetch full user object on
 
 ---
 
-## Code Quality (Set Up in Prompt 01)
+## Code Quality (Set Up in Prompt 01 — IMPLEMENTED)
 
-- **Python:** ruff (lint), black (format, line-length=100), mypy (strict), isort via ruff
-- **TypeScript:** `"strict": true` in tsconfig, ESLint (`@typescript-eslint/recommended`), Prettier
-- **Pre-commit:** ruff, black, mypy on Python; eslint, prettier on TS; detect-private-key; check-added-large-files (1MB max)
+- **Python:** ruff (lint), black (format, line-length=100), mypy (strict), isort via ruff — configured in `pyproject.toml`
+- **TypeScript:** `"strict": true` in `frontend/tsconfig.json`, ESLint (`next/core-web-vitals`), Prettier (`.prettierrc`)
+- **Pre-commit:** `.pre-commit-config.yaml` — ruff, black, mypy on Python; trailing-whitespace; detect-private-key; check-added-large-files (1MB max)
 - **CLAUDE.md** at repo root: *"Read MEMORY.md before starting. Run `make lint` before completing any task."*
+- **Makefile** targets: `lint`, `lint-fix`, `format`, `type-check`, `test`, `up`, `down`, `build`, `logs`, `clean`
 
 ---
 
@@ -441,6 +442,36 @@ Never auto-run `upgrade head` in production — use GitHub Actions with approval
 | TD-07 | Auto-renewal needs Razorpay saved payment method | V1: renewal email only; full auto-charge via Razorpay Subscriptions API in v2 |
 | TD-08 | Query expansion adds ~0.5s latency (RAG_QUERY_EXPANSION) | Default false — enable after baseline latency measured and headroom confirmed |
 | TD-09 | DPDP soft-delete retains question records for analytics | Review after 12 months for full deletion option |
+
+---
+
+## Build Progress
+
+| Prompt | Phase | Description | Status | Date |
+|--------|-------|-------------|--------|------|
+| 01 | Infrastructure | Monorepo scaffolding, Docker, configs, linters | Done | 2026-03-21 |
+| 02 | Infrastructure | PostgreSQL schema + pgvector + Alembic | Pending | — |
+| 03 | Infrastructure | Pydantic Settings + structured logging | Pending | — |
+
+### Prompt [01] — What Was Built
+- `backend/` — FastAPI app with `/api/v1/health`, `requirements.txt` (26 deps), Dockerfile
+- `scraper/` — Celery worker dirs (crawler/extractor/processor), `requirements.txt` (19 deps), Dockerfile with OCR
+- `frontend/` — Next.js 14 + TypeScript strict + Tailwind + Zustand, multi-stage Dockerfile
+- `docker-compose.yml` — 6 services (pgvector:pg16, redis:7-alpine, backend, scraper, celery-beat, frontend)
+- `.env.example` — 20+ env vars documented
+- `pyproject.toml` — ruff, black, mypy config
+- `.pre-commit-config.yaml`, `Makefile`, `.gitignore`, `.dockerignore`
+- **Improvements applied:** E1 (CLAUDE.md), E3 (linters from day 1), E4 (TS strict), E5 (pre-commit), I6 (Zustand)
+
+---
+
+## Documentation Update Rule
+
+After every successful prompt, task, epic, module, or project milestone:
+1. Update `README.md` — build progress tracker, new setup steps, new Makefile targets
+2. Update `MEMORY.md` — architecture changes, new tables/services, build log entry
+3. Update `CLAUDE.md` — new rules, references, build progress table
+4. Update relevant spec files if scope or design changed
 
 ---
 

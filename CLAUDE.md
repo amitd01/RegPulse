@@ -22,10 +22,25 @@
 7. **SQLAlchemy models in `models/`** — use 2.0 `Mapped[]` annotations
 8. **Services via `Depends()`** — never instantiate in route bodies
 9. **All errors** return `{"success": false, "error": "message", "code": "ERROR_CODE"}`
+10. **Update docs after every prompt/task completion** — after each successful prompt, epic, module, or project milestone, update the following files to reflect current state:
+    - `README.md` — build progress tracker, any new setup steps or Makefile targets
+    - `MEMORY.md` — architecture changes, new tables/columns, new services or patterns
+    - `CLAUDE.md` — new rules, references, or build progress
+    - Any relevant spec files if scope or design changed
 
 ## Build Prompts
 
 The project is built using 50 sequential Claude Code prompts in `../files/RegPulse_ClaudeCode_50Prompts.docx`. See `../Improv_Regpulse_v1.md` for the improvement analysis that should be applied during build.
+
+## Build Progress
+
+| Prompt | Description | Status | Improvements Applied |
+|--------|-------------|--------|---------------------|
+| 01 | Monorepo scaffolding | Done | E1, E3, E4, E5, I6 |
+| 02 | PostgreSQL schema + pgvector | Pending | — |
+| 03–50 | Remaining prompts | Pending | — |
+
+**Last updated:** 2026-03-21 after Prompt [01]
 
 ## File Reference
 
