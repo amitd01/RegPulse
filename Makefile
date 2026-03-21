@@ -48,6 +48,22 @@ test-scraper: ## Run scraper tests only
 test-frontend: ## Run frontend tests only
 	cd frontend && pnpm test
 
+# --- Jira ---
+jira-status: ## Get Jira ticket status (ISSUE=RP-2)
+	@./scripts/jira.sh status $(ISSUE)
+
+jira-transitions: ## List available Jira transitions (ISSUE=RP-2)
+	@./scripts/jira.sh transitions $(ISSUE)
+
+jira-move: ## Move Jira ticket (ISSUE=RP-2 STATUS="Done")
+	@./scripts/jira.sh move $(ISSUE) "$(STATUS)"
+
+jira-comment: ## Add Jira comment (ISSUE=RP-2 MSG="message")
+	@./scripts/jira.sh comment $(ISSUE) "$(MSG)"
+
+jira-done: ## Mark Jira ticket done with comment (ISSUE=RP-2 MSG="message")
+	@./scripts/jira.sh update $(ISSUE) "Done" "$(MSG)"
+
 # --- Utilities ---
 clean: ## Clean generated files
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
