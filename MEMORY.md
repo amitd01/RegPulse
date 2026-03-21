@@ -450,7 +450,7 @@ Never auto-run `upgrade head` in production — use GitHub Actions with approval
 | Prompt | Phase | Description | Status | Date |
 |--------|-------|-------------|--------|------|
 | 01 | Infrastructure | Monorepo scaffolding, Docker, configs, linters | Done | 2026-03-21 |
-| 02 | Infrastructure | PostgreSQL schema + pgvector + Alembic | Pending | — |
+| 02 | Infrastructure | PostgreSQL schema + pgvector + Alembic + ORM models | Done | 2026-03-21 |
 | 03 | Infrastructure | Pydantic Settings + structured logging | Pending | — |
 
 ### Prompt [01] — What Was Built
@@ -462,6 +462,18 @@ Never auto-run `upgrade head` in production — use GitHub Actions with approval
 - `pyproject.toml` — ruff, black, mypy config
 - `.pre-commit-config.yaml`, `Makefile`, `.gitignore`, `.dockerignore`
 - **Improvements applied:** E1 (CLAUDE.md), E3 (linters from day 1), E4 (TS strict), E5 (pre-commit), I6 (Zustand)
+
+### Prompt [02] — What Was Built
+- `backend/migrations/001_initial_schema.sql` — full schema: 14 tables, 6 ENUMs, 30+ indexes (btree, ivfflat, GIN)
+- `backend/alembic/` — async Alembic setup (env.py, script.py.mako, alembic.ini)
+- `backend/app/models/` — 6 model files with SQLAlchemy 2.0 `Mapped[]` annotations:
+  - `user.py` (User, Session, PendingDomainReview)
+  - `circular.py` (CircularDocument, DocumentChunk with pgvector)
+  - `question.py` (Question, ActionItem, SavedInterpretation)
+  - `subscription.py` (SubscriptionEvent)
+  - `scraper.py` (ScraperRun)
+  - `admin.py` (PromptVersion, AdminAuditLog, AnalyticsEvent)
+- **Improvements applied:** A1 (action_items table), A2 (saved_interpretations), A3 (impact_level, action_deadline, affected_teams on circulars), A4 (quick_answer, risk_level, recommended_actions on questions), D1 (deletion_requested_at for DPDP)
 
 ---
 

@@ -38,7 +38,7 @@
 | Phase | Prompt(s) | Description | Status |
 |-------|-----------|-------------|--------|
 | 1 — Infrastructure | 01 | Monorepo scaffolding (backend/scraper/frontend, Docker, configs) | Done |
-| 1 — Infrastructure | 02 | PostgreSQL schema + pgvector + Alembic | Pending |
+| 1 — Infrastructure | 02 | PostgreSQL schema + pgvector + Alembic + ORM models | Done |
 | 1 — Infrastructure | 03 | Pydantic Settings + structured logging | Pending |
 | 2 — Auth & Users | 04–09 | Email validation, OTP, JWT, registration, middleware | Pending |
 | 3 — Scraper | 10–17 | Crawl, PDF extract, chunk, embed, classify, supersession | Pending |
@@ -49,7 +49,7 @@
 | 8 — Polish | 43–47 | Action items, saved items, analytics, load tests | Pending |
 | 9 — Deploy | 48–50 | CI/CD, Nginx, launch checks | Pending |
 
-**Last updated:** 2026-03-21 — Prompt [01] complete
+**Last updated:** 2026-03-21 — Prompt [02] complete
 
 ---
 

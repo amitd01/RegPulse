@@ -37,10 +37,10 @@ The project is built using 50 sequential Claude Code prompts in `../files/RegPul
 | Prompt | Description | Status | Improvements Applied |
 |--------|-------------|--------|---------------------|
 | 01 | Monorepo scaffolding | Done | E1, E3, E4, E5, I6 |
-| 02 | PostgreSQL schema + pgvector | Pending | — |
+| 02 | PostgreSQL schema + pgvector + Alembic + ORM models | Done | A1, A2, A3, A4, D1 |
 | 03–50 | Remaining prompts | Pending | — |
 
-**Last updated:** 2026-03-21 after Prompt [01]
+**Last updated:** 2026-03-21 after Prompt [02]
 
 ## File Reference
 
