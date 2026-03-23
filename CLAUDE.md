@@ -49,9 +49,10 @@ The project is built using 50 sequential Claude Code prompts in `../files/RegPul
 | 10 | Supersession resolver + staleness detection + alerts | Done | — |
 | 11 | Auth setup — WorkEmailValidator + InvalidWorkEmailError | Done | B5 (250+ blocklist + MX check), D7 (PII-safe logging) |
 | 11b | OTPService + EmailService + 6 Jinja2 email templates | Done | D7 (PII-safe logging), Redis-based OTP storage |
-| 12–50 | Remaining prompts | Pending | — |
+| 13 | Auth router — register, login, verify-otp, refresh, logout | Done | B5 (email enumeration protection), D7 (PII-safe), refresh token rotation |
+| 14–50 | Remaining prompts | Pending | — |
 
-**Last updated:** 2026-03-23 after Prompt [11b]
+**Last updated:** 2026-03-23 after Prompt [13]
 
 ## File Reference
 

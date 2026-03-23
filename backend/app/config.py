@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     JWT_PRIVATE_KEY: str
     JWT_PUBLIC_KEY: str
     JWT_BLACKLIST_TTL: int = 3600
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
 
     # --- LLM ---
     OPENAI_API_KEY: str

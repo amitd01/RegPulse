@@ -544,6 +544,30 @@ All ORM enum classes use `enum.StrEnum` — NOT `(str, enum.Enum)`. Resolves ruf
 - **PII-safe logging:** only domain names logged, never full email addresses; OTP values never logged
 - SMTP config from `Settings`: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
 
+**Auth router patterns (established in Prompt 13):**
+- `backend/app/routers/auth.py` — 5 routes at `/api/v1/auth/`:
+  - `POST /register` — validate work email (WorkEmailValidator), check duplicates, store reg data in Redis, send OTP
+  - `POST /login` — check user exists + active, send login OTP
+  - `POST /verify-otp` — verify OTP; on `purpose=register` creates user (5 free credits, email_verified=True); on `purpose=login` updates last_login_at; issues JWT access + refresh token
+  - `POST /refresh` — decode refresh token, revoke old session, blacklist old jti in Redis, issue new JWT + refresh token (rotation)
+  - `POST /logout` — blacklist jti in Redis, revoke session in DB; idempotent (returns 200 even for invalid tokens)
+- **Email enumeration protection:** `/register` and `/login` return identical messages regardless of whether the email exists
+- **Bot trap:** `honeypot` field in RegisterRequest — if filled, silently returns success with no side effects
+- Registration data stored temporarily in Redis (`reg_data:{email}`, TTL = OTP_EXPIRY_MINUTES) so verify-otp can create the user
+- **PII-safe logging:** only domain names logged, never full email addresses
+- Dependencies injected via `Depends()`: `get_db`, `get_redis`, `_get_email_validator`, `_get_otp_service`, `_get_email_service`, `get_settings`
+
+**JWT utility patterns (established in Prompt 13):**
+- `backend/app/utils/jwt_utils.py` — RS256 JWT creation and verification
+- `create_access_token(user_id, is_admin)` → `(token, jti, expires_in_seconds)` — includes `sub`, `jti`, `iat`, `exp`, `is_admin`, `type=access`
+- `create_refresh_token(user_id)` → `(token, jti, expires_at)` — includes `sub`, `jti`, `iat`, `exp`, `type=refresh`
+- `decode_token(token, expected_type)` — verifies signature + type field; raises `JWTError` on failure
+- `blacklist_jti(jti, ttl, redis)` — stores `jwt_blacklist:{jti}` with TTL
+- `is_jti_blacklisted(jti, redis)` — checks existence in Redis
+- Refresh tokens hashed via SHA-256 for DB storage in `sessions` table
+- New config fields: `ACCESS_TOKEN_EXPIRE_MINUTES=30`, `REFRESH_TOKEN_EXPIRE_DAYS=30`
+- B008 ruff rule suppressed in `pyproject.toml` — standard FastAPI `Depends()` pattern
+
 ---
 
 ## Alembic Workflow
@@ -600,6 +624,7 @@ Never auto-run `upgrade head` in production — use GitHub Actions with approval
 | 10 | Scraper | Supersession resolver + staleness detection + alerts | Done | 2026-03-23 |
 | 11 | Auth | WorkEmailValidator + InvalidWorkEmailError | Done | 2026-03-23 |
 | 11b | Auth | OTPService + EmailService + 6 email templates | Done | 2026-03-23 |
+| 13 | Auth | Auth router — register, login, verify-otp, refresh, logout + JWT utils | Done | 2026-03-23 |
 
 ### Prompt [01] — What Was Built
 - `backend/` — FastAPI app with `/api/v1/health`, `requirements.txt` (26 deps), Dockerfile
