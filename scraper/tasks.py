@@ -354,13 +354,85 @@ def process_document(
 
 @shared_task(bind=True, soft_time_limit=300, name="scraper.tasks.generate_summary")
 def generate_summary(self, document_id: str) -> dict:  # noqa: ANN001
-    """Generate AI summary for a circular document (stub).
+    """Generate AI summary for a circular document using Claude Haiku.
 
-    Full implementation in a future prompt. Will use Claude Haiku to generate
-    a summary, set pending_admin_review=TRUE, and store in ai_summary column.
+    Minimal inline implementation — fetches chunks, concatenates up to 4,000 chars,
+    calls Haiku for a 3-sentence summary, saves ai_summary, sets pending_admin_review=TRUE.
+    Full SummaryService class replaces this in REG-169 (Prompt 42).
     """
-    logger.info("generate_summary_stub", document_id=document_id)
-    return {"status": "stub", "document_id": document_id}
+    import anthropic
+
+    from scraper.config import get_scraper_settings
+
+    logger.info("generate_summary_started", document_id=document_id)
+
+    try:
+        # Fetch chunk texts ordered by chunk_index
+        with get_db_session() as db:
+            rows = db.execute(
+                text(
+                    "SELECT chunk_text FROM document_chunks "
+                    "WHERE document_id = :doc_id ORDER BY chunk_index"
+                ),
+                {"doc_id": document_id},
+            ).fetchall()
+
+        if not rows:
+            logger.warning("generate_summary_no_chunks", document_id=document_id)
+            return {"status": "skipped", "reason": "no_chunks", "document_id": document_id}
+
+        # Concatenate chunks up to 4,000 chars
+        combined = ""
+        for row in rows:
+            if len(combined) + len(row[0]) > 4000:
+                remaining = 4000 - len(combined)
+                if remaining > 0:
+                    combined += " " + row[0][:remaining]
+                break
+            combined += " " + row[0] if combined else row[0]
+
+        # Call Claude Haiku
+        settings = get_scraper_settings()
+        client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+        response = client.messages.create(
+            model=settings.LLM_SUMMARY_MODEL,
+            max_tokens=300,
+            system=(
+                "You are an RBI regulatory document summariser. "
+                "Produce exactly 3 concise sentences summarising the key points, "
+                "requirements, and impact of the circular. No preamble."
+            ),
+            messages=[{"role": "user", "content": combined}],
+        )
+        summary_text = response.content[0].text.strip()
+
+        # Save summary and mark for admin review
+        with get_db_session() as db:
+            db.execute(
+                text(
+                    "UPDATE circular_documents SET ai_summary = :summary, "
+                    "pending_admin_review = TRUE, updated_at = now() "
+                    "WHERE id = :doc_id"
+                ),
+                {"summary": summary_text, "doc_id": document_id},
+            )
+            db.commit()
+
+        logger.info(
+            "generate_summary_completed",
+            document_id=document_id,
+            summary_length=len(summary_text),
+        )
+        return {"status": "success", "document_id": document_id, "summary": summary_text}
+
+    except SoftTimeLimitExceeded:
+        logger.error("generate_summary_timeout", document_id=document_id)
+        raise
+    except Exception as exc:
+        logger.error(
+            "generate_summary_failed", document_id=document_id, error=str(exc), exc_info=True
+        )
+        return {"status": "failed", "document_id": document_id, "error": str(exc)}
 
 
 # ---------------------------------------------------------------------------
