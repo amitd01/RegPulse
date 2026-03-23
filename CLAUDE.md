@@ -42,9 +42,10 @@ The project is built using 50 sequential Claude Code prompts in `../files/RegPul
 | 04 | FastAPI bootstrap, exceptions, db, cache, structlog, routers | Done | A5 (/api/v1/ prefix), A6 (cross-encoder timeout), D4 (webhook CORS exclude) |
 | 04b | Standalone embedding service (no scraper imports) | Done | A9 (shared embedding service), B3 (no cross-module import) |
 | 05 | RBI website crawler — URL discovery | Done | — |
-| 06–50 | Remaining prompts | Pending | — |
+| 06 | PDF download + text extraction (pdfplumber + OCR) | Done | — |
+| 07–50 | Remaining prompts | Pending | — |
 
-**Last updated:** 2026-03-23 after Prompt [05]
+**Last updated:** 2026-03-23 after Prompt [06]
 
 ## File Reference
 

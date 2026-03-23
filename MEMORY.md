@@ -506,6 +506,7 @@ Never auto-run `upgrade head` in production — use GitHub Actions with approval
 | 03 | Infrastructure | Pydantic Settings config.py (backend + scraper) | Done | 2026-03-23 |
 | 04 | Infrastructure | FastAPI bootstrap, exceptions, db, cache, structlog, CORS, routers | Done | 2026-03-23 |
 | 05 | Scraper | RBI website crawler — URL discovery | Done | 2026-03-23 |
+| 06 | Scraper | PDF download + text extraction (pdfplumber + OCR) | Done | 2026-03-23 |
 
 ### Prompt [01] — What Was Built
 - `backend/` — FastAPI app with `/api/v1/health`, `requirements.txt` (26 deps), Dockerfile
@@ -569,6 +570,16 @@ Never auto-run `upgrade head` in production — use GitHub Actions with approval
   - tenacity retry: 3 attempts, exponential backoff on `httpx.HTTPStatusError` / `httpx.TransportError`
   - `_extract_date_from_context()` heuristic: searches sibling `<td>` cells in `<tr>` for date-like strings
 - `RBIDocumentLink` dataclass fields: url, link_text, raw_date_str, doc_type, section, discovered_at
+- **No backend/app imports** — standalone scraper module
+
+### Prompt [06] — PDF Extractor
+- `scraper/extractor/pdf_extractor.py` — `PDFExtractor` class + `ExtractedDocument` dataclass:
+  - `download(url)` → `bytes`: httpx 15s timeout, 3 retries (exponential backoff), stores `/tmp/regpulse/{uuid}.pdf`
+  - `extract_pdfplumber(pdf_bytes)` → `(str, int)`: pdfplumber with `--- Page N ---` markers between pages
+  - `extract_ocr(pdf_bytes)` → `(str, int)`: pdf2image + pytesseract per page; explicit `ImportError` check for pdf2image/poppler
+  - `extract(url)` → `ExtractedDocument`: tries pdfplumber first; falls back to OCR if text blank or >25% non-ASCII
+  - `ExtractedDocument` fields: raw_text, extraction_method ("pdfplumber"|"ocr"), page_count, warnings
+  - Temp files cleaned up in `finally` block (`_cleanup_temp_dir()`)
 - **No backend/app imports** — standalone scraper module
 
 ### Prompt [03] — What Was Built
