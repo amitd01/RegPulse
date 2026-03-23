@@ -22,10 +22,30 @@
 7. **SQLAlchemy models in `models/`** — use 2.0 `Mapped[]` annotations
 8. **Services via `Depends()`** — never instantiate in route bodies
 9. **All errors** return `{"success": false, "error": "message", "code": "ERROR_CODE"}`
+10. **Update docs after every prompt/task completion** — after each successful prompt, epic, module, or project milestone, update the following files to reflect current state:
+    - `README.md` — build progress tracker, any new setup steps or Makefile targets
+    - `MEMORY.md` — architecture changes, new tables/columns, new services or patterns
+    - `CLAUDE.md` — new rules, references, or build progress
+    - Any relevant spec files if scope or design changed
 
 ## Build Prompts
 
 The project is built using 50 sequential Claude Code prompts in `../files/RegPulse_ClaudeCode_50Prompts.docx`. See `../Improv_Regpulse_v1.md` for the improvement analysis that should be applied during build.
+
+## Build Progress
+
+| Prompt | Description | Status | Improvements Applied |
+|--------|-------------|--------|---------------------|
+| 01 | Monorepo scaffolding | Done | E1, E3, E4, E5, I6 |
+| 02 | PostgreSQL schema + pgvector + Alembic + ORM models | Done | A1, A2, A3, A4, D1 |
+| 03 | Pydantic Settings config.py (backend + scraper) | Done | D7 (DEMO_MODE prod block) |
+| 04 | FastAPI bootstrap, exceptions, db, cache, structlog, routers | Done | A5 (/api/v1/ prefix), A6 (cross-encoder timeout), D4 (webhook CORS exclude) |
+| 04b | Standalone embedding service (no scraper imports) | Done | A9 (shared embedding service), B3 (no cross-module import) |
+| 05 | RBI website crawler — URL discovery | Done | — |
+| 06 | PDF download + text extraction (pdfplumber + OCR) | Done | — |
+| 07–50 | Remaining prompts | Pending | — |
+
+**Last updated:** 2026-03-23 after Prompt [06]
 
 ## File Reference
 

@@ -8,25 +8,48 @@
 
 ## Table of Contents
 
-1. [What It Does](#what-it-does)
-2. [Architecture Overview](#architecture-overview)
-3. [Prerequisites](#prerequisites)
-4. [Local Setup](#local-setup)
-5. [Environment Variables](#environment-variables)
-6. [Running the Services](#running-the-services)
-7. [Database Migrations](#database-migrations)
-8. [Seeding Data](#seeding-data)
-9. [Running Tests](#running-tests)
-10. [How the Scraper Works](#how-the-scraper-works)
-11. [How Q&A Works (RAG)](#how-qa-works-rag)
-12. [Security](#security)
-13. [Admin Console](#admin-console)
-14. [Deploying to Production](#deploying-to-production)
-15. [Adding Circulars Manually](#adding-circulars-manually)
-16. [Updating the System Prompt](#updating-the-system-prompt)
-17. [Subscription Plans](#subscription-plans)
-18. [Demo Mode](#demo-mode)
-19. [Project Structure](#project-structure)
+1. [Build Progress](#build-progress)
+2. [What It Does](#what-it-does)
+3. [Architecture Overview](#architecture-overview)
+4. [Prerequisites](#prerequisites)
+5. [Local Setup](#local-setup)
+6. [Environment Variables](#environment-variables)
+7. [Running the Services](#running-the-services)
+8. [Database Migrations](#database-migrations)
+9. [Seeding Data](#seeding-data)
+10. [Running Tests](#running-tests)
+11. [How the Scraper Works](#how-the-scraper-works)
+12. [How Q&A Works (RAG)](#how-qa-works-rag)
+13. [Security](#security)
+14. [Admin Console](#admin-console)
+15. [Deploying to Production](#deploying-to-production)
+16. [Adding Circulars Manually](#adding-circulars-manually)
+17. [Updating the System Prompt](#updating-the-system-prompt)
+18. [Subscription Plans](#subscription-plans)
+19. [Demo Mode](#demo-mode)
+20. [Project Structure](#project-structure)
+
+---
+
+## Build Progress
+
+> This project is being built using 50 sequential Claude Code prompts. This section tracks implementation status.
+
+| Phase | Prompt(s) | Description | Status |
+|-------|-----------|-------------|--------|
+| 1 — Infrastructure | 01 | Monorepo scaffolding (backend/scraper/frontend, Docker, configs) | Done |
+| 1 — Infrastructure | 02 | PostgreSQL schema + pgvector + Alembic + ORM models | Done |
+| 1 — Infrastructure | 03 | Pydantic Settings + structured logging | Pending |
+| 2 — Auth & Users | 04–09 | Email validation, OTP, JWT, registration, middleware | Pending |
+| 3 — Scraper | 10–17 | Crawl, PDF extract, chunk, embed, classify, supersession | Pending |
+| 4 — RAG Q&A | 18–23 | Hybrid retrieval, LLM service, SSE streaming, caching | Pending |
+| 5 — Subscriptions | 24–27 | Plans, Razorpay, credit system | Pending |
+| 6 — Admin | 25–32 | Review, prompts, dashboard, scraper controls | Pending |
+| 7 — Frontend | 33–42 | All pages: auth, library, ask, history, admin | Pending |
+| 8 — Polish | 43–47 | Action items, saved items, analytics, load tests | Pending |
+| 9 — Deploy | 48–50 | CI/CD, Nginx, launch checks | Pending |
+
+**Last updated:** 2026-03-21 — Prompt [02] complete
 
 ---
 
@@ -672,64 +695,65 @@ When `DEMO_MODE=true`:
 
 ## Project Structure
 
+> Directories marked with `*` are scaffolded (empty `__init__.py`) — implementation added in later prompts.
+
 ```
 regpulse/
-├── CLAUDE.md             # Claude Code instructions (read first)
-├── MEMORY.md             # Full project context and decisions
-├── pyproject.toml        # ruff, black, mypy config
-├── .pre-commit-config.yaml
+├── CLAUDE.md                 # Claude Code instructions (read first)
+├── MEMORY.md                 # Full project context and decisions
+├── pyproject.toml            # ruff (line-length=100), black, mypy (strict)
+├── .pre-commit-config.yaml   # ruff, black, mypy, detect-private-key
+├── .gitignore
+├── .dockerignore
+├── .env.example              # All required env vars documented
+├── Makefile                  # up, down, build, lint, test, clean targets
+├── docker-compose.yml        # 6 services: postgres, redis, backend, scraper, celery-beat, frontend
 │
-├── backend/              # FastAPI REST API + business logic
+├── backend/                  # FastAPI REST API (Python 3.11)
+│   ├── Dockerfile
+│   ├── requirements.txt      # 26 dependencies pinned
 │   ├── app/
-│   │   ├── main.py       # App bootstrap; mounts routers at /api/v1/
-│   │   ├── config.py     # Pydantic BaseSettings singleton
-│   │   ├── db.py         # Async SQLAlchemy engine + get_db()
-│   │   ├── cache.py      # Redis async client
-│   │   ├── exceptions.py # Custom exceptions + global handler
-│   │   ├── models/       # SQLAlchemy 2.0 ORM models
-│   │   ├── schemas/      # Pydantic v2 request/response schemas
-│   │   ├── routers/      # Route handlers
-│   │   │   └── admin/    # Admin sub-routers (split, not monolithic)
-│   │   ├── services/     # Business logic services
-│   │   ├── dependencies/  # FastAPI Depends() providers
-│   │   ├── utils/        # JWT, credits, injection guard
-│   │   └── templates/    # Email + PDF templates
-│   ├── alembic/          # Database migrations
-│   └── tests/
+│   │   ├── main.py           # Health endpoint at /api/v1/health
+│   │   ├── routers/ *        # Route handlers (populated from Prompt 04+)
+│   │   ├── models/ *         # SQLAlchemy 2.0 ORM models (Prompt 02)
+│   │   ├── schemas/ *        # Pydantic v2 schemas (Prompt 04+)
+│   │   ├── services/ *       # Business logic (Prompt 04+)
+│   │   └── templates/email/  # Email templates (Prompt 06)
+│   ├── migrations/           # Alembic (Prompt 02)
+│   └── tests/ *
 │
-├── scraper/              # Celery-based RBI document scraper
-│   ├── db.py             # Sync SQLAlchemy for Celery workers
-│   ├── crawler/
-│   ├── extractor/
-│   └── processor/
+├── scraper/                  # Celery worker (Python 3.11)
+│   ├── Dockerfile            # Includes tesseract-ocr + poppler
+│   ├── requirements.txt      # 19 dependencies pinned
+│   ├── crawler/ *            # RBI site crawler (Prompt 10)
+│   ├── extractor/ *          # PDF + metadata extraction (Prompt 12)
+│   ├── processor/ *          # Chunking, embedding, classification (Prompt 14)
+│   └── tests/ *
 │
-├── frontend/             # Next.js 14 web application
-│   ├── src/app/
-│   │   ├── (marketing)/  # Public: /, /pricing
-│   │   ├── register/     # Registration page
-│   │   ├── login/        # Login page
-│   │   ├── verify/       # OTP verification
-│   │   └── (app)/        # Protected routes
-│   │       ├── dashboard/ # User home (credits, recent Q&A, quick search)
-│   │       ├── library/   # Circular library + detail pages
-│   │       ├── ask/       # Q&A with SSE streaming
-│   │       ├── history/   # Question history
-│   │       ├── account/   # Profile + billing
-│   │       └── upgrade/   # Plan comparison + Razorpay checkout
-│   │   └── admin/        # Admin console (dark theme)
-│   ├── src/lib/
-│   │   ├── api.ts        # Typed API client
-│   │   └── store.ts      # Zustand state (session, credits)
-│   └── e2e/              # Playwright tests
+├── frontend/                 # Next.js 14 (TypeScript strict, Tailwind, pnpm)
+│   ├── Dockerfile            # Multi-stage: deps → build → runner
+│   ├── package.json          # next, react, zustand, axios, tailwindcss
+│   ├── tsconfig.json         # strict: true
+│   ├── tailwind.config.ts    # Custom navy palette
+│   ├── .eslintrc.json
+│   ├── .prettierrc
+│   ├── next.config.js        # output: standalone
+│   ├── postcss.config.js
+│   └── src/
+│       ├── app/
+│       │   ├── layout.tsx    # Root layout with metadata
+│       │   ├── page.tsx      # Landing page stub
+│       │   └── globals.css   # Tailwind imports
+│       ├── lib/
+│       │   └── api.ts        # Axios client → /api/v1
+│       ├── stores/
+│       │   └── authStore.ts  # Zustand auth state
+│       ├── components/       # (Prompt 33+)
+│       └── public/
 │
-├── nginx/                # Production reverse proxy config
-├── config/               # Static config (email blocklist, etc.)
-├── .github/workflows/
-│   ├── ci.yml            # Test pipeline (PR + push to main)
-│   └── deploy.yml        # Deploy pipeline (after CI on main)
-├── docker-compose.yml
-├── Makefile
-└── .env.example
+├── nginx/                    # Production reverse proxy (Prompt 49)
+├── config/                   # Static config files (Prompt 10)
+└── .github/workflows/        # CI/CD (Prompt 48)
 ```
 
 ---

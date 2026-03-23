@@ -1,0 +1,5 @@
+"""Admin circulars management router stub."""
+
+from fastapi import APIRouter
+
+router = APIRouter()
