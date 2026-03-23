@@ -47,6 +47,22 @@ class InvalidWorkEmailError(RegPulseException):
         super().__init__(message)
 
 
+class OTPRateLimitError(RegPulseException):
+    http_status = 429
+    error_code = "OTP_RATE_LIMIT"
+
+    def __init__(self, message: str = "Too many OTP requests; try again later") -> None:
+        super().__init__(message)
+
+
+class OTPVerificationError(RegPulseException):
+    http_status = 400
+    error_code = "OTP_VERIFICATION_FAILED"
+
+    def __init__(self, message: str = "Invalid or expired OTP") -> None:
+        super().__init__(message)
+
+
 class ServiceUnavailableError(RegPulseException):
     http_status = 503
     error_code = "SERVICE_UNAVAILABLE"

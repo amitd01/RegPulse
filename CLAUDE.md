@@ -48,9 +48,10 @@ The project is built using 50 sequential Claude Code prompts in `../files/RegPul
 | 09 | Celery tasks, db.py, impact classifier, full pipeline | Done | — |
 | 10 | Supersession resolver + staleness detection + alerts | Done | — |
 | 11 | Auth setup — WorkEmailValidator + InvalidWorkEmailError | Done | B5 (250+ blocklist + MX check), D7 (PII-safe logging) |
+| 11b | OTPService + EmailService + 6 Jinja2 email templates | Done | D7 (PII-safe logging), Redis-based OTP storage |
 | 12–50 | Remaining prompts | Pending | — |
 
-**Last updated:** 2026-03-23 after Prompt [11]
+**Last updated:** 2026-03-23 after Prompt [11b]
 
 ## File Reference
 

@@ -522,6 +522,28 @@ All ORM enum classes use `enum.StrEnum` — NOT `(str, enum.Enum)`. Resolves ruf
 - `aiodns` added to `backend/requirements.txt`
 - Blocklist is loaded once at class level (`ClassVar`) — not reloaded per request
 
+**OTPService patterns (established in Prompt 11b):**
+- `backend/app/services/otp_service.py` — `OTPService` class
+- OTPs stored in **Redis** (not DB): key `otp:{email}:{purpose}` with bcrypt hash, TTL from `OTP_EXPIRY_MINUTES` (default 10)
+- `generate_otp(email, purpose)` → 6-digit string via `secrets.randbelow`; bcrypt-hashed before storage
+- `verify_otp(email, otp, purpose)` → `True` on success; raises `OTPVerificationError` on failure
+- **No reuse:** OTP + attempt counter deleted from Redis on successful verify
+- **Attempt counting:** `otp_attempts:{email}:{purpose}` key, max 5 failures (configurable via `OTP_MAX_ATTEMPTS`), then lockout deletes OTP
+- **Rate limiting:** sliding-window sorted set `otp_rate:{email}`, max 3 sends/hour (configurable via `OTP_MAX_SENDS_PER_HOUR`), tracked in Redis not DB
+- **PII-safe logging:** only domain names logged, never email addresses or OTP values
+- Constructor accepts optional `redis` and `settings` params for DI/testing; falls back to `app.cache.redis_client`
+- New exceptions: `OTPRateLimitError` (429), `OTPVerificationError` (400) in `app/exceptions.py`
+- New config fields: `OTP_EXPIRY_MINUTES=10`, `OTP_MAX_ATTEMPTS=5`, `OTP_MAX_SENDS_PER_HOUR=3`
+
+**EmailService patterns (established in Prompt 11b):**
+- `backend/app/services/email_service.py` — `EmailService` class
+- Uses `aiosmtplib` for async SMTP delivery, `Jinja2` for HTML templates
+- Templates in `backend/app/templates/email/`: `register_otp.html`, `login_otp.html`, `welcome.html`, `payment_success.html`, `low_credits.html`, `staleness_alert.html`
+- `send_html_email(to, subject, html, plain)` — generic method; MIME multipart/alternative
+- Convenience methods: `send_otp_email`, `send_welcome_email`, `send_payment_success_email`, `send_low_credits_email`, `send_staleness_alert_email`
+- **PII-safe logging:** only domain names logged, never full email addresses; OTP values never logged
+- SMTP config from `Settings`: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
+
 ---
 
 ## Alembic Workflow
@@ -576,6 +598,8 @@ Never auto-run `upgrade head` in production — use GitHub Actions with approval
 | 08 | Scraper | Text chunker (sentence-aware, 512-token, 64-token overlap) | Done | 2026-03-23 |
 | 09 | Scraper | Celery tasks, db.py, impact classifier, full pipeline | Done | 2026-03-23 |
 | 10 | Scraper | Supersession resolver + staleness detection + alerts | Done | 2026-03-23 |
+| 11 | Auth | WorkEmailValidator + InvalidWorkEmailError | Done | 2026-03-23 |
+| 11b | Auth | OTPService + EmailService + 6 email templates | Done | 2026-03-23 |
 
 ### Prompt [01] — What Was Built
 - `backend/` — FastAPI app with `/api/v1/health`, `requirements.txt` (26 deps), Dockerfile
