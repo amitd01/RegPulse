@@ -452,7 +452,8 @@ Never auto-run `upgrade head` in production — use GitHub Actions with approval
 | 01 | Infrastructure | Monorepo scaffolding, Docker, configs, linters | Done | 2026-03-21 |
 | 02 | Infrastructure | PostgreSQL schema + pgvector + Alembic + ORM models | Done | 2026-03-21 |
 | 03 | Infrastructure | Pydantic Settings config.py (backend + scraper) | Done | 2026-03-23 |
-| 04 | Infrastructure | FastAPI bootstrap + structured logging | Pending | — |
+| 04 | Infrastructure | FastAPI bootstrap, exceptions, db, cache, structlog, CORS, routers | Done | 2026-03-23 |
+| 05 | Scraper | RBI website crawler — URL discovery | Pending | — |
 
 ### Prompt [01] — What Was Built
 - `backend/` — FastAPI app with `/api/v1/health`, `requirements.txt` (26 deps), Dockerfile
@@ -475,6 +476,25 @@ Never auto-run `upgrade head` in production — use GitHub Actions with approval
   - `scraper.py` (ScraperRun)
   - `admin.py` (PromptVersion, AdminAuditLog, AnalyticsEvent)
 - **Improvements applied:** A1 (action_items table), A2 (saved_interpretations), A3 (impact_level, action_deadline, affected_teams on circulars), A4 (quick_answer, risk_level, recommended_actions on questions), D1 (deletion_requested_at for DPDP)
+
+### Prompt [04] — What Was Built
+- `backend/app/exceptions.py` — `RegPulseException` base + 4 subclasses:
+  - `InsufficientCreditsError` (402), `PotentialInjectionError` (400), `CircularNotFoundError` (404), `ServiceUnavailableError` (503)
+  - Global handlers: `regpulse_exception_handler` + `generic_exception_handler` — returns `{success: false, error, code}`, never exposes stack traces
+- `backend/app/db.py` — async SQLAlchemy engine (`pool_size=10`, `max_overflow=20`, `pool_pre_ping=True`), `async_session_factory`, `get_db()` dependency
+- `backend/app/cache.py` — async Redis client via `redis.asyncio`, `get_redis()` dependency
+- `backend/app/main.py` — full rewrite:
+  - structlog JSON logging (contextvars-based request_id binding)
+  - CORS middleware excluding `/api/v1/subscriptions/webhook` (custom `CORSMiddlewareExcludingWebhook`)
+  - Request-ID middleware (UUID per request, `X-Request-ID` header, logs method/path/status/duration_ms)
+  - slowapi rate limiter (300/min global, auth routes configurable)
+  - Lifespan startup: DB connectivity + pgvector check, Redis ping, cross-encoder load (`ms-marco-MiniLM-L-6-v2` via `ProcessPoolExecutor` with 30s timeout → `None` fallback), Anthropic + OpenAI async clients → `app.state`
+  - All routers mounted at `/api/v1/` prefix
+  - `/api/v1/health` (liveness) + `/api/v1/health/ready` (readiness — checks DB + Redis)
+- Router stubs: `auth`, `circulars`, `questions`, `subscriptions`, `action_items`, `saved`
+- `backend/app/routers/admin/` — sub-router package: `dashboard`, `review`, `prompts`, `users`, `circulars`, `scraper`
+- `backend/requirements.txt` — added `sentence-transformers==3.3.1`, `pybreaker==1.2.0`
+- **Key decisions:** cross-encoder load has 30s timeout with graceful `None` fallback (RAG service skips reranking); webhook path explicitly excluded from CORS
 
 ### Prompt [03] — What Was Built
 - `backend/app/config.py` — Pydantic `BaseSettings` singleton (`@lru_cache`) with all env vars:
