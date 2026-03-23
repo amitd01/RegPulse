@@ -478,6 +478,17 @@ All ORM enum classes use `enum.StrEnum` — NOT `(str, enum.Enum)`. Resolves ruf
 - `TEAM_KEYWORDS` dict in `constants.py` — 6 teams × 20+ keywords each; threshold is 2+ keyword hits to classify
 - Page markers in raw_text are `"--- Page N ---"` format from `PDFExtractor`
 
+**Chunker patterns (established in Prompt 08):**
+- `scraper/processor/chunker.py` — `TextChunker` class, NEVER imports from `backend/`
+- `TextChunker(max_tokens=512, overlap_tokens=64)` — configurable at init
+- `chunk(raw_text)` → `list[TextChunk]` where `TextChunk` has `chunk_index`, `text`, `token_count`
+- `TextChunk` maps to `document_chunks` table: `chunk_index` → `chunk_index`, `text` → `chunk_text`, `token_count` → `token_count`
+- Page markers (`--- Page N ---`) are **stripped** before chunking — never in chunk text, never counted toward token budgets
+- Token counting: `count_tokens(text)` uses tiktoken `cl100k_base`; graceful fallback to ~4 chars/token estimate if BPE data unavailable
+- Sentence-aware splitting: regex on sentence boundaries, numbered/lettered list items, paragraph breaks
+- Greedy forward merge: accumulate sentences until budget exceeded, then rewind for overlap
+- `count_tokens()` is a public function — reusable by embedder and other modules
+
 ---
 
 ## Alembic Workflow
@@ -528,6 +539,7 @@ Never auto-run `upgrade head` in production — use GitHub Actions with approval
 | 05 | Scraper | RBI website crawler — URL discovery | Done | 2026-03-23 |
 | 06 | Scraper | PDF download + text extraction (pdfplumber + OCR) | Done | 2026-03-23 |
 | 07 | Scraper | Metadata extraction (circular_number, dates, department, teams) | Done | 2026-03-23 |
+| 08 | Scraper | Text chunker (sentence-aware, 512-token, 64-token overlap) | Done | 2026-03-23 |
 
 ### Prompt [01] — What Was Built
 - `backend/` — FastAPI app with `/api/v1/health`, `requirements.txt` (26 deps), Dockerfile
@@ -617,6 +629,17 @@ Never auto-run `upgrade head` in production — use GitHub Actions with approval
   - `_calculate_confidence()`: weighted score (0.0–1.0) based on fields extracted
   - Date parsing supports: "March 10, 2026", "10 March 2026", "10th March 2026", "Mar 10, 2026", "10-03-2026", "2026-03-10"
 - `CircularMetadata` fields: circular_number, department, department_code, issued_date, effective_date, action_deadline, affected_teams, supersession_refs, confidence_score — all Optional except confidence_score
+- **No backend/app imports** — standalone scraper module
+
+### Prompt [08] — Text Chunker
+- `scraper/processor/chunker.py` — `TextChunker` class + `TextChunk` dataclass:
+  - `chunk(raw_text)` → `list[TextChunk]`: strips page markers, sentence-aware splitting, greedy merge with overlap
+  - `TextChunk` fields: `chunk_index`, `text`, `token_count` — maps to `document_chunks` table columns
+  - Page markers (`--- Page N ---`) stripped before chunking — never appear in chunk text
+  - Sentence splitting: regex on `.?!` + capital, numbered list items, lettered items, paragraph breaks
+  - Token counting: tiktoken `cl100k_base` (preferred), char-estimate fallback (~4 chars/token) when BPE data unavailable
+  - Default: 512 max tokens, 64-token overlap between consecutive chunks
+  - `count_tokens(text)` public utility function
 - **No backend/app imports** — standalone scraper module
 
 ### Prompt [03] — What Was Built
