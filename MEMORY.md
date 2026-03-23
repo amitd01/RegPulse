@@ -642,6 +642,7 @@ Never auto-run `upgrade head` in production — use GitHub Actions with approval
 | 11b | Auth | OTPService + EmailService + 6 email templates | Done | 2026-03-23 |
 | 13 | Auth | Auth router — register, login, verify-otp, refresh, logout + JWT utils | Done | 2026-03-23 |
 | 14 | Auth | Auth dependencies — get_current_user, require_active/verified/admin/credits | Done | 2026-03-23 |
+| 14b | Auth | Frontend auth pages + API client + Zustand store + 401 interceptor | Done | 2026-03-23 |
 
 ### Prompt [01] — What Was Built
 - `backend/` — FastAPI app with `/api/v1/health`, `requirements.txt` (26 deps), Dockerfile
@@ -800,6 +801,46 @@ Never auto-run `upgrade head` in production — use GitHub Actions with approval
   - `model_post_init` validator: (1) raises `RuntimeError` listing missing required vars, (2) raises `RuntimeError` if `DEMO_MODE=true` + `ENVIRONMENT=prod`
 - `scraper/config.py` — `ScraperSettings` with same pattern (subset: DB, Redis, OpenAI, Anthropic, SMTP, admin, environment)
 - `.env.example` — updated with all new variables (JWT_BLACKLIST_TTL, LLM_FALLBACK_MODEL, LLM_SUMMARY_MODEL, EMBEDDING_DIMS, RAG_*, SENTRY_DSN)
+
+### Prompt [14b] — Frontend Auth Pages + API Client
+- `frontend/src/lib/api/auth.ts` — typed API client for all 5 auth endpoints:
+  - `registerUser`, `loginUser`, `verifyOtp`, `refreshToken`, `logoutUser`
+  - Full TypeScript types mirroring backend `schemas/auth.py`: `RegisterRequest`, `LoginRequest`, `OTPVerifyRequest`, `RefreshTokenRequest`, `AuthResponse`, `MessageResponse`, `UserResponse`, `TokenResponse`, `ApiError`
+- `frontend/src/stores/authStore.ts` — Zustand auth store:
+  - **Access token in memory (Zustand) — NOT localStorage**
+  - Refresh token also in memory — backend can optionally set httpOnly cookie
+  - `setAuth(user, accessToken, refreshToken)`, `clearAuth()`, `logout()`, `silentRefresh()`
+- `frontend/src/lib/api.ts` — axios client with 401 auto-refresh interceptor:
+  - Request interceptor attaches Bearer token from Zustand store
+  - Response interceptor: on 401, calls `/auth/refresh` once, retries original request
+  - On second 401 (refresh fails): clears auth state (logs out)
+  - Queue-based: concurrent 401s wait for single refresh, then all retry
+  - Skips interceptor for `/auth/refresh` and `/auth/logout` requests
+- `frontend/src/components/OTPInput.tsx` — 6-digit OTP component:
+  - 6 individual `<input>` boxes, one digit each
+  - Auto-advances focus on input, backspace moves back
+  - Paste support fills all 6 digits
+  - Auto-submits via `onComplete` callback when last digit entered
+- `frontend/src/app/(auth)/layout.tsx` — shared auth layout (centered card, branding)
+- `frontend/src/app/(auth)/register/page.tsx` — registration form:
+  - Work email (required), full name (required), designation, org name, org type dropdown
+  - Hidden honeypot field for bot detection
+  - TanStack Query `useMutation` for submission
+  - On success → redirects to `/verify?email=...&purpose=register`
+- `frontend/src/app/(auth)/login/page.tsx` — login form:
+  - Email input only, `useMutation` for submission
+  - On success → redirects to `/verify?email=...&purpose=login`
+- `frontend/src/app/(auth)/verify/page.tsx` — OTP verification:
+  - Reads `email` and `purpose` from URL search params
+  - Uses `OTPInput` component (6 individual digit boxes, auto-submit)
+  - On success → stores tokens in Zustand memory, redirects to `/dashboard`
+  - Masked email display for privacy
+- `frontend/src/providers/QueryProvider.tsx` — TanStack Query `QueryClientProvider` wrapper
+- `frontend/src/app/layout.tsx` — updated to wrap children in `QueryProvider`
+- `frontend/.eslintrc.json` — added `@typescript-eslint/parser` + `@typescript-eslint/eslint-plugin`
+- `frontend/package.json` — added `@tanstack/react-query`, `@typescript-eslint/eslint-plugin`, `@typescript-eslint/parser`
+- **Zero TypeScript errors** (`pnpm tsc --noEmit` passes)
+- **Zero ESLint + Prettier errors** (`pnpm lint` passes)
 
 ---
 
