@@ -8,12 +8,15 @@ from app.config import get_settings
 
 _settings = get_settings()
 
+# Pool args only apply to connection-pooling drivers (e.g. asyncpg), not SQLite.
+_pool_kwargs: dict = {}
+if "sqlite" not in _settings.DATABASE_URL:
+    _pool_kwargs = {"pool_size": 10, "max_overflow": 20, "pool_pre_ping": True}
+
 engine = create_async_engine(
     _settings.DATABASE_URL,
-    pool_size=10,
-    max_overflow=20,
-    pool_pre_ping=True,
     echo=(_settings.ENVIRONMENT == "dev"),
+    **_pool_kwargs,
 )
 
 async_session_factory = async_sessionmaker(engine, expire_on_commit=False)

@@ -86,7 +86,11 @@ async def get_current_user(
     # 4. Injection guard: token.iat < user.password_changed_at → 401
     if user.password_changed_at is not None and iat is not None:
         token_issued_at = datetime.fromtimestamp(iat, tz=UTC)
-        if token_issued_at < user.password_changed_at:
+        # Ensure password_changed_at is timezone-aware for comparison
+        pwd_changed = user.password_changed_at
+        if pwd_changed.tzinfo is None:
+            pwd_changed = pwd_changed.replace(tzinfo=UTC)
+        if token_issued_at < pwd_changed:
             logger.warning(
                 "token_issued_before_security_reset",
                 user_id=str(user.id),
