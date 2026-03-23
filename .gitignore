@@ -1,5 +1,15 @@
 .env
+HEAD
+__pycache__/
+*.pyc
+
+# Node / Next.js
+node_modules/
+.next/
+next-env.d.ts
+*.tsbuildinfo
 scraper/.venv/
 __pycache__/
 *.pyc
 scraper/test_RBI.pdf
+origin/main

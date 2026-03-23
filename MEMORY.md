@@ -511,6 +511,79 @@ All ORM enum classes use `enum.StrEnum` — NOT `(str, enum.Enum)`. Resolves ruf
 - **`admin_audit_log` constraint:** `actor_id UUID NOT NULL FK users` — scraper has no user context, so automated supersession events are logged via structlog only. To write to `admin_audit_log` from scraper, a system/bot user row would need to be seeded in `users` table first (future enhancement)
 - `rapidfuzz` added to `scraper/requirements.txt`
 
+**WorkEmailValidator patterns (established in Prompt 11):**
+- `backend/app/services/email_validator.py` — `WorkEmailValidator` class
+- Static blocklist: `config/free_email_blocklist.json` (250+ free/disposable domains)
+- `validate(email)` → `ValidationResult(is_valid, reason, requires_review)` — async
+- Validation steps: (1) format check, (2) extract domain, (3) blocklist lookup, (4) async MX record check via `aiodns`
+- Low-traffic domains (no MX or unrecognized) return `requires_review=True` → triggers `pending_domain_reviews` table entry
+- **PII-safe logging:** only domain names are logged, never full email addresses
+- `InvalidWorkEmailError` exception in `app/exceptions.py` — HTTP 422, code `INVALID_WORK_EMAIL`
+- `aiodns` added to `backend/requirements.txt`
+- Blocklist is loaded once at class level (`ClassVar`) — not reloaded per request
+
+**OTPService patterns (established in Prompt 11b):**
+- `backend/app/services/otp_service.py` — `OTPService` class
+- OTPs stored in **Redis** (not DB): key `otp:{email}:{purpose}` with bcrypt hash, TTL from `OTP_EXPIRY_MINUTES` (default 10)
+- `generate_otp(email, purpose)` → 6-digit string via `secrets.randbelow`; bcrypt-hashed before storage
+- `verify_otp(email, otp, purpose)` → `True` on success; raises `OTPVerificationError` on failure
+- **No reuse:** OTP + attempt counter deleted from Redis on successful verify
+- **Attempt counting:** `otp_attempts:{email}:{purpose}` key, max 5 failures (configurable via `OTP_MAX_ATTEMPTS`), then lockout deletes OTP
+- **Rate limiting:** sliding-window sorted set `otp_rate:{email}`, max 3 sends/hour (configurable via `OTP_MAX_SENDS_PER_HOUR`), tracked in Redis not DB
+- **PII-safe logging:** only domain names logged, never email addresses or OTP values
+- Constructor accepts optional `redis` and `settings` params for DI/testing; falls back to `app.cache.redis_client`
+- New exceptions: `OTPRateLimitError` (429), `OTPVerificationError` (400) in `app/exceptions.py`
+- New config fields: `OTP_EXPIRY_MINUTES=10`, `OTP_MAX_ATTEMPTS=5`, `OTP_MAX_SENDS_PER_HOUR=3`
+
+**EmailService patterns (established in Prompt 11b):**
+- `backend/app/services/email_service.py` — `EmailService` class
+- Uses `aiosmtplib` for async SMTP delivery, `Jinja2` for HTML templates
+- Templates in `backend/app/templates/email/`: `register_otp.html`, `login_otp.html`, `welcome.html`, `payment_success.html`, `low_credits.html`, `staleness_alert.html`
+- `send_html_email(to, subject, html, plain)` — generic method; MIME multipart/alternative
+- Convenience methods: `send_otp_email`, `send_welcome_email`, `send_payment_success_email`, `send_low_credits_email`, `send_staleness_alert_email`
+- **PII-safe logging:** only domain names logged, never full email addresses; OTP values never logged
+- SMTP config from `Settings`: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
+
+**Auth router patterns (established in Prompt 13):**
+- `backend/app/routers/auth.py` — 5 routes at `/api/v1/auth/`:
+  - `POST /register` — validate work email (WorkEmailValidator), check duplicates, store reg data in Redis, send OTP
+  - `POST /login` — check user exists + active, send login OTP
+  - `POST /verify-otp` — verify OTP; on `purpose=register` creates user (5 free credits, email_verified=True); on `purpose=login` updates last_login_at; issues JWT access + refresh token
+  - `POST /refresh` — decode refresh token, revoke old session + issue new session in single `db.commit()` (atomic), then blacklist old jti in Redis after DB success
+  - `POST /logout` — blacklist jti in Redis, revoke session in DB; idempotent (returns 200 even for invalid tokens)
+- **Email enumeration protection:** `/register` and `/login` return identical messages regardless of whether the email exists
+- **Bot trap:** `honeypot` field in RegisterRequest — if filled, silently returns success with no side effects
+- Registration data stored temporarily in Redis (`reg_data:{email}`, TTL = OTP_EXPIRY_MINUTES) so verify-otp can create the user
+- **PII-safe logging:** only domain names logged, never full email addresses
+- Dependencies injected via `Depends()`: `get_db`, `get_redis`, `_get_email_validator`, `_get_otp_service`, `_get_email_service`, `get_settings`
+
+**JWT utility patterns (established in Prompt 13):**
+- `backend/app/utils/jwt_utils.py` — RS256 JWT creation and verification
+- `create_access_token(user_id, is_admin)` → `(token, jti, expires_in_seconds)` — includes `sub`, `jti`, `iat`, `exp`, `is_admin`, `type=access`
+- `create_refresh_token(user_id)` → `(token, jti, expires_at)` — includes `sub`, `jti`, `iat`, `exp`, `type=refresh`
+- `decode_token(token, expected_type)` — verifies signature + type field; raises `JWTError` on failure
+- `blacklist_jti(jti, ttl, redis)` — stores `jwt_blacklist:{jti}` with TTL
+- `is_jti_blacklisted(jti, redis)` — checks existence in Redis
+- Refresh tokens hashed via SHA-256 for DB storage in `sessions` table
+- New config fields: `ACCESS_TOKEN_EXPIRE_MINUTES=30`, `REFRESH_TOKEN_EXPIRE_DAYS=30`
+- B008 ruff rule suppressed in `pyproject.toml` — standard FastAPI `Depends()` pattern
+
+**Auth dependency patterns (established in Prompt 14):**
+- `backend/app/dependencies/auth.py` — FastAPI `Depends()` chain for protected routes
+- Dependency chain: `get_current_user` → `require_active_user` → `require_verified_user` / `require_admin` → `require_credits`
+- `get_current_user(credentials, db, redis, settings)`:
+  1. Extracts Bearer token via `HTTPBearer` scheme
+  2. Decodes JWT via `decode_token(token, expected_type="access")`
+  3. **jti blacklist checked on EVERY request** via `is_jti_blacklisted(jti, redis)` — not just at login
+  4. Loads `User` from DB by `sub` claim
+  5. **Injection guard:** if `user.password_changed_at` is set and `token.iat < password_changed_at` → 401 `AuthenticationError`
+- `require_active_user` — `get_current_user` + `user.is_active` check
+- `require_verified_user` — `require_active_user` + `user.email_verified` check
+- `require_admin` — `require_active_user` + `user.is_admin` check
+- `require_credits` — `require_verified_user` + `user.credit_balance > 0` check
+- New exceptions: `AuthenticationError` (401, `AUTHENTICATION_FAILED`), `AuthorizationError` (403, `FORBIDDEN`)
+- New User model column: `password_changed_at TIMESTAMPTZ nullable` — used as security reset timestamp; all tokens issued before this time are rejected
+
 ---
 
 ## Alembic Workflow
@@ -565,6 +638,11 @@ Never auto-run `upgrade head` in production — use GitHub Actions with approval
 | 08 | Scraper | Text chunker (sentence-aware, 512-token, 64-token overlap) | Done | 2026-03-23 |
 | 09 | Scraper | Celery tasks, db.py, impact classifier, full pipeline | Done | 2026-03-23 |
 | 10 | Scraper | Supersession resolver + staleness detection + alerts | Done | 2026-03-23 |
+| 11 | Auth | WorkEmailValidator + InvalidWorkEmailError | Done | 2026-03-23 |
+| 11b | Auth | OTPService + EmailService + 6 email templates | Done | 2026-03-23 |
+| 13 | Auth | Auth router — register, login, verify-otp, refresh, logout + JWT utils | Done | 2026-03-23 |
+| 14 | Auth | Auth dependencies — get_current_user, require_active/verified/admin/credits | Done | 2026-03-23 |
+| 14b | Auth | Frontend auth pages + API client + Zustand store + 401 interceptor | Done | 2026-03-23 |
 
 ### Prompt [01] — What Was Built
 - `backend/` — FastAPI app with `/api/v1/health`, `requirements.txt` (26 deps), Dockerfile
@@ -723,6 +801,46 @@ Never auto-run `upgrade head` in production — use GitHub Actions with approval
   - `model_post_init` validator: (1) raises `RuntimeError` listing missing required vars, (2) raises `RuntimeError` if `DEMO_MODE=true` + `ENVIRONMENT=prod`
 - `scraper/config.py` — `ScraperSettings` with same pattern (subset: DB, Redis, OpenAI, Anthropic, SMTP, admin, environment)
 - `.env.example` — updated with all new variables (JWT_BLACKLIST_TTL, LLM_FALLBACK_MODEL, LLM_SUMMARY_MODEL, EMBEDDING_DIMS, RAG_*, SENTRY_DSN)
+
+### Prompt [14b] — Frontend Auth Pages + API Client
+- `frontend/src/lib/api/auth.ts` — typed API client for all 5 auth endpoints:
+  - `registerUser`, `loginUser`, `verifyOtp`, `refreshToken`, `logoutUser`
+  - Full TypeScript types mirroring backend `schemas/auth.py`: `RegisterRequest`, `LoginRequest`, `OTPVerifyRequest`, `RefreshTokenRequest`, `AuthResponse`, `MessageResponse`, `UserResponse`, `TokenResponse`, `ApiError`
+- `frontend/src/stores/authStore.ts` — Zustand auth store:
+  - **Access token in memory (Zustand) — NOT localStorage**
+  - Refresh token also in memory — backend can optionally set httpOnly cookie
+  - `setAuth(user, accessToken, refreshToken)`, `clearAuth()`, `logout()`, `silentRefresh()`
+- `frontend/src/lib/api.ts` — axios client with 401 auto-refresh interceptor:
+  - Request interceptor attaches Bearer token from Zustand store
+  - Response interceptor: on 401, calls `/auth/refresh` once, retries original request
+  - On second 401 (refresh fails): clears auth state (logs out)
+  - Queue-based: concurrent 401s wait for single refresh, then all retry
+  - Skips interceptor for `/auth/refresh` and `/auth/logout` requests
+- `frontend/src/components/OTPInput.tsx` — 6-digit OTP component:
+  - 6 individual `<input>` boxes, one digit each
+  - Auto-advances focus on input, backspace moves back
+  - Paste support fills all 6 digits
+  - Auto-submits via `onComplete` callback when last digit entered
+- `frontend/src/app/(auth)/layout.tsx` — shared auth layout (centered card, branding)
+- `frontend/src/app/(auth)/register/page.tsx` — registration form:
+  - Work email (required), full name (required), designation, org name, org type dropdown
+  - Hidden honeypot field for bot detection
+  - TanStack Query `useMutation` for submission
+  - On success → redirects to `/verify?email=...&purpose=register`
+- `frontend/src/app/(auth)/login/page.tsx` — login form:
+  - Email input only, `useMutation` for submission
+  - On success → redirects to `/verify?email=...&purpose=login`
+- `frontend/src/app/(auth)/verify/page.tsx` — OTP verification:
+  - Reads `email` and `purpose` from URL search params
+  - Uses `OTPInput` component (6 individual digit boxes, auto-submit)
+  - On success → stores tokens in Zustand memory, redirects to `/dashboard`
+  - Masked email display for privacy
+- `frontend/src/providers/QueryProvider.tsx` — TanStack Query `QueryClientProvider` wrapper
+- `frontend/src/app/layout.tsx` — updated to wrap children in `QueryProvider`
+- `frontend/.eslintrc.json` — added `@typescript-eslint/parser` + `@typescript-eslint/eslint-plugin`
+- `frontend/package.json` — added `@tanstack/react-query`, `@typescript-eslint/eslint-plugin`, `@typescript-eslint/parser`
+- **Zero TypeScript errors** (`pnpm tsc --noEmit` passes)
+- **Zero ESLint + Prettier errors** (`pnpm lint` passes)
 
 ---
 

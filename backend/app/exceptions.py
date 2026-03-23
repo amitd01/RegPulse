@@ -39,6 +39,46 @@ class CircularNotFoundError(RegPulseException):
         super().__init__(message)
 
 
+class InvalidWorkEmailError(RegPulseException):
+    http_status = 422
+    error_code = "INVALID_WORK_EMAIL"
+
+    def __init__(self, message: str = "A valid work email address is required") -> None:
+        super().__init__(message)
+
+
+class OTPRateLimitError(RegPulseException):
+    http_status = 429
+    error_code = "OTP_RATE_LIMIT"
+
+    def __init__(self, message: str = "Too many OTP requests; try again later") -> None:
+        super().__init__(message)
+
+
+class OTPVerificationError(RegPulseException):
+    http_status = 400
+    error_code = "OTP_VERIFICATION_FAILED"
+
+    def __init__(self, message: str = "Invalid or expired OTP") -> None:
+        super().__init__(message)
+
+
+class AuthenticationError(RegPulseException):
+    http_status = 401
+    error_code = "AUTHENTICATION_FAILED"
+
+    def __init__(self, message: str = "Authentication required") -> None:
+        super().__init__(message)
+
+
+class AuthorizationError(RegPulseException):
+    http_status = 403
+    error_code = "FORBIDDEN"
+
+    def __init__(self, message: str = "You do not have permission to perform this action") -> None:
+        super().__init__(message)
+
+
 class ServiceUnavailableError(RegPulseException):
     http_status = 503
     error_code = "SERVICE_UNAVAILABLE"

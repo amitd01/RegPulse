@@ -9,6 +9,8 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class RegisterRequest(BaseModel):
+    """Step 1: validate work email and send registration OTP."""
+
     email: EmailStr
     full_name: str = Field(min_length=1, max_length=255)
     designation: str | None = Field(default=None, max_length=255)
@@ -17,13 +19,25 @@ class RegisterRequest(BaseModel):
     honeypot: str | None = Field(default=None, exclude=True, description="Bot trap field")
 
 
-class OTPRequest(BaseModel):
-    email: EmailStr
-
-
 class OTPVerifyRequest(BaseModel):
+    """Step 2: verify OTP. For registration, creates user + issues tokens.
+    For login, issues tokens for existing user.
+    """
+
     email: EmailStr
     otp: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
+    purpose: str = Field(default="login", pattern=r"^(register|login)$")
+    # Registration fields — required when purpose=register, ignored for login
+    full_name: str | None = Field(default=None, max_length=255)
+    designation: str | None = Field(default=None, max_length=255)
+    org_name: str | None = Field(default=None, max_length=255)
+    org_type: str | None = Field(default=None, max_length=50)
+
+
+class LoginRequest(BaseModel):
+    """Send login OTP to an existing user."""
+
+    email: EmailStr
 
 
 class RefreshTokenRequest(BaseModel):

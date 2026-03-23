@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     JWT_PRIVATE_KEY: str
     JWT_PUBLIC_KEY: str
     JWT_BLACKLIST_TTL: int = 3600
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
 
     # --- LLM ---
     OPENAI_API_KEY: str
@@ -52,6 +54,11 @@ class Settings(BaseSettings):
 
     # --- Admin ---
     ADMIN_EMAIL_ALLOWLIST: list[str] = []
+
+    # --- OTP ---
+    OTP_EXPIRY_MINUTES: int = 10
+    OTP_MAX_ATTEMPTS: int = 5
+    OTP_MAX_SENDS_PER_HOUR: int = 3
 
     # --- Application ---
     FREE_CREDIT_GRANT: int = 5
@@ -95,15 +102,11 @@ class Settings(BaseSettings):
         ]
         missing = [k for k in _required if not getattr(self, k, None)]
         if missing:
-            raise RuntimeError(
-                f"Missing required environment variables: {', '.join(missing)}"
-            )
+            raise RuntimeError(f"Missing required environment variables: {', '.join(missing)}")
 
         # (2) DEMO_MODE blocked in production
         if self.DEMO_MODE and self.ENVIRONMENT == "prod":
-            raise RuntimeError(
-                "DEMO_MODE=true is not allowed when ENVIRONMENT=prod"
-            )
+            raise RuntimeError("DEMO_MODE=true is not allowed when ENVIRONMENT=prod")
 
 
 @lru_cache
