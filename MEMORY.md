@@ -511,6 +511,17 @@ All ORM enum classes use `enum.StrEnum` — NOT `(str, enum.Enum)`. Resolves ruf
 - **`admin_audit_log` constraint:** `actor_id UUID NOT NULL FK users` — scraper has no user context, so automated supersession events are logged via structlog only. To write to `admin_audit_log` from scraper, a system/bot user row would need to be seeded in `users` table first (future enhancement)
 - `rapidfuzz` added to `scraper/requirements.txt`
 
+**WorkEmailValidator patterns (established in Prompt 11):**
+- `backend/app/services/email_validator.py` — `WorkEmailValidator` class
+- Static blocklist: `config/free_email_blocklist.json` (250+ free/disposable domains)
+- `validate(email)` → `ValidationResult(is_valid, reason, requires_review)` — async
+- Validation steps: (1) format check, (2) extract domain, (3) blocklist lookup, (4) async MX record check via `aiodns`
+- Low-traffic domains (no MX or unrecognized) return `requires_review=True` → triggers `pending_domain_reviews` table entry
+- **PII-safe logging:** only domain names are logged, never full email addresses
+- `InvalidWorkEmailError` exception in `app/exceptions.py` — HTTP 422, code `INVALID_WORK_EMAIL`
+- `aiodns` added to `backend/requirements.txt`
+- Blocklist is loaded once at class level (`ClassVar`) — not reloaded per request
+
 ---
 
 ## Alembic Workflow
