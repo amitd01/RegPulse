@@ -45,6 +45,7 @@ class UserResponse(BaseModel):
 
     id: uuid.UUID
     email: str
+    email_verified: bool
     full_name: str
     designation: str | None = None
     org_name: str | None = None

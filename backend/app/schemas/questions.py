@@ -50,6 +50,7 @@ class QuestionSummary(BaseModel):
 
 class QuestionDetail(QuestionSummary):
     answer_text: str | None = None
+    prompt_version: str | None = None
     affected_teams: list[str] | None = None
     citations: list[CitationItem] | None = None
     recommended_actions: list[RecommendedAction] | None = None

@@ -122,6 +122,7 @@ class AnalyticsEventResponse(BaseModel):
     user_hash: str
     event_type: str
     event_data: dict | None = None
+    session_id: str | None = None
     created_at: datetime
 
 
