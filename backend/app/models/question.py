@@ -10,11 +10,11 @@ from sqlalchemy import (
     Date,
     DateTime,
     Enum,
+    ForeignKey,
     Integer,
     SmallInteger,
     String,
     Text,
-    ForeignKey,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -22,7 +22,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models import Base
 
 
-class ActionItemStatus(str, enum.Enum):
+class ActionItemStatus(enum.StrEnum):
     PENDING = "PENDING"
     IN_PROGRESS = "IN_PROGRESS"
     COMPLETED = "COMPLETED"

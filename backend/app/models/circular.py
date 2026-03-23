@@ -10,10 +10,10 @@ from sqlalchemy import (
     Date,
     DateTime,
     Enum,
+    ForeignKey,
     Integer,
     String,
     Text,
-    ForeignKey,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -21,7 +21,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models import Base
 
 
-class DocType(str, enum.Enum):
+class DocType(enum.StrEnum):
     CIRCULAR = "CIRCULAR"
     MASTER_DIRECTION = "MASTER_DIRECTION"
     NOTIFICATION = "NOTIFICATION"
@@ -30,13 +30,13 @@ class DocType(str, enum.Enum):
     OTHER = "OTHER"
 
 
-class CircularStatus(str, enum.Enum):
+class CircularStatus(enum.StrEnum):
     ACTIVE = "ACTIVE"
     SUPERSEDED = "SUPERSEDED"
     DRAFT = "DRAFT"
 
 
-class ImpactLevel(str, enum.Enum):
+class ImpactLevel(enum.StrEnum):
     HIGH = "HIGH"
     MEDIUM = "MEDIUM"
     LOW = "LOW"
@@ -58,7 +58,9 @@ class CircularDocument(Base):
     effective_date: Mapped[date | None] = mapped_column(Date)
     rbi_url: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[CircularStatus] = mapped_column(
-        Enum(CircularStatus, name="circular_status_enum"), nullable=False, default=CircularStatus.ACTIVE
+        Enum(CircularStatus, name="circular_status_enum"),
+        nullable=False,
+        default=CircularStatus.ACTIVE,
     )
     superseded_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("circular_documents.id", ondelete="SET NULL")
