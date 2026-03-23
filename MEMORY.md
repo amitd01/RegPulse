@@ -449,6 +449,15 @@ All ORM enum classes use `enum.StrEnum` — NOT `(str, enum.Enum)`. Resolves ruf
 - Admin router is a sub-package at `app.routers.admin/` with 6 sub-routers: dashboard, review, prompts, users, circulars, scraper.
 - `sentence-transformers==3.3.1` and `pybreaker==1.2.0` are in `backend/requirements.txt`.
 
+**Embedding service pattern (standalone, no scraper imports):**
+- `backend/app/services/embedding_service.py` — `EmbeddingService` class, NEVER imports from `scraper/`
+- Constructor takes `openai_client` and `redis` — initialized in `main.py` lifespan, stored as `app.state.embedding_service`
+- `get_embedding_service(request)` is the FastAPI `Depends()` dependency
+- `generate(texts)` batches in groups of 100, uses `asyncio.gather`, retries on `RateLimitError` (tenacity, 5 attempts, random exponential backoff)
+- `generate_single(text)` is a convenience wrapper
+- Cache: `sha256(text)` → Redis key `emb:{hash}`, TTL 86400s (24h)
+- tiktoken `cl100k_base` token count logged with estimated USD cost before each API call
+
 ---
 
 ## Alembic Workflow
@@ -538,6 +547,16 @@ Never auto-run `upgrade head` in production — use GitHub Actions with approval
 - `backend/app/routers/admin/` — sub-router package: `dashboard`, `review`, `prompts`, `users`, `circulars`, `scraper`
 - `backend/requirements.txt` — added `sentence-transformers==3.3.1`, `pybreaker==1.2.0`
 - **Key decisions:** cross-encoder load has 30s timeout with graceful `None` fallback (RAG service skips reranking); webhook path explicitly excluded from CORS
+
+### Prompt [04b] — Embedding Service (Standalone)
+- `backend/app/services/embedding_service.py` — `EmbeddingService` class:
+  - `generate(texts)`: batches of 100, `asyncio.gather`, tenacity retry (5 attempts) on `RateLimitError`
+  - `generate_single(text)`: convenience wrapper
+  - Redis cache: `sha256(text)` → `emb:{hash}` key, TTL 86400s (24h)
+  - tiktoken `cl100k_base` token count + estimated USD cost logged before API call
+  - `get_embedding_service()` FastAPI dependency reads from `app.state.embedding_service`
+- `backend/app/main.py` — lifespan step 6: init `EmbeddingService` with `app.state.openai_client` + `redis_client`
+- **Critical constraint:** zero imports from `scraper/` — verified via grep (improvement A9/B3)
 
 ### Prompt [03] — What Was Built
 - `backend/app/config.py` — Pydantic `BaseSettings` singleton (`@lru_cache`) with all env vars:

@@ -159,6 +159,19 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     )
     log.info("llm_clients_initialized")
 
+    # 6. Init EmbeddingService → app.state
+    from app.services.embedding_service import EmbeddingService
+
+    app.state.embedding_service = EmbeddingService(
+        openai_client=app.state.openai_client,
+        redis=redis_client,
+    )
+    log.info(
+        "embedding_service_initialized",
+        model=settings.EMBEDDING_MODEL,
+        dims=settings.EMBEDDING_DIMS,
+    )
+
     yield
 
     # Shutdown

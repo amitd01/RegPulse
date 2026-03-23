@@ -40,9 +40,10 @@ The project is built using 50 sequential Claude Code prompts in `../files/RegPul
 | 02 | PostgreSQL schema + pgvector + Alembic + ORM models | Done | A1, A2, A3, A4, D1 |
 | 03 | Pydantic Settings config.py (backend + scraper) | Done | D7 (DEMO_MODE prod block) |
 | 04 | FastAPI bootstrap, exceptions, db, cache, structlog, routers | Done | A5 (/api/v1/ prefix), A6 (cross-encoder timeout), D4 (webhook CORS exclude) |
+| 04b | Standalone embedding service (no scraper imports) | Done | A9 (shared embedding service), B3 (no cross-module import) |
 | 05–50 | Remaining prompts | Pending | — |
 
-**Last updated:** 2026-03-23 after Prompt [04]
+**Last updated:** 2026-03-23 after Prompt [04b]
 
 ## File Reference
 
