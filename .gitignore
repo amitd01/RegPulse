@@ -1,1 +1,5 @@
 .env
+scraper/.venv/
+__pycache__/
+*.pyc
+scraper/test_RBI.pdf
