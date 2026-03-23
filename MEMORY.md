@@ -499,6 +499,18 @@ All ORM enum classes use `enum.StrEnum` — NOT `(str, enum.Enum)`. Resolves ruf
 - `SupersessionResolver` is fully implemented (Prompt 10): exact + fuzzy match, SELECT FOR UPDATE, staleness detection via JSONB `@>`, send_staleness_alerts Celery task
 - `_run_async()` helper bridges async crawler/extractor code into sync Celery context
 
+**SupersessionResolver patterns (established in Prompt 10):**
+- `scraper/processor/supersession_resolver.py` — `SupersessionResolver` class, NEVER imports from `backend/`
+- `resolve(session, new_document_id, supersession_refs)` → int — caller manages commit
+- **Lookup order:** exact match on `circular_number` → rapidfuzz `fuzz.ratio` fuzzy match (threshold 90) on Redis-cached list
+- **Redis cache:** `regpulse:circular_numbers` key, stores `[(circular_number, id_str), ...]`, TTL 1800s; invalidated after any supersession update
+- **SELECT FOR UPDATE** on the circular row before updating — atomic `status='SUPERSEDED'`, `superseded_by=new_id`
+- **Reverse check:** skips if old doc already has `superseded_by` pointing to the new doc (prevents circular supersession)
+- **Staleness detection:** queries `questions.citations @> '[{"circular_number": "..."}]'::jsonb` (uses GIN index), then `UPDATE saved_interpretations SET needs_review=TRUE WHERE question_id = ANY(:qids::uuid[])`
+- **Alert task:** `send_staleness_alerts(circular_id)` — queries affected users via `saved_interpretations → questions → citations`, sends HTML email via SMTP
+- **`admin_audit_log` constraint:** `actor_id UUID NOT NULL FK users` — scraper has no user context, so automated supersession events are logged via structlog only. To write to `admin_audit_log` from scraper, a system/bot user row would need to be seeded in `users` table first (future enhancement)
+- `rapidfuzz` added to `scraper/requirements.txt`
+
 ---
 
 ## Alembic Workflow
@@ -535,6 +547,7 @@ Never auto-run `upgrade head` in production — use GitHub Actions with approval
 | TD-07 | Auto-renewal needs Razorpay saved payment method | V1: renewal email only; full auto-charge via Razorpay Subscriptions API in v2 |
 | TD-08 | Query expansion adds ~0.5s latency (RAG_QUERY_EXPANSION) | Default false — enable after baseline latency measured and headroom confirmed |
 | TD-09 | DPDP soft-delete retains question records for analytics | Review after 12 months for full deletion option |
+| TD-10 | `admin_audit_log.actor_id` is NOT NULL FK to `users` — scraper cannot log automated actions | Seed a system/bot user row in `users` to enable audit logging from scraper; for now supersession events logged via structlog |
 
 ---
 
