@@ -81,8 +81,9 @@ regpulse/
 │   │   │   ├── email_validator.py
 │   │   │   ├── otp_service.py
 │   │   │   ├── email_service.py
-│   │   │   ├── embedding_service.py  # Standalone — NOT imported from scraper
-│   │   │   ├── rag_service.py        # Hybrid BM25+vector with RRF
+│   │   │   ├── embedding_service.py          # Standalone — NOT imported from scraper
+│   │   │   ├── circular_library_service.py  # Hybrid search, autocomplete, facets
+│   │   │   ├── rag_service.py               # Hybrid BM25+vector with RRF
 │   │   │   ├── llm_service.py        # Injection defense + structured JSON + fallback
 │   │   │   ├── summary_service.py
 │   │   │   ├── action_item_service.py

@@ -47,9 +47,11 @@ The project is built using 50 sequential Claude Code prompts in `../files/RegPul
 | 08 | Text chunker (sentence-aware, 512-token, 64-overlap) | Done | — |
 | 09 | Celery tasks, db.py, impact classifier, full pipeline | Done | — |
 | 10 | Supersession resolver + staleness detection + alerts | Done | — |
-| 11–50 | Remaining prompts | Pending | — |
+| 11–14 | Remaining prompts (pre-library) | Pending | — |
+| 15 | Circular Library API — Hybrid Search + Autocomplete | Done | A5 (hybrid RRF), A9 (embedding service reuse) |
+| 16–50 | Remaining prompts | Pending | — |
 
-**Last updated:** 2026-03-23 after Prompt [10]
+**Last updated:** 2026-03-23 after Prompt [15]
 
 ## File Reference
 

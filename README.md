@@ -37,19 +37,19 @@
 
 | Phase | Prompt(s) | Description | Status |
 |-------|-----------|-------------|--------|
-| 1 — Infrastructure | 01 | Monorepo scaffolding (backend/scraper/frontend, Docker, configs) | Done |
-| 1 — Infrastructure | 02 | PostgreSQL schema + pgvector + Alembic + ORM models | Done |
-| 1 — Infrastructure | 03 | Pydantic Settings + structured logging | Pending |
-| 2 — Auth & Users | 04–09 | Email validation, OTP, JWT, registration, middleware | Pending |
-| 3 — Scraper | 10–17 | Crawl, PDF extract, chunk, embed, classify, supersession | Pending |
-| 4 — RAG Q&A | 18–23 | Hybrid retrieval, LLM service, SSE streaming, caching | Pending |
-| 5 — Subscriptions | 24–27 | Plans, Razorpay, credit system | Pending |
-| 6 — Admin | 25–32 | Review, prompts, dashboard, scraper controls | Pending |
-| 7 — Frontend | 33–42 | All pages: auth, library, ask, history, admin | Pending |
-| 8 — Polish | 43–47 | Action items, saved items, analytics, load tests | Pending |
-| 9 — Deploy | 48–50 | CI/CD, Nginx, launch checks | Pending |
+| 1 — Infrastructure | 01–04b | Monorepo, schema, config, FastAPI bootstrap, embedding service | Done |
+| 2 — Scraper | 05–10 | Crawl, PDF extract, metadata, chunking, Celery, supersession | Done |
+| 3 — Auth | 11–14 | Email validation, OTP, JWT, auth routes, frontend auth | Done |
+| 4 — Circular Library | 15 | Hybrid search API (vector + BM25 RRF), autocomplete, facets | Done |
+| 4 — Circular Library | 16–17 | Library frontend, circular detail page | Pending |
+| 5 — RAG Q&A | 18–23 | Hybrid retrieval, LLM service, SSE streaming, caching | Pending |
+| 6 — Subscriptions | 24–27 | Plans, Razorpay, credit system | Pending |
+| 7 — Admin | 28–32 | Review, prompts, dashboard, scraper controls | Pending |
+| 8 — Frontend | 33–42 | All pages: auth, library, ask, history, admin | Pending |
+| 9 — Polish | 43–47 | Action items, saved items, analytics, load tests | Pending |
+| 10 — Deploy | 48–50 | CI/CD, Nginx, launch checks | Pending |
 
-**Last updated:** 2026-03-21 — Prompt [02] complete
+**Last updated:** 2026-03-23 — Prompt [15] complete (Sprint 4 start)
 
 ---
 

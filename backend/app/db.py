@@ -8,13 +8,16 @@ from app.config import get_settings
 
 _settings = get_settings()
 
-engine = create_async_engine(
-    _settings.DATABASE_URL,
-    pool_size=10,
-    max_overflow=20,
-    pool_pre_ping=True,
-    echo=(_settings.ENVIRONMENT == "dev"),
-)
+_engine_kwargs: dict = {
+    "pool_pre_ping": True,
+    "echo": (_settings.ENVIRONMENT == "dev"),
+}
+# pool_size / max_overflow not supported by SQLite
+if not _settings.DATABASE_URL.startswith("sqlite"):
+    _engine_kwargs["pool_size"] = 10
+    _engine_kwargs["max_overflow"] = 20
+
+engine = create_async_engine(_settings.DATABASE_URL, **_engine_kwargs)
 
 async_session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
