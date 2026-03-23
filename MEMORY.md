@@ -507,6 +507,7 @@ Never auto-run `upgrade head` in production — use GitHub Actions with approval
 | 04 | Infrastructure | FastAPI bootstrap, exceptions, db, cache, structlog, CORS, routers | Done | 2026-03-23 |
 | 05 | Scraper | RBI website crawler — URL discovery | Done | 2026-03-23 |
 | 06 | Scraper | PDF download + text extraction (pdfplumber + OCR) | Done | 2026-03-23 |
+| 07 | Scraper | Metadata extraction (circular_number, dates, department, teams) | Done | 2026-03-23 |
 
 ### Prompt [01] — What Was Built
 - `backend/` — FastAPI app with `/api/v1/health`, `requirements.txt` (26 deps), Dockerfile
@@ -580,6 +581,22 @@ Never auto-run `upgrade head` in production — use GitHub Actions with approval
   - `extract(url)` → `ExtractedDocument`: tries pdfplumber first; falls back to OCR if text blank or >25% non-ASCII
   - `ExtractedDocument` fields: raw_text, extraction_method ("pdfplumber"|"ocr"), page_count, warnings
   - Temp files cleaned up in `finally` block (`_cleanup_temp_dir()`)
+- **No backend/app imports** — standalone scraper module
+
+### Prompt [07] — Metadata Extractor
+- `scraper/extractor/constants.py` — RBI department abbreviations (30+), team taxonomy keywords (6 teams), supersession patterns, action deadline triggers
+- `scraper/extractor/metadata_extractor.py` — `MetadataExtractor` class + `CircularMetadata` dataclass:
+  - `extract(raw_text, source_url)` → `CircularMetadata`: main entry point
+  - `_extract_circular_number()`: regex `RBI/YYYY-YY/NNN` format
+  - `_extract_department()`: matches dept ref codes (DOR, DPSS, FED, etc.) against `RBI_DEPARTMENTS` dict
+  - `_extract_issued_date()`: prefers standalone date before salutation line; fallback to "dated" keyword; then first date in header
+  - `_extract_effective_date()`: scans for "effective from", "operative from", "w.e.f." triggers
+  - `_extract_action_deadline()`: scans for "last date", "on or before", "submit by", "implement by", "comply by" triggers — nullable for amendment circulars
+  - `_extract_affected_teams()`: keyword-based classification against 6-team taxonomy (Compliance, Risk Management, Operations, Legal, IT Security, Finance) — requires 2+ keyword hits; Compliance always included for RBI circulars
+  - `_extract_supersession_refs()`: finds supersession trigger phrases + nearby circular numbers
+  - `_calculate_confidence()`: weighted score (0.0–1.0) based on fields extracted
+  - Date parsing supports: "March 10, 2026", "10 March 2026", "10th March 2026", "Mar 10, 2026", "10-03-2026", "2026-03-10"
+- `CircularMetadata` fields: circular_number, department, department_code, issued_date, effective_date, action_deadline, affected_teams, supersession_refs, confidence_score — all Optional except confidence_score
 - **No backend/app imports** — standalone scraper module
 
 ### Prompt [03] — What Was Built
