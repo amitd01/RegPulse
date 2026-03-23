@@ -458,6 +458,26 @@ All ORM enum classes use `enum.StrEnum` — NOT `(str, enum.Enum)`. Resolves ruf
 - Cache: `sha256(text)` → Redis key `emb:{hash}`, TTL 86400s (24h)
 - tiktoken `cl100k_base` token count logged with estimated USD cost before each API call
 
+**Metadata extractor patterns (established in Prompt 07):**
+- `scraper/extractor/metadata_extractor.py` — `MetadataExtractor` class, NEVER imports from `backend/`
+- `scraper/extractor/constants.py` — all lookup tables live here (departments, team keywords, patterns)
+- `MetadataExtractor.extract(raw_text, source_url)` → `CircularMetadata` dataclass
+- `CircularMetadata` fields map directly to `circular_documents` table columns:
+  - `circular_number` → `circular_number VARCHAR(100)` — regex `RBI/YYYY-YY/NNN`
+  - `department` → `department VARCHAR(255)` — full name resolved from dept ref code
+  - `department_code` — intermediate value (e.g. `DOR`, `DPSS`, `FED`), not stored in DB
+  - `issued_date` → `issued_date DATE` — pre-salutation header date preferred over "dated" in body
+  - `effective_date` → `effective_date DATE` — "effective from" / "w.e.f." triggers
+  - `action_deadline` → `action_deadline DATE` — "last date" / "submit by" / "on or before" triggers; **nullable** for amendment circulars
+  - `affected_teams` → `affected_teams JSONB` — keyword classification against 6-team taxonomy; Compliance always included
+  - `supersession_refs` — list of `RBI/YYYY-YY/NNN` refs near supersession phrases; feeds `supersession_resolver.py` (Prompt 08+)
+  - `confidence_score` — 0.0–1.0 weighted score; not stored in DB, used for logging/alerting
+- Date parsing handles: `"March 10, 2026"`, `"10 March 2026"`, `"10th March 2026"`, `"Mar 10, 2026"`, `"10-03-2026"`, `"2026-03-10"`
+- Hindi header `"भारतीय रज़वर् बैंक"` is skipped — not parsed
+- `RBI_DEPARTMENTS` dict in `constants.py` has 30+ abbreviations — add new ones there as discovered
+- `TEAM_KEYWORDS` dict in `constants.py` — 6 teams × 20+ keywords each; threshold is 2+ keyword hits to classify
+- Page markers in raw_text are `"--- Page N ---"` format from `PDFExtractor`
+
 ---
 
 ## Alembic Workflow
