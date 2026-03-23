@@ -408,6 +408,49 @@ Update store optimistically after API calls. Do not re-fetch full user object on
 
 ---
 
+## Claude Code Session Rules (Learned from Build)
+
+These are hard constraints discovered during actual execution — apply to every session.
+
+**Before writing any code in a session:**
+1. Read `MEMORY.md` completely (all lines)
+2. Read the existing files in the directory you are about to write to — never assume what is already there
+3. Read `backend/migrations/001_initial_schema.sql` for any session that touches models or schemas — this is the ground truth for column names and types
+
+**Known environment constraints:**
+- `atlassian.net` is blocked by proxy in Claude Code — do not attempt to fetch Jira ticket descriptions. Use `RegPulse_RevisedPrompts_v2.docx` or the prompt text already in MEMORY.md instead.
+- `node_modules` may not be installed in the frontend. `make lint` frontend failure on missing `node_modules` is pre-existing — not introduced by the session. Run `pnpm install` first if needed.
+
+**Schema field corrections applied in REG-59 (02b):**
+During SQL-schema comparison, 4 fields were found missing from initial ORM models and added:
+- `document_id` — added to `DocumentChunk` model
+- `email_verified` — added to `User` model
+- `prompt_version` — added to `Question` model
+- `session_id` — added to `Session` model
+All 4 are now correct in `backend/app/models/`. Any session touching these models must verify against `001_initial_schema.sql` directly.
+
+**Enum pattern (fixed in REG-59):**
+All ORM enum classes use `enum.StrEnum` — NOT `(str, enum.Enum)`. Resolves ruff UP042. Do not revert.
+
+**Config pattern (established in REG-60):**
+- Import: `from app.config import get_settings; settings = get_settings()`
+- `ADMIN_EMAIL_ALLOWLIST` is `list[str]` — `@field_validator` parses comma-separated input. Never treat as raw string.
+- `scraper/config.py` uses `ScraperSettings` — do NOT import `app.config` from the scraper package.
+- Startup guard in `model_post_init` raises `RuntimeError` on missing vars or `DEMO_MODE=True + ENVIRONMENT=prod`.
+- `.env.example` is the canonical reference for all env var names and defaults.
+
+**FastAPI app patterns (established in REG-61):**
+- All routers mounted at `/api/v1/` prefix — never deviate.
+- Health endpoints (`/api/v1/health`, `/api/v1/health/ready`) are registered directly on `app`, not via a router.
+- `app.state.cross_encoder` may be `None` if model failed to load (30s timeout on startup). All code using it must check for `None` first and skip reranking gracefully.
+- Exception classes live in `app.exceptions` — import from there, never redefine.
+- Error response shape is always `{success: false, error: str, code: str}` — never expose stack traces.
+- `get_db()` is in `app.db`, `get_redis()` is in `app.cache` — always use as FastAPI `Depends()`, never instantiate directly in route handlers.
+- Admin router is a sub-package at `app.routers.admin/` with 6 sub-routers: dashboard, review, prompts, users, circulars, scraper.
+- `sentence-transformers==3.3.1` and `pybreaker==1.2.0` are in `backend/requirements.txt`.
+
+---
+
 ## Alembic Workflow
 
 Set up in **Prompt 02**. Every prompt that adds columns or tables must include:
