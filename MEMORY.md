@@ -505,7 +505,7 @@ Never auto-run `upgrade head` in production — use GitHub Actions with approval
 | 02 | Infrastructure | PostgreSQL schema + pgvector + Alembic + ORM models | Done | 2026-03-21 |
 | 03 | Infrastructure | Pydantic Settings config.py (backend + scraper) | Done | 2026-03-23 |
 | 04 | Infrastructure | FastAPI bootstrap, exceptions, db, cache, structlog, CORS, routers | Done | 2026-03-23 |
-| 05 | Scraper | RBI website crawler — URL discovery | Pending | — |
+| 05 | Scraper | RBI website crawler — URL discovery | Done | 2026-03-23 |
 
 ### Prompt [01] — What Was Built
 - `backend/` — FastAPI app with `/api/v1/health`, `requirements.txt` (26 deps), Dockerfile
@@ -557,6 +557,19 @@ Never auto-run `upgrade head` in production — use GitHub Actions with approval
   - `get_embedding_service()` FastAPI dependency reads from `app.state.embedding_service`
 - `backend/app/main.py` — lifespan step 6: init `EmbeddingService` with `app.state.openai_client` + `redis_client`
 - **Critical constraint:** zero imports from `scraper/` — verified via grep (improvement A9/B3)
+
+### Prompt [05] — RBI Website Crawler
+- `scraper/crawler/rbi_crawler.py` — `RBICrawler` class + `RBIDocumentLink` dataclass:
+  - `fetch_document_links(section_url)` → `list[RBIDocumentLink]`: GET page via httpx, BeautifulSoup4/lxml parse, extract anchor links with url, link_text, raw_date_str, doc_type
+  - `get_new_documents(sections, seen_urls)` → `list[RBIDocumentLink]`: crawls all sections, returns only URLs not in `seen_urls`
+  - Crawl targets: Notifications, Master Directions, Press Releases, FAQs (mapped to `doc_type_enum` values)
+  - Rotating User-Agent pool (4 desktop browsers)
+  - 1–2s random delay between requests (`asyncio.sleep`)
+  - robots.txt compliance via `urllib.robotparser`
+  - tenacity retry: 3 attempts, exponential backoff on `httpx.HTTPStatusError` / `httpx.TransportError`
+  - `_extract_date_from_context()` heuristic: searches sibling `<td>` cells in `<tr>` for date-like strings
+- `RBIDocumentLink` dataclass fields: url, link_text, raw_date_str, doc_type, section, discovered_at
+- **No backend/app imports** — standalone scraper module
 
 ### Prompt [03] — What Was Built
 - `backend/app/config.py` — Pydantic `BaseSettings` singleton (`@lru_cache`) with all env vars:

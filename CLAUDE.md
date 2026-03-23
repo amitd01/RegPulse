@@ -41,9 +41,10 @@ The project is built using 50 sequential Claude Code prompts in `../files/RegPul
 | 03 | Pydantic Settings config.py (backend + scraper) | Done | D7 (DEMO_MODE prod block) |
 | 04 | FastAPI bootstrap, exceptions, db, cache, structlog, routers | Done | A5 (/api/v1/ prefix), A6 (cross-encoder timeout), D4 (webhook CORS exclude) |
 | 04b | Standalone embedding service (no scraper imports) | Done | A9 (shared embedding service), B3 (no cross-module import) |
-| 05–50 | Remaining prompts | Pending | — |
+| 05 | RBI website crawler — URL discovery | Done | — |
+| 06–50 | Remaining prompts | Pending | — |
 
-**Last updated:** 2026-03-23 after Prompt [04b]
+**Last updated:** 2026-03-23 after Prompt [05]
 
 ## File Reference
 
