@@ -495,7 +495,8 @@ All ORM enum classes use `enum.StrEnum` — NOT `(str, enum.Enum)`. Resolves ruf
 - `scraper/tasks.py` — all tasks use `@shared_task(bind=True, soft_time_limit=300)`; import celery_app first in worker startup
 - `process_document` is idempotent: checks `rbi_url` exists before processing, creates `scraper_runs` records
 - `ImpactClassifier` uses `LLM_SUMMARY_MODEL` (Claude Haiku) from `ScraperSettings`; defaults to "MEDIUM" on any API/parse error
-- `Embedder` and `SupersessionResolver` are stubs — full implementation in future prompts
+- `Embedder` is a stub — full implementation in future prompt
+- `SupersessionResolver` is fully implemented (Prompt 10): exact + fuzzy match, SELECT FOR UPDATE, staleness detection via JSONB `@>`, send_staleness_alerts Celery task
 - `_run_async()` helper bridges async crawler/extractor code into sync Celery context
 
 ---
@@ -550,6 +551,7 @@ Never auto-run `upgrade head` in production — use GitHub Actions with approval
 | 07 | Scraper | Metadata extraction (circular_number, dates, department, teams) | Done | 2026-03-23 |
 | 08 | Scraper | Text chunker (sentence-aware, 512-token, 64-token overlap) | Done | 2026-03-23 |
 | 09 | Scraper | Celery tasks, db.py, impact classifier, full pipeline | Done | 2026-03-23 |
+| 10 | Scraper | Supersession resolver + staleness detection + alerts | Done | 2026-03-23 |
 
 ### Prompt [01] — What Was Built
 - `backend/` — FastAPI app with `/api/v1/health`, `requirements.txt` (26 deps), Dockerfile
@@ -674,9 +676,26 @@ Never auto-run `upgrade head` in production — use GitHub Actions with approval
   - HIGH = new requirements/penalties; MEDIUM = amendments; LOW = informational
   - JSON response parsing with graceful fallback to "MEDIUM" on any error
 - `scraper/processor/embedder.py` — `Embedder` stub (returns empty vectors, full impl in future prompt)
-- `scraper/processor/supersession_resolver.py` — `SupersessionResolver` stub (logs + returns 0, full impl in future prompt)
+- `scraper/processor/supersession_resolver.py` — `SupersessionResolver` (stub replaced in Prompt 10)
 - `scraper/requirements.txt` — added `anthropic==0.42.0`
 - **No backend/app imports** — all modules standalone
+
+### Prompt [10] — Supersession Resolver + Staleness Detection
+- `scraper/processor/supersession_resolver.py` — full `SupersessionResolver` implementation (replaces stub):
+  - `resolve(session, new_document_id, supersession_refs)` → int (count of superseded)
+  - `_find_circular(session, cn)`: exact match on `circular_number`, then rapidfuzz fuzzy match (threshold 90) on Redis-cached list (TTL 1800s)
+  - `SELECT FOR UPDATE` on circular row before atomically setting `status='SUPERSEDED'`, `superseded_by=new_id`
+  - Reverse check: skip if old doc already lists new doc as superseding
+  - `_flag_stale_interpretations(session, cn)`: queries `questions.citations @> '[{"circular_number": "..."}]'::jsonb`, updates `saved_interpretations.needs_review=TRUE` for affected question_ids
+  - `_enqueue_staleness_alert(circular_id)`: enqueues `send_staleness_alerts` Celery task
+  - Redis cache: `regpulse:circular_numbers` key, list of `(cn, id)` pairs, TTL 1800s; invalidated after any supersession update
+- `scraper/tasks.py` — added `send_staleness_alerts(circular_id)` Celery task:
+  - Queries affected users via `saved_interpretations → questions → citations JSONB`
+  - Sends HTML email: "A regulation you saved has been updated. Your interpretation [name] may need review."
+  - Uses SMTP settings from `ScraperSettings`
+- `scraper/celery_app.py` — added `send_staleness_alerts` to task routes
+- **Note:** `admin_audit_log` requires `actor_id UUID NOT NULL FK users` — scraper has no user context, so supersession events are logged via structlog, not audit_log table
+- **No backend/app imports** — standalone scraper module
 
 ### Prompt [03] — What Was Built
 - `backend/app/config.py` — Pydantic `BaseSettings` singleton (`@lru_cache`) with all env vars:

@@ -435,6 +435,114 @@ def generate_summary(self, document_id: str) -> dict:  # noqa: ANN001
         return {"status": "failed", "document_id": document_id, "error": str(exc)}
 
 
+@shared_task(bind=True, soft_time_limit=300, name="scraper.tasks.send_staleness_alerts")
+def send_staleness_alerts(self, circular_id: str) -> dict:  # noqa: ANN001
+    """Send staleness alert emails to users with saved interpretations citing a superseded circular.
+
+    Fetches affected users via saved_interpretations → questions → citations JSONB,
+    then sends staleness_alert.html email to each user.
+    """
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+
+    from scraper.config import get_scraper_settings
+
+    logger.info("send_staleness_alerts_started", circular_id=circular_id)
+
+    try:
+        # Get the superseded circular's number
+        with get_db_session() as db:
+            circ_row = db.execute(
+                text(
+                    "SELECT circular_number FROM circular_documents WHERE id = :cid"
+                ),
+                {"cid": circular_id},
+            ).fetchone()
+
+        if not circ_row or not circ_row[0]:
+            return {"status": "skipped", "reason": "no_circular_number"}
+
+        circular_number = circ_row[0]
+
+        # Find saved_interpretations citing this circular (via questions.citations JSONB)
+        pattern = json.dumps([{"circular_number": circular_number}])
+        with get_db_session() as db:
+            rows = db.execute(
+                text("""
+                    SELECT DISTINCT u.email, si.name
+                    FROM saved_interpretations si
+                    JOIN questions q ON si.question_id = q.id
+                    JOIN users u ON si.user_id = u.id
+                    WHERE q.citations @> :pattern::jsonb
+                      AND si.needs_review = TRUE
+                      AND u.is_active = TRUE
+                """),
+                {"pattern": pattern},
+            ).fetchall()
+
+        if not rows:
+            logger.info("send_staleness_alerts_no_affected_users", circular_id=circular_id)
+            return {"status": "skipped", "reason": "no_affected_users"}
+
+        settings = get_scraper_settings()
+        sent = 0
+
+        for row in rows:
+            email_addr = row[0]
+            interpretation_name = row[1]
+            try:
+                msg = MIMEMultipart("alternative")
+                msg["Subject"] = "RegPulse: A regulation you saved has been updated"
+                msg["From"] = settings.SMTP_FROM
+                msg["To"] = email_addr
+
+                html_body = (
+                    "<html><body>"
+                    "<p>A regulation you saved has been updated.</p>"
+                    f"<p>Your interpretation <strong>{interpretation_name}</strong> "
+                    f"references circular <strong>{circular_number}</strong>, "
+                    "which has been superseded by a newer circular.</p>"
+                    "<p>Your interpretation may need review. Please log in to RegPulse "
+                    "to check for updates.</p>"
+                    "</body></html>"
+                )
+                msg.attach(MIMEText(html_body, "html"))
+
+                with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+                    server.starttls()
+                    server.login(settings.SMTP_USER, settings.SMTP_PASS)
+                    server.sendmail(settings.SMTP_FROM, email_addr, msg.as_string())
+                sent += 1
+            except Exception:
+                logger.warning(
+                    "staleness_alert_send_failed",
+                    email=email_addr,
+                    exc_info=True,
+                )
+
+        logger.info(
+            "send_staleness_alerts_completed",
+            circular_id=circular_id,
+            circular_number=circular_number,
+            affected_users=len(rows),
+            emails_sent=sent,
+        )
+        return {"status": "success", "emails_sent": sent, "circular_number": circular_number}
+
+    except SoftTimeLimitExceeded:
+        logger.error("send_staleness_alerts_timeout", circular_id=circular_id)
+        raise
+    except Exception as exc:
+        logger.error(
+            "send_staleness_alerts_failed",
+            circular_id=circular_id,
+            error=str(exc),
+            exc_info=True,
+        )
+        return {"status": "failed", "circular_id": circular_id, "error": str(exc)}
+
+
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------

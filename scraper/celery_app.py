@@ -47,6 +47,7 @@ app.conf.update(
         "scraper.tasks.priority_scrape": {"queue": "scraper"},
         "scraper.tasks.process_document": {"queue": "scraper"},
         "scraper.tasks.generate_summary": {"queue": "scraper"},
+        "scraper.tasks.send_staleness_alerts": {"queue": "scraper"},
     },
 )
 
