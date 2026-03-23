@@ -43,9 +43,13 @@ The project is built using 50 sequential Claude Code prompts in `../files/RegPul
 | 04b | Standalone embedding service (no scraper imports) | Done | A9 (shared embedding service), B3 (no cross-module import) |
 | 05 | RBI website crawler — URL discovery | Done | — |
 | 06 | PDF download + text extraction (pdfplumber + OCR) | Done | — |
-| 07–50 | Remaining prompts | Pending | — |
+| 07 | Metadata extraction (circular_number, dates, dept, teams) | Done | A3 (action_deadline, affected_teams) |
+| 08 | Text chunker (sentence-aware, 512-token, 64-overlap) | Done | — |
+| 09 | Celery tasks, db.py, impact classifier, full pipeline | Done | — |
+| 10 | Supersession resolver + staleness detection + alerts | Done | — |
+| 11–50 | Remaining prompts | Pending | — |
 
-**Last updated:** 2026-03-23 after Prompt [06]
+**Last updated:** 2026-03-23 after Prompt [10]
 
 ## File Reference
 
