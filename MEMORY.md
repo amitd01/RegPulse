@@ -489,6 +489,15 @@ All ORM enum classes use `enum.StrEnum` — NOT `(str, enum.Enum)`. Resolves ruf
 - Greedy forward merge: accumulate sentences until budget exceeded, then rewind for overlap
 - `count_tokens()` is a public function — reusable by embedder and other modules
 
+**Celery/DB patterns (established in Prompt 09):**
+- `scraper/celery_app.py` — reads `REDIS_URL` from `os.environ` directly (not `ScraperSettings`) to avoid import-time `.env` parse failures
+- `scraper/db.py` — `get_db_session()` context manager; auto-converts async URLs to psycopg2
+- `scraper/tasks.py` — all tasks use `@shared_task(bind=True, soft_time_limit=300)`; import celery_app first in worker startup
+- `process_document` is idempotent: checks `rbi_url` exists before processing, creates `scraper_runs` records
+- `ImpactClassifier` uses `LLM_SUMMARY_MODEL` (Claude Haiku) from `ScraperSettings`; defaults to "MEDIUM" on any API/parse error
+- `Embedder` and `SupersessionResolver` are stubs — full implementation in future prompts
+- `_run_async()` helper bridges async crawler/extractor code into sync Celery context
+
 ---
 
 ## Alembic Workflow
@@ -540,6 +549,7 @@ Never auto-run `upgrade head` in production — use GitHub Actions with approval
 | 06 | Scraper | PDF download + text extraction (pdfplumber + OCR) | Done | 2026-03-23 |
 | 07 | Scraper | Metadata extraction (circular_number, dates, department, teams) | Done | 2026-03-23 |
 | 08 | Scraper | Text chunker (sentence-aware, 512-token, 64-token overlap) | Done | 2026-03-23 |
+| 09 | Scraper | Celery tasks, db.py, impact classifier, full pipeline | Done | 2026-03-23 |
 
 ### Prompt [01] — What Was Built
 - `backend/` — FastAPI app with `/api/v1/health`, `requirements.txt` (26 deps), Dockerfile
@@ -641,6 +651,32 @@ Never auto-run `upgrade head` in production — use GitHub Actions with approval
   - Default: 512 max tokens, 64-token overlap between consecutive chunks
   - `count_tokens(text)` public utility function
 - **No backend/app imports** — standalone scraper module
+
+### Prompt [09] — Celery Pipeline, DB, Impact Classifier
+- `scraper/db.py` — sync SQLAlchemy engine (`pool_size=5`, `max_overflow=10`, `pool_pre_ping=True`):
+  - `get_db_session()` context manager (commit/rollback/close)
+  - Converts `postgresql+asyncpg` URLs to `postgresql+psycopg2` automatically
+  - `check_db_connection()` for health checks
+- `scraper/celery_app.py` — Celery app with Redis broker:
+  - `task_soft_time_limit=300`, `task_time_limit=360`, `task_acks_late=True`
+  - Beat schedule: `daily_scrape` at 20:30 UTC (02:00 IST), `priority_scrape` at 06,10,14,18,22 UTC
+  - Task routes: all tasks to `scraper` queue
+  - REDIS_URL read from env directly (not via ScraperSettings) to avoid import-time failures
+- `scraper/tasks.py` — 4 Celery tasks (all `bind=True`, `soft_time_limit=300`):
+  - `daily_scrape`: full crawl all RBI sections → enqueue `process_document` per new URL
+  - `priority_scrape`: Notifications + Master Directions only (every 4h)
+  - `process_document(url, title, doc_type, scraper_run_id)`: full pipeline — download → extract → metadata → chunk → embed(stub) → classify impact → save to DB → supersession(stub) → enqueue `generate_summary`
+  - `generate_summary(document_id)`: stub for future AI summary prompt
+  - All tasks idempotent (check `rbi_url` exists before processing)
+  - Creates `scraper_runs` records, marks COMPLETED/FAILED
+- `scraper/processor/impact_classifier.py` — `ImpactClassifier` using Claude Haiku (`LLM_SUMMARY_MODEL`):
+  - `classify(title, summary, department)` → "HIGH" / "MEDIUM" / "LOW"
+  - HIGH = new requirements/penalties; MEDIUM = amendments; LOW = informational
+  - JSON response parsing with graceful fallback to "MEDIUM" on any error
+- `scraper/processor/embedder.py` — `Embedder` stub (returns empty vectors, full impl in future prompt)
+- `scraper/processor/supersession_resolver.py` — `SupersessionResolver` stub (logs + returns 0, full impl in future prompt)
+- `scraper/requirements.txt` — added `anthropic==0.42.0`
+- **No backend/app imports** — all modules standalone
 
 ### Prompt [03] — What Was Built
 - `backend/app/config.py` — Pydantic `BaseSettings` singleton (`@lru_cache`) with all env vars:

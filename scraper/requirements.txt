@@ -16,6 +16,9 @@ pytesseract==0.3.13
 nltk==3.9.1
 tiktoken==0.8.0
 
+# LLM (impact classification, summaries)
+anthropic==0.42.0
+
 # Embeddings
 openai==1.58.1
 

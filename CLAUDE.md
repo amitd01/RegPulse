@@ -45,9 +45,10 @@ The project is built using 50 sequential Claude Code prompts in `../files/RegPul
 | 06 | PDF download + text extraction (pdfplumber + OCR) | Done | — |
 | 07 | Metadata extraction (circular_number, dates, dept, teams) | Done | A3 (action_deadline, affected_teams) |
 | 08 | Text chunker (sentence-aware, 512-token, 64-overlap) | Done | — |
-| 09–50 | Remaining prompts | Pending | — |
+| 09 | Celery tasks, db.py, impact classifier, full pipeline | Done | — |
+| 10–50 | Remaining prompts | Pending | — |
 
-**Last updated:** 2026-03-23 after Prompt [08]
+**Last updated:** 2026-03-23 after Prompt [09]
 
 ## File Reference
 
