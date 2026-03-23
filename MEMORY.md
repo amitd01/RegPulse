@@ -549,7 +549,7 @@ All ORM enum classes use `enum.StrEnum` — NOT `(str, enum.Enum)`. Resolves ruf
   - `POST /register` — validate work email (WorkEmailValidator), check duplicates, store reg data in Redis, send OTP
   - `POST /login` — check user exists + active, send login OTP
   - `POST /verify-otp` — verify OTP; on `purpose=register` creates user (5 free credits, email_verified=True); on `purpose=login` updates last_login_at; issues JWT access + refresh token
-  - `POST /refresh` — decode refresh token, revoke old session, blacklist old jti in Redis, issue new JWT + refresh token (rotation)
+  - `POST /refresh` — decode refresh token, revoke old session + issue new session in single `db.commit()` (atomic), then blacklist old jti in Redis after DB success
   - `POST /logout` — blacklist jti in Redis, revoke session in DB; idempotent (returns 200 even for invalid tokens)
 - **Email enumeration protection:** `/register` and `/login` return identical messages regardless of whether the email exists
 - **Bot trap:** `honeypot` field in RegisterRequest — if filled, silently returns success with no side effects
