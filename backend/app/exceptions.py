@@ -39,6 +39,14 @@ class CircularNotFoundError(RegPulseException):
         super().__init__(message)
 
 
+class InvalidWorkEmailError(RegPulseException):
+    http_status = 422
+    error_code = "INVALID_WORK_EMAIL"
+
+    def __init__(self, message: str = "A valid work email address is required") -> None:
+        super().__init__(message)
+
+
 class ServiceUnavailableError(RegPulseException):
     http_status = 503
     error_code = "SERVICE_UNAVAILABLE"
