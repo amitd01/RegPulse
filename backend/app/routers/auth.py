@@ -260,7 +260,13 @@ async def refresh(
     if await is_jti_blacklisted(old_jti, redis):
         raise _auth_error("Refresh token has been revoked")
 
-    # Find and revoke the old session
+    # Load user
+    user_result = await db.execute(select(User).where(User.id == user_id))
+    user = user_result.scalar_one_or_none()
+    if not user or not user.is_active:
+        raise _auth_error("Account not found or deactivated")
+
+    # Revoke old session + create new session in a single DB commit (atomic)
     token_hash = _hash_token(body.refresh_token)
     result = await db.execute(
         select(Session).where(
@@ -272,19 +278,14 @@ async def refresh(
     if old_session:
         old_session.revoked = True
 
-    # Blacklist old jti
+    # Issue new tokens — _issue_tokens calls db.commit(), flushing both
+    # the old session revocation and new session creation atomically
+    tokens, _session = await _issue_tokens(user, db, settings)
+
+    # Blacklist old jti in Redis AFTER successful DB commit
     exp = datetime.fromtimestamp(payload["exp"], tz=UTC)
     remaining = int((exp - datetime.now(UTC)).total_seconds())
     await blacklist_jti(old_jti, remaining, redis)
-
-    # Load user
-    user_result = await db.execute(select(User).where(User.id == user_id))
-    user = user_result.scalar_one_or_none()
-    if not user or not user.is_active:
-        raise _auth_error("Account not found or deactivated")
-
-    # Issue new tokens
-    tokens, _session = await _issue_tokens(user, db, settings)
 
     logger.info("token_refreshed", domain=_domain(user.email))
     return AuthResponse(
