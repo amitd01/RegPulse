@@ -451,7 +451,8 @@ Never auto-run `upgrade head` in production — use GitHub Actions with approval
 |--------|-------|-------------|--------|------|
 | 01 | Infrastructure | Monorepo scaffolding, Docker, configs, linters | Done | 2026-03-21 |
 | 02 | Infrastructure | PostgreSQL schema + pgvector + Alembic + ORM models | Done | 2026-03-21 |
-| 03 | Infrastructure | Pydantic Settings + structured logging | Pending | — |
+| 03 | Infrastructure | Pydantic Settings config.py (backend + scraper) | Done | 2026-03-23 |
+| 04 | Infrastructure | FastAPI bootstrap + structured logging | Pending | — |
 
 ### Prompt [01] — What Was Built
 - `backend/` — FastAPI app with `/api/v1/health`, `requirements.txt` (26 deps), Dockerfile
@@ -475,6 +476,20 @@ Never auto-run `upgrade head` in production — use GitHub Actions with approval
   - `admin.py` (PromptVersion, AdminAuditLog, AnalyticsEvent)
 - **Improvements applied:** A1 (action_items table), A2 (saved_interpretations), A3 (impact_level, action_deadline, affected_teams on circulars), A4 (quick_answer, risk_level, recommended_actions on questions), D1 (deletion_requested_at for DPDP)
 
+### Prompt [03] — What Was Built
+- `backend/app/config.py` — Pydantic `BaseSettings` singleton (`@lru_cache`) with all env vars:
+  - DATABASE_URL, REDIS_URL, JWT_PRIVATE_KEY, JWT_PUBLIC_KEY, JWT_BLACKLIST_TTL (default 3600)
+  - OPENAI_API_KEY, ANTHROPIC_API_KEY, LLM_MODEL (default `claude-sonnet-4-20250514`), LLM_FALLBACK_MODEL (`gpt-4o`), LLM_SUMMARY_MODEL (`claude-haiku-4-5-20251001`)
+  - EMBEDDING_MODEL (`text-embedding-3-large`), EMBEDDING_DIMS (3072)
+  - RAG_COSINE_THRESHOLD (0.4), RAG_TOP_K_INITIAL (12), RAG_TOP_K_FINAL (6), RAG_MAX_CHUNKS_PER_DOC (2)
+  - RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET
+  - SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM
+  - ADMIN_EMAIL_ALLOWLIST (comma-separated → `list[str]`), FREE_CREDIT_GRANT (5), MAX_QUESTION_CHARS (500)
+  - FRONTEND_URL, ENVIRONMENT (`Literal["dev","staging","prod"]`), DEMO_MODE (bool, default False), SENTRY_DSN (optional)
+  - `model_post_init` validator: (1) raises `RuntimeError` listing missing required vars, (2) raises `RuntimeError` if `DEMO_MODE=true` + `ENVIRONMENT=prod`
+- `scraper/config.py` — `ScraperSettings` with same pattern (subset: DB, Redis, OpenAI, Anthropic, SMTP, admin, environment)
+- `.env.example` — updated with all new variables (JWT_BLACKLIST_TTL, LLM_FALLBACK_MODEL, LLM_SUMMARY_MODEL, EMBEDDING_DIMS, RAG_*, SENTRY_DSN)
+
 ---
 
 ## Documentation Update Rule
@@ -489,17 +504,17 @@ After every successful prompt, task, epic, module, or project milestone:
 
 ## Environment Variables
 
-See `README.md` → Environment Variables for the full `.env.example` with comments. Key groups:
+Defined in `backend/app/config.py` (`Settings`) and `scraper/config.py` (`ScraperSettings`). See `.env.example` for full reference.
 
-| Group | Variables |
-|-------|-----------|
-| Database | `DATABASE_URL`, `REDIS_URL` |
-| Auth | `JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY`, `JWT_BLACKLIST_TTL=3600` |
-| LLM | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `LLM_MODEL=claude-sonnet-4-20250514`, `LLM_FALLBACK_MODEL=gpt-4o`, `LLM_SUMMARY_MODEL=claude-haiku-4-5-20251001` |
-| Embeddings | `EMBEDDING_MODEL=text-embedding-3-large`, `EMBEDDING_DIMS=3072` |
-| RAG Tuning | `RAG_COSINE_THRESHOLD=0.4`, `RAG_TOP_K_INITIAL=12`, `RAG_TOP_K_FINAL=6`, `RAG_MAX_CHUNKS_PER_DOC=2`, `RAG_QUERY_EXPANSION=false` |
-| Payments | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` |
-| Email | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` |
-| Admin | `ADMIN_EMAIL_ALLOWLIST`, `ADMIN_EMAIL` |
-| App | `FREE_CREDIT_GRANT=5`, `MAX_QUESTION_CHARS=500`, `FRONTEND_URL`, `ENVIRONMENT=dev` |
-| Safety | `DEMO_MODE=false` (startup validator blocks in prod), `SENTRY_DSN`, `ANALYTICS_SALT` |
+| Group | Variables | Default |
+|-------|-----------|---------|
+| Database | `DATABASE_URL`, `REDIS_URL` | — (required) |
+| Auth | `JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY`, `JWT_BLACKLIST_TTL` | —, —, `3600` |
+| LLM | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `LLM_MODEL`, `LLM_FALLBACK_MODEL`, `LLM_SUMMARY_MODEL` | —, —, `claude-sonnet-4-20250514`, `gpt-4o`, `claude-haiku-4-5-20251001` |
+| Embeddings | `EMBEDDING_MODEL`, `EMBEDDING_DIMS` | `text-embedding-3-large`, `3072` |
+| RAG Tuning | `RAG_COSINE_THRESHOLD`, `RAG_TOP_K_INITIAL`, `RAG_TOP_K_FINAL`, `RAG_MAX_CHUNKS_PER_DOC` | `0.4`, `12`, `6`, `2` |
+| Payments | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` | — (required) |
+| Email | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | — (required) |
+| Admin | `ADMIN_EMAIL_ALLOWLIST` (comma-separated → `list[str]`) | `[]` |
+| App | `FREE_CREDIT_GRANT`, `MAX_QUESTION_CHARS`, `FRONTEND_URL`, `ENVIRONMENT` | `5`, `500`, — (required), `dev` |
+| Safety | `DEMO_MODE` (blocked in prod), `SENTRY_DSN` | `false`, `None` |

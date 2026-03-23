@@ -38,9 +38,10 @@ The project is built using 50 sequential Claude Code prompts in `../files/RegPul
 |--------|-------------|--------|---------------------|
 | 01 | Monorepo scaffolding | Done | E1, E3, E4, E5, I6 |
 | 02 | PostgreSQL schema + pgvector + Alembic + ORM models | Done | A1, A2, A3, A4, D1 |
-| 03–50 | Remaining prompts | Pending | — |
+| 03 | Pydantic Settings config.py (backend + scraper) | Done | D7 (DEMO_MODE prod block) |
+| 04–50 | Remaining prompts | Pending | — |
 
-**Last updated:** 2026-03-21 after Prompt [02]
+**Last updated:** 2026-03-23 after Prompt [03]
 
 ## File Reference
 
