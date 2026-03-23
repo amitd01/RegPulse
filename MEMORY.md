@@ -568,6 +568,22 @@ All ORM enum classes use `enum.StrEnum` — NOT `(str, enum.Enum)`. Resolves ruf
 - New config fields: `ACCESS_TOKEN_EXPIRE_MINUTES=30`, `REFRESH_TOKEN_EXPIRE_DAYS=30`
 - B008 ruff rule suppressed in `pyproject.toml` — standard FastAPI `Depends()` pattern
 
+**Auth dependency patterns (established in Prompt 14):**
+- `backend/app/dependencies/auth.py` — FastAPI `Depends()` chain for protected routes
+- Dependency chain: `get_current_user` → `require_active_user` → `require_verified_user` / `require_admin` → `require_credits`
+- `get_current_user(credentials, db, redis, settings)`:
+  1. Extracts Bearer token via `HTTPBearer` scheme
+  2. Decodes JWT via `decode_token(token, expected_type="access")`
+  3. **jti blacklist checked on EVERY request** via `is_jti_blacklisted(jti, redis)` — not just at login
+  4. Loads `User` from DB by `sub` claim
+  5. **Injection guard:** if `user.password_changed_at` is set and `token.iat < password_changed_at` → 401 `AuthenticationError`
+- `require_active_user` — `get_current_user` + `user.is_active` check
+- `require_verified_user` — `require_active_user` + `user.email_verified` check
+- `require_admin` — `require_active_user` + `user.is_admin` check
+- `require_credits` — `require_verified_user` + `user.credit_balance > 0` check
+- New exceptions: `AuthenticationError` (401, `AUTHENTICATION_FAILED`), `AuthorizationError` (403, `FORBIDDEN`)
+- New User model column: `password_changed_at TIMESTAMPTZ nullable` — used as security reset timestamp; all tokens issued before this time are rejected
+
 ---
 
 ## Alembic Workflow
@@ -625,6 +641,7 @@ Never auto-run `upgrade head` in production — use GitHub Actions with approval
 | 11 | Auth | WorkEmailValidator + InvalidWorkEmailError | Done | 2026-03-23 |
 | 11b | Auth | OTPService + EmailService + 6 email templates | Done | 2026-03-23 |
 | 13 | Auth | Auth router — register, login, verify-otp, refresh, logout + JWT utils | Done | 2026-03-23 |
+| 14 | Auth | Auth dependencies — get_current_user, require_active/verified/admin/credits | Done | 2026-03-23 |
 
 ### Prompt [01] — What Was Built
 - `backend/` — FastAPI app with `/api/v1/health`, `requirements.txt` (26 deps), Dockerfile

@@ -63,6 +63,22 @@ class OTPVerificationError(RegPulseException):
         super().__init__(message)
 
 
+class AuthenticationError(RegPulseException):
+    http_status = 401
+    error_code = "AUTHENTICATION_FAILED"
+
+    def __init__(self, message: str = "Authentication required") -> None:
+        super().__init__(message)
+
+
+class AuthorizationError(RegPulseException):
+    http_status = 403
+    error_code = "FORBIDDEN"
+
+    def __init__(self, message: str = "You do not have permission to perform this action") -> None:
+        super().__init__(message)
+
+
 class ServiceUnavailableError(RegPulseException):
     http_status = 503
     error_code = "SERVICE_UNAVAILABLE"
