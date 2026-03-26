@@ -1,86 +1,46 @@
 # Claude Code Instructions — RegPulse
 
-> **Read `MEMORY.md` before starting any task.** It contains architecture decisions, business rules, directory structure, database schema, and coding conventions that must be followed.
+> **Read `MEMORY.md` before starting any task.**
+
+## Rules
+
+1. All endpoints at `/api/v1/` — never deviate
+2. Never import from `scraper/` in `backend/`
+3. Never send PII to the LLM
+4. Always validate citations — strip circular numbers not in retrieved chunks
+5. Credits deducted only on success — `SELECT FOR UPDATE`
+6. Admin routers in `routers/admin/` sub-package
+7. Pydantic schemas in `schemas/` — not inline in routers
+8. SQLAlchemy models use 2.0 `Mapped[]` annotations
+9. Services via `Depends()` — never instantiate in route bodies
+10. All errors return `{"success": false, "error": "message", "code": "ERROR_CODE"}`
+11. After every prompt: update README.md, MEMORY.md, CLAUDE.md, context.md
 
 ## Quick Reference
 
-- **API prefix:** All endpoints at `/api/v1/`
-- **Python:** ruff + black (line-length=100) + mypy strict. Run `make lint` before completing any task.
-- **TypeScript:** `strict: true` in tsconfig, ESLint + Prettier
-- **Migrations:** Alembic. Every schema change needs `alembic revision --autogenerate -m "describe_change"`
-- **Tests:** pytest (backend), Vitest (frontend), Playwright (E2E)
-- **No secrets in code** — all keys/tokens from environment variables via `Settings` class
+- **Python:** ruff + black (line-length=100), B008 suppressed globally
+- **TypeScript:** `strict: true`, ESLint + Prettier
+- **Tests:** pytest (backend), Next.js build (frontend)
+- **Env:** `.env.example` is the reference; `Settings` class loads all
 
-## Key Rules
+## Build Progress (36/50 done)
 
-1. **Never import from `scraper/` in `backend/`** — use `backend/app/services/embedding_service.py` for embeddings
-2. **Never send PII to the LLM** — no user name, email, or org_name in prompts
-3. **Always validate citations** — strip circular numbers not in retrieved chunks
-4. **Credits deducted only on success** — use `SELECT FOR UPDATE` atomic deduction
-5. **Admin router split** — use `routers/admin/` sub-routers, not a monolithic file
-6. **Pydantic schemas in `schemas/`** — not inline in routers
-7. **SQLAlchemy models in `models/`** — use 2.0 `Mapped[]` annotations
-8. **Services via `Depends()`** — never instantiate in route bodies
-9. **All errors** return `{"success": false, "error": "message", "code": "ERROR_CODE"}`
-10. **Update docs after every prompt/task completion** — after each successful prompt, epic, module, or project milestone, update the following files to reflect current state:
-    - `README.md` — build progress tracker, any new setup steps or Makefile targets
-    - `MEMORY.md` — architecture changes, new tables/columns, new services or patterns
-    - `CLAUDE.md` — new rules, references, or build progress
-    - Any relevant spec files if scope or design changed
-
-## Build Prompts
-
-The project is built using 50 sequential Claude Code prompts in `../files/RegPulse_ClaudeCode_50Prompts.docx`. See `../Improv_Regpulse_v1.md` for the improvement analysis that should be applied during build.
-
-## Build Progress
-
-| Prompt | Description | Status | Improvements Applied |
-|--------|-------------|--------|---------------------|
-| 01 | Monorepo scaffolding | Done | E1, E3, E4, E5, I6 |
-| 02 | PostgreSQL schema + pgvector + Alembic + ORM models | Done | A1, A2, A3, A4, D1 |
-| 03 | Pydantic Settings config.py (backend + scraper) | Done | D7 (DEMO_MODE prod block) |
-| 04 | FastAPI bootstrap, exceptions, db, cache, structlog, routers | Done | A5 (/api/v1/ prefix), A6 (cross-encoder timeout), D4 (webhook CORS exclude) |
-| 04b | Standalone embedding service (no scraper imports) | Done | A9 (shared embedding service), B3 (no cross-module import) |
-| 05 | RBI website crawler — URL discovery | Done | — |
-| 06 | PDF download + text extraction (pdfplumber + OCR) | Done | — |
-| 07 | Metadata extraction (circular_number, dates, dept, teams) | Done | A3 (action_deadline, affected_teams) |
-| 08 | Text chunker (sentence-aware, 512-token, 64-overlap) | Done | — |
-| 09 | Celery tasks, db.py, impact classifier, full pipeline | Done | — |
-| 10 | Supersession resolver + staleness detection + alerts | Done | — |
-| 11–14 | Remaining prompts (pre-library) | Pending | — |
-| 15 | Circular Library API — Hybrid Search + Autocomplete | Done | A5 (hybrid RRF), A9 (embedding service reuse) |
-| 16 | Circular Library Frontend — list page, filters, search | Done | — |
-| 17 | Circular Detail Page — metadata, summary, chunks | Done | — |
-| 18 | RAG Service — hybrid retrieval, RRF, cross-encoder rerank | Done | A5 (hybrid RRF on chunks) |
-| 19 | LLM Service — structured JSON, injection guard, GPT-4o fallback | Done | B1 (injection guard), B2 (citation validation) |
-| 20 | Questions router — POST /questions with SSE streaming | Done | — |
-| 21 | Answer caching + credit deduction (SELECT FOR UPDATE) | Done | A7 (atomic credits) |
-| 22 | Q&A frontend — ask page with SSE streaming | Done | — |
-| 23 | Q&A history page + detail page | Done | — |
-| 24 | Subscription service — plan config, Razorpay orders | Done | — |
-| 25 | Subscription router — order, verify, webhook, plan info | Done | — |
-| 26 | Subscription frontend — upgrade page with plan cards | Done | — |
-| 27 | Account page — plan info, payment history, credits | Done | — |
-| 28 | Admin dashboard — aggregate stats endpoint | Done | — |
-| 29 | Admin review — flagged questions, answer override | Done | — |
-| 30 | Admin prompts — CRUD + activate prompt versions | Done | — |
-| 31 | Admin users — list, update, credit grants | Done | — |
-| 32 | Admin circulars + scraper — approve summaries, trigger scrapes | Done | — |
-| 33 | Action items router — CRUD | Done | — |
-| 34 | Saved interpretations router — CRUD + detail | Done | — |
-| 35 | Action items frontend page | Done | — |
-| 36 | Saved interpretations frontend page | Done | — |
-| 37–50 | Remaining prompts | Pending | — |
-
-**Last updated:** 2026-03-26 after Prompt [36]
+| Prompt | Description | Status |
+|--------|-------------|--------|
+| 01–04b | Infrastructure: monorepo, schema, config, FastAPI, embedding service | Done |
+| 05–10 | Scraper: crawl, PDF, metadata, chunking, Celery, supersession | Done |
+| 11–14 | Auth: email validation, OTP, JWT, frontend auth | Done |
+| 15–17 | Circular Library: hybrid search API, frontend, detail page | Done |
+| 18–23 | RAG Q&A: retrieval, LLM, SSE streaming, caching, ask/history | Done |
+| 24–27 | Subscriptions: Razorpay, plans, upgrade/account pages | Done |
+| 28–32 | Admin: dashboard, review, prompts, users, circulars, scraper | Done |
+| 33–36 | Action items + saved interpretations (backend + frontend) | Done |
+| 37–50 | Remaining: auth pages, admin frontend, analytics, deploy | Pending |
 
 ## File Reference
 
 | File | Purpose |
 |------|---------|
-| `MEMORY.md` | Full project context — architecture, schema, rules, patterns |
-| `../files/RegPulse_ClaudeCode_50Prompts.docx` | 50 build prompts |
-| `../files/RegPulse_PRD_v1.0.docx` | Product Requirements Document |
-| `../files/RegPulse_FSD_v1.0.docx` | Functional Specification Document |
-| `../Improv_Regpulse_v1.md` | Improvement analysis (40 items across 9 categories) |
-| `../regpulse_mockup_all_screens.html` | UI mockup prototypes |
+| `MEMORY.md` | Architecture, schema, business rules, patterns |
+| `context.md` | Live session state — what's done, what's next |
+| `README.md` | External docs — build progress, API ref, setup |
