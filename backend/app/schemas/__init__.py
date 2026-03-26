@@ -21,8 +21,8 @@ from app.schemas.admin import (  # noqa: F401
 )
 from app.schemas.auth import (  # noqa: F401
     AuthResponse,
+    LoginRequest,
     MessageResponse,
-    OTPRequest,
     OTPVerifyRequest,
     RefreshTokenRequest,
     RegisterRequest,
