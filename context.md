@@ -7,10 +7,9 @@
 ## Current State
 
 - **Branch:** `claude/regpulse-sprint-4-setup-qdC85`
-- **Last commit:** `39657c0` — feat(circulars): Circular Library API (REG-86)
-- **Last prompt completed:** **Prompt [15]** — Circular Library API
-- **Next prompt:** **Prompt [16]** — Circular Library Frontend
-- **Sprint:** Sprint 4 — Circular Library (REG-86, REG-87, REG-88)
+- **Last prompt completed:** **Prompt [17]** — Circular Detail Page
+- **Next prompt:** **Prompt [18]** — RAG Q&A Pipeline
+- **Sprint:** Sprint 4 complete. Sprint 5 (RAG Q&A) begins at Prompt [18].
 - **Date:** 2026-03-26
 
 ---
@@ -20,6 +19,8 @@
 | Prompt | Description | Status | Tests | Notes |
 |--------|-------------|--------|-------|-------|
 | 15 | Circular Library API — Hybrid Search + Autocomplete | Done | 30/30 pass | CircularLibraryService, hybrid RRF, auth deps |
+| 16 | Circular Library Frontend — list page with filters | Done | Build pass, lint clean | TanStack Query hooks, FilterPanel, CircularCard |
+| 17 | Circular Detail Page — metadata, summary, chunks | Done | Build pass, lint clean | Detail page with chunks, AppSidebar, middleware |
 
 ---
 
@@ -32,75 +33,63 @@
 ### Routers (backend/app/routers/)
 - `circulars.py` — **FULL**: 7 endpoints (list, search, autocomplete, detail, departments, tags, doc-types)
 - `auth.py` — **STUB**: empty router
-- `questions.py` — **STUB**: empty router (placeholder)
-- `subscriptions.py` — **STUB**: empty router
-- `action_items.py` — **STUB**: empty router
-- `saved.py` — **STUB**: empty router
+- `questions.py`, `subscriptions.py`, `action_items.py`, `saved.py` — **STUBS**
 - `admin/` — **STUBS**: dashboard, review, prompts, users, circulars, scraper
 
 ### Dependencies (backend/app/dependencies/)
 - `auth.py` — get_current_user, require_active_user, require_verified_user, require_admin, require_credits
 
-### Schemas (backend/app/schemas/)
-- `circulars.py` — Full: list, search, autocomplete, detail, facet schemas
-- `auth.py` — Exists (RegisterRequest, LoginRequest, etc.)
-- `questions.py`, `subscriptions.py`, `admin.py` — Exist but may be stubs
-
-### Models (backend/app/models/)
-- All 13 tables have ORM models: User, Session, CircularDocument, DocumentChunk, Question, ActionItem, SavedInterpretation, PromptVersion, AdminAuditLog, AnalyticsEvent, ScraperRun, SubscriptionEvent, PendingDomainReview
-
 ### Tests
-- `tests/unit/test_circular_library_service.py` — 14 tests (RRF, filters, sort)
-- `tests/unit/test_circulars_router.py` — 16 tests (all endpoints mocked)
-- `tests/conftest.py` — Fixtures (async_session, sample_user, sample_circulars)
+- 30 backend unit tests (all passing)
+- `tests/unit/test_circular_library_service.py` — 14 tests
+- `tests/unit/test_circulars_router.py` — 16 tests
 
 ---
 
 ## What Exists (Frontend)
 
-### Structure
-- Next.js 14.2.21, TypeScript strict, Tailwind, pnpm
-- `src/app/layout.tsx` — Root layout
-- `src/app/page.tsx` — Minimal landing page
-- `src/lib/api.ts` — Axios client (baseURL: localhost:8000/api/v1)
-- `src/stores/authStore.ts` — Zustand auth store (user, accessToken)
-- **No components/ directory yet**
-- **No middleware.ts yet**
-- **No (app)/ route group yet** (no library, ask, dashboard pages)
-- **node_modules missing** — need `pnpm install`
+### Pages
+- `/` — Landing page
+- `/library` — Circular list with filters, search, pagination (static pre-render)
+- `/library/[id]` — Circular detail with metadata, summary, chunks (dynamic)
 
-### Dependencies installed
-- next, react, zustand, axios, react-markdown, react-hot-toast, clsx, tailwind-merge
+### Components
+- `Providers.tsx` — QueryClientProvider + Toaster
+- `AppSidebar.tsx` — Sidebar with Library, Ask, History, Updates links
+- `ui/Badge.tsx`, `ui/Pagination.tsx`, `ui/SearchInput.tsx`, `ui/Select.tsx`, `ui/Spinner.tsx`
+- `library/CircularCard.tsx`, `library/FilterPanel.tsx`
 
----
+### Hooks
+- `useCirculars.ts` — useCircularList, useCircularSearch, useCircularAutocomplete, useCircularDetail, useDepartments, useTags, useDocTypes
 
-## What Exists (Scraper)
-
-- Full pipeline: RBICrawler → PDFExtractor → MetadataExtractor → TextChunker → Embedder → ImpactClassifier → SupersessionResolver
-- Celery tasks with daily_scrape (02:00 IST) and priority_scrape (every 4h)
-- Synchronous DB (scraper/db.py) — never uses async
+### Infrastructure
+- `middleware.ts` — Route protection (library browsable, ask/history/etc require auth)
+- `api.ts` — Axios with auth interceptor (Bearer token from Zustand)
+- `cn.ts` — Tailwind class merge utility
+- TanStack Query + React Hot Toast integrated
+- ESLint + TypeScript ESLint + Prettier configured
+- Build passes clean
 
 ---
 
 ## Runtime Environment
 
-- Python 3.11, no virtual env (system packages)
-- No PostgreSQL available (tests use SQLite via aiosqlite)
-- No Redis available (mocked in tests)
-- pip packages installed: fastapi, sqlalchemy, pydantic, ruff, black, pytest, etc.
-- Frontend: pnpm required, node_modules not installed
+- Python 3.11, pip packages installed
+- Node.js with pnpm, node_modules installed
+- No PostgreSQL/Redis (tests use SQLite/mocks)
+- Frontend builds successfully to standalone
 
 ---
 
-## Key Patterns & Constraints
+## Key Patterns & Decisions
 
-1. **B008 globally suppressed** in pyproject.toml for FastAPI Depends()
-2. **db.py has conditional pool_size** — skips pool_size/max_overflow for SQLite
-3. **Auth dependency chain**: get_current_user → require_active → require_verified → require_admin/credits
-4. **CircularLibraryService** injected via `_get_service` in router, uses `app.state.embedding_service`
-5. **Hybrid search fallback**: if no embedding service, falls back to FTS-only
-6. **RRF constant**: K=60 (standard)
-7. **All API errors**: `{"success": false, "error": "...", "code": "..."}`
+1. **Library is browsable without auth** — search requires verified user (at API level)
+2. **TanStack Query** for all data fetching, staleTime configured per query type
+3. **Zustand** for auth state (token in memory only, never localStorage)
+4. **AppSidebar** in `(app)` route group layout — shared across all app pages
+5. **CircularCard** supports both list items and search results (with relevance score)
+6. **Debounced search** (300ms) with clear button
+7. **Middleware** checks refresh_token cookie for protected routes
 
 ---
 
@@ -108,6 +97,9 @@
 
 | Prompt | Description | Sprint |
 |--------|-------------|--------|
-| 16 | Circular Library Frontend — list page with filters, search bar, pagination | Sprint 4 |
-| 17 | Circular Detail Page — full circular view with chunks, metadata, AI summary | Sprint 4 |
-| 18+ | RAG Q&A pipeline, subscriptions, admin, remaining frontend | Sprint 5+ |
+| 18 | RAG Service — hybrid retrieval pipeline | Sprint 5 |
+| 19 | LLM Service — structured JSON, injection guard, fallback | Sprint 5 |
+| 20 | SSE streaming Q&A endpoint | Sprint 5 |
+| 21 | Answer caching + credit deduction | Sprint 5 |
+| 22 | Q&A frontend — ask page with SSE | Sprint 5 |
+| 23 | Q&A history page | Sprint 5 |

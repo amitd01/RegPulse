@@ -121,26 +121,40 @@ regpulse/
 │
 ├── frontend/
 │   ├── src/app/
-│   │   ├── (marketing)/          # Public: /, /pricing
-│   │   ├── register/             # WAS MISSING — auth step 1
-│   │   ├── login/                # WAS MISSING
-│   │   ├── verify/               # WAS MISSING — OTP entry
-│   │   └── (app)/                # Protected routes
-│   │       ├── dashboard/        # WAS MISSING — home after login
-│   │       ├── library/[id]/
-│   │       ├── ask/              # SSE streaming
-│   │       ├── history/
-│   │       ├── updates/          # NEW — regulatory updates feed
-│   │       ├── saved/            # NEW — saved interpretations
-│   │       ├── action-items/     # NEW — team action center
-│   │       ├── account/
-│   │       └── upgrade/
-│   │   └── admin/                # All admin sub-pages
+│   │   ├── layout.tsx            # Root layout with Providers
+│   │   ├── page.tsx              # Landing page
+│   │   ├── (app)/                # Protected/browsable route group
+│   │   │   ├── layout.tsx        # App layout with sidebar
+│   │   │   ├── library/          # Circular library list page
+│   │   │   │   ├── page.tsx      # List with filters, search, pagination
+│   │   │   │   └── [id]/page.tsx # Circular detail page
+│   │   │   ├── ask/              # SSE streaming (TODO)
+│   │   │   ├── history/          # Q&A history (TODO)
+│   │   │   ├── updates/          # Regulatory updates feed (TODO)
+│   │   │   ├── saved/            # Saved interpretations (TODO)
+│   │   │   └── action-items/     # Team action center (TODO)
+│   │   └── admin/                # All admin sub-pages (TODO)
+│   ├── src/components/
+│   │   ├── Providers.tsx         # QueryClientProvider + Toaster
+│   │   ├── AppSidebar.tsx        # Sidebar navigation
+│   │   ├── ui/Badge.tsx          # Badge with variants
+│   │   ├── ui/Pagination.tsx     # Pagination with ellipsis
+│   │   ├── ui/SearchInput.tsx    # Debounced search input
+│   │   ├── ui/Select.tsx         # Styled select dropdown
+│   │   ├── ui/Spinner.tsx        # Loading spinner
+│   │   ├── library/CircularCard.tsx    # Circular list item card
+│   │   └── library/FilterPanel.tsx     # Filter dropdowns
+│   ├── src/hooks/
+│   │   └── useCirculars.ts       # TanStack Query hooks for circulars API
+│   ├── src/types/
+│   │   └── index.ts              # Shared TypeScript types
 │   ├── src/lib/
-│   │   ├── api.ts                # Typed API client
-│   │   └── store.ts              # Zustand: session, credits, notifications
+│   │   ├── api.ts                # Axios client with auth interceptor
+│   │   └── cn.ts                 # Tailwind class merge utility
+│   ├── src/stores/
+│   │   └── authStore.ts          # Zustand: session, credits
 │   ├── e2e/
-│   └── middleware.ts
+│   └── src/middleware.ts         # Route protection middleware
 │
 ├── nginx/
 ├── config/free_email_blocklist.json

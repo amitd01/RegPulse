@@ -49,9 +49,11 @@ The project is built using 50 sequential Claude Code prompts in `../files/RegPul
 | 10 | Supersession resolver + staleness detection + alerts | Done | — |
 | 11–14 | Remaining prompts (pre-library) | Pending | — |
 | 15 | Circular Library API — Hybrid Search + Autocomplete | Done | A5 (hybrid RRF), A9 (embedding service reuse) |
-| 16–50 | Remaining prompts | Pending | — |
+| 16 | Circular Library Frontend — list page, filters, search | Done | — |
+| 17 | Circular Detail Page — metadata, summary, chunks | Done | — |
+| 18–50 | Remaining prompts | Pending | — |
 
-**Last updated:** 2026-03-23 after Prompt [15]
+**Last updated:** 2026-03-26 after Prompt [17]
 
 ## File Reference
 

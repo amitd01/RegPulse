@@ -41,7 +41,7 @@
 | 2 — Scraper | 05–10 | Crawl, PDF extract, metadata, chunking, Celery, supersession | Done |
 | 3 — Auth | 11–14 | Email validation, OTP, JWT, auth routes, frontend auth | Done |
 | 4 — Circular Library | 15 | Hybrid search API (vector + BM25 RRF), autocomplete, facets | Done |
-| 4 — Circular Library | 16–17 | Library frontend, circular detail page | Pending |
+| 4 — Circular Library | 16–17 | Library frontend, circular detail page | Done |
 | 5 — RAG Q&A | 18–23 | Hybrid retrieval, LLM service, SSE streaming, caching | Pending |
 | 6 — Subscriptions | 24–27 | Plans, Razorpay, credit system | Pending |
 | 7 — Admin | 28–32 | Review, prompts, dashboard, scraper controls | Pending |
@@ -49,7 +49,7 @@
 | 9 — Polish | 43–47 | Action items, saved items, analytics, load tests | Pending |
 | 10 — Deploy | 48–50 | CI/CD, Nginx, launch checks | Pending |
 
-**Last updated:** 2026-03-23 — Prompt [15] complete (Sprint 4 start)
+**Last updated:** 2026-03-26 — Prompt [17] complete (Sprint 4 complete)
 
 ---
 
