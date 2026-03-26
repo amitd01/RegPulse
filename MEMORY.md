@@ -14,9 +14,9 @@ B2B SaaS for Indian banking professionals. RAG-powered Q&A over RBI Circulars wi
 
 **Scraper** (`/scraper`): Celery + Python. Crawls rbi.org.in daily → PDF extract → chunk → embed → pgvector. Supersession detection + impact classification.
 
-**Backend** (`/backend`): FastAPI, SQLAlchemy 2.0 async, Pydantic v2. All at `/api/v1/`.
+**Backend** (`/backend`): FastAPI, SQLAlchemy 2.0 async, Pydantic v2. All at `/api/v1/`. 48 endpoints, 8 services.
 
-**Frontend** (`/frontend`): Next.js 14, TypeScript strict, Tailwind, TanStack Query, Zustand.
+**Frontend** (`/frontend`): Next.js 14, TypeScript strict, Tailwind, TanStack Query, Zustand. 22 routes.
 
 **LLM:** claude-sonnet-4-20250514 primary, gpt-4o fallback. Embeddings: text-embedding-3-large (3072-dim). Reranker: ms-marco-MiniLM-L-6-v2.
 
@@ -28,7 +28,7 @@ Ground truth: `backend/migrations/001_initial_schema.sql`
 
 | Table | Model | Key columns |
 |-------|-------|-------------|
-| users | `user.py` | email, credits, plan, is_admin, email_verified |
+| users | `user.py` | email, credits, plan, is_admin, email_verified, password_changed_at |
 | sessions | `user.py` | token_hash, expires_at, revoked |
 | circular_documents | `circular.py` | title, status, impact_level, affected_teams, tags |
 | document_chunks | `circular.py` | chunk_text, embedding vector(3072) |
@@ -85,14 +85,16 @@ LLM returns: `{quick_answer, detailed_interpretation, risk_level, affected_teams
 - Never import from `scraper/` — use `embedding_service.py`
 - `app.state.cross_encoder` may be None — check before use
 - `db.py`: conditional pool_size (skips for SQLite)
-- Exception classes in `app.exceptions` only
+- Exception classes in `app.exceptions` only (7 subclasses)
 - Auth chain: get_current_user → require_active → require_verified → require_admin/credits
+- Auth uses `python-jose` RS256 JWT + jti blacklist in Redis
 - Admin mutations write to `admin_audit_log`
 - Subscription plans defined in `PLANS` dict in `subscription_service.py`
 - Razorpay webhook at `/subscriptions/webhook` — excluded from CORS, verified via HMAC-SHA256
+- `POST /questions` uses `response_model=None` (Union return type: JSON or StreamingResponse)
 - Config: `from app.config import get_settings` (@lru_cache singleton)
 - All errors: `{"success": false, "error": "...", "code": "..."}`
-- B008 suppressed globally in pyproject.toml
+- B008 suppressed globally, E402 suppressed for conftest.py in pyproject.toml
 - All ORM enums use `enum.StrEnum`
 
 **Scraper:**
@@ -102,10 +104,13 @@ LLM returns: `{quick_answer, detailed_interpretation, risk_level, affected_teams
 
 **Frontend:**
 - Access token in Zustand memory only — NEVER localStorage
-- Refresh token is httpOnly cookie
-- TanStack Query for data fetching
+- Refresh token also in Zustand (backend can set httpOnly cookie)
+- `authStore.setAuth` takes 3 args: `(user, accessToken, refreshToken)`
+- For credit balance updates without re-auth: use `useAuthStore.setState({user: {...user, credit_balance: n}})`
+- TanStack Query for data fetching; `QueryProvider` wraps app in root layout
 - SSE via `fetch` + `ReadableStream` (not EventSource)
 - Library browsable without auth; search/ask require verified user
+- Middleware checks `refresh_token` cookie for protected routes
 
 ---
 
@@ -120,7 +125,6 @@ See `.env.example`. Key required: `DATABASE_URL`, `REDIS_URL`, `JWT_*`, `OPENAI_
 | ID | Issue | Plan |
 |---|---|---|
 | TD-01 | Scraper writes directly to backend DB | API isolation in v2 |
-| TD-02 | No graceful shutdown | SIGTERM handlers in Phase 9 |
+| TD-02 | No graceful shutdown handlers | SIGTERM handlers post-launch |
 | TD-03 | Manual api.ts client | OpenAPI codegen in v1.1 |
 | TD-04 | admin_audit_log.actor_id NOT NULL — scraper can't log | Seed system user |
-| TD-05 | auth.py router is stub in this session | Built in Sprint 3 on main |

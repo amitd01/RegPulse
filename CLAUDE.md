@@ -43,6 +43,6 @@
 | File | Purpose |
 |------|---------|
 | `MEMORY.md` | Architecture, schema, business rules, patterns |
-| `context.md` | Live session state — what's done, what's next |
+| `context.md` | Project state — inventory, verification results |
 | `spec.md` | Full technical spec — schema, API, RAG pipeline, security |
 | `README.md` | External docs — build progress, API ref, setup |

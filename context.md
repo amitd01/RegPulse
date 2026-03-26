@@ -1,41 +1,50 @@
-# RegPulse — Session Context
+# RegPulse — Project Status
 
-> **All 50 prompts complete.**
-
----
-
-## Final State
-
-- **Branch:** `claude/regpulse-sprint-9-final-qdC85`
-- **Prompts done:** 1–50 (all)
-- **Backend tests:** 64 passing
-- **Frontend routes:** 22, build clean
-- **Date:** 2026-03-26
+> **All 50 prompts complete. Project v0.1.0 ready.**
 
 ---
 
-## Full Execution Log
+## Final Verified State (2026-03-26)
 
-| Sprint | Prompts | What |
-|--------|---------|------|
-| 1 | 01–04b | Infrastructure, schema, config, FastAPI, embedding |
-| 2 | 05–10 | Scraper pipeline (crawl, PDF, metadata, chunk, Celery) |
-| 3 | 11–14 | Auth (OTP, JWT, frontend auth pages) |
-| 4 | 15–17 | Circular Library (hybrid search API + frontend) |
-| 5 | 18–23 | RAG Q&A (pipeline, LLM, SSE, caching, pages) |
-| 6 | 24–27 | Subscriptions (Razorpay, upgrade, account) |
-| 7 | 28–32 | Admin panel (6 sub-routers + audit logging) |
-| 8 | 33–36 | Action items + saved interpretations |
-| 9 | 37–42 | Dashboard, updates, admin UI, analytics, summary |
-| 10 | 43–50 | PDF export, CI/CD, Nginx, Makefile, launch checks |
+- **Branch:** `main` (all PRs merged)
+- **Backend tests:** 64/64 passing
+- **Frontend:** 22 routes, tsc clean, eslint clean, build clean
+- **App startup:** 48 endpoints registered, schemas validated
+- **Import boundaries:** no scraper/backend cross-imports, no PII in LLM
+- **Dry run:** 20/20 simulated E2E checks passed
 
 ---
 
-## Final Inventory
+## Inventory
 
 **Backend services (8):** embedding, circular_library, rag, llm, subscription, analytics, summary, pdf_export
-**Backend routers:** auth, circulars (7), questions (5), subscriptions (6), action_items (4), saved (5), admin/* (12)
-**Frontend pages (22):** /, login, register, verify, dashboard, library, library/[id], ask, history, history/[id], upgrade, account, action-items, saved, updates, admin (6 pages)
-**CI/CD:** GitHub Actions (ci.yml + deploy.yml)
-**Nginx:** Production reverse proxy with TLS, CSP, SSE support
-**Launch checks:** scripts/launch_check.sh
+
+**Backend routers (14 files, 48 endpoints):**
+- `auth.py` — register, login, verify-otp, refresh, logout
+- `circulars.py` — list, search, autocomplete, detail, departments, tags, doc-types
+- `questions.py` — ask (SSE+JSON), history, detail, export, feedback
+- `subscriptions.py` — plans, order, verify, webhook, plan, history
+- `action_items.py` — list, create, update, delete
+- `saved.py` — list, create, detail, update, delete
+- `admin/` — dashboard, review (3), prompts (3), users (2), circulars (3), scraper (2)
+
+**Frontend (22 routes):**
+- Public: `/`, `/library`, `/library/[id]`, `/login`, `/register`, `/verify`
+- Auth: `/dashboard`, `/ask`, `/history`, `/history/[id]`, `/upgrade`, `/account`, `/action-items`, `/saved`, `/updates`
+- Admin: `/admin`, `/admin/review`, `/admin/prompts`, `/admin/users`, `/admin/circulars`, `/admin/scraper`
+
+**Infrastructure:** CI/CD (ci.yml + deploy.yml), Nginx config, Makefile, launch_check.sh
+
+---
+
+## Git History (main)
+
+```
+fc03e8e  fix: response_model=None for POST /questions (#8)
+316ddd3  Prompts 37–50 — Dashboard, admin UI, analytics, PDF export, CI/CD (#7)
+5b388b4  Prompts 15–36 — Library, RAG Q&A, Subscriptions, Admin (#6)
+43e4a02  Prompt 14b — docs update (#5)
+2539301  Prompts 11–14 — Auth (Sprint 3)
+6c242a9  Jira CLI
+91393f0  Prompts 01–10 — Infrastructure + Scraper
+```
