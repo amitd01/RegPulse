@@ -37,6 +37,27 @@ class CircularSearchParams(BaseModel):
     sort_order: str = Field(default="desc", pattern=r"^(asc|desc)$")
 
 
+class HybridSearchRequest(BaseModel):
+    """Request body for hybrid (vector + BM25) search."""
+
+    query: str = Field(..., min_length=3, max_length=500)
+    doc_type: str | None = None
+    status: str | None = Field(default="ACTIVE")
+    impact_level: str | None = None
+    department: str | None = None
+    date_from: date | None = None
+    date_to: date | None = None
+    page: int = Field(default=1, ge=1)
+    page_size: int = Field(default=20, ge=1, le=100)
+
+
+class AutocompleteRequest(BaseModel):
+    """Query params for autocomplete."""
+
+    q: str = Field(..., min_length=1, max_length=200)
+    limit: int = Field(default=10, ge=1, le=50)
+
+
 class CircularUpdateRequest(BaseModel):
     """Admin-only update fields."""
 
@@ -70,6 +91,13 @@ class CircularListItem(BaseModel):
     indexed_at: datetime
 
 
+class CircularSearchResultItem(CircularListItem):
+    """Search result with relevance score."""
+
+    relevance_score: float = 0.0
+    snippet: str | None = None
+
+
 class CircularDetail(CircularListItem):
     effective_date: date | None = None
     rbi_url: str
@@ -89,6 +117,37 @@ class CircularListResponse(BaseModel):
     total_pages: int
 
 
+class CircularSearchResponse(BaseModel):
+    success: bool = True
+    data: list[CircularSearchResultItem]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
 class CircularDetailResponse(BaseModel):
     success: bool = True
     data: CircularDetail
+
+
+class AutocompleteItem(BaseModel):
+    id: uuid.UUID
+    circular_number: str | None = None
+    title: str
+    doc_type: str
+
+
+class AutocompleteResponse(BaseModel):
+    success: bool = True
+    data: list[AutocompleteItem]
+
+
+class DepartmentListResponse(BaseModel):
+    success: bool = True
+    data: list[str]
+
+
+class TagListResponse(BaseModel):
+    success: bool = True
+    data: list[str]

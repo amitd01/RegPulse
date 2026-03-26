@@ -1,68 +1,47 @@
 # Claude Code Instructions — RegPulse
 
-> **Read `MEMORY.md` before starting any task.** It contains architecture decisions, business rules, directory structure, database schema, and coding conventions that must be followed.
+> **Read `MEMORY.md` before starting any task.**
+
+## Rules
+
+1. All endpoints at `/api/v1/` — never deviate
+2. Never import from `scraper/` in `backend/`
+3. Never send PII to the LLM
+4. Always validate citations — strip circular numbers not in retrieved chunks
+5. Credits deducted only on success — `SELECT FOR UPDATE`
+6. Admin routers in `routers/admin/` sub-package
+7. Pydantic schemas in `schemas/` — not inline in routers
+8. SQLAlchemy models use 2.0 `Mapped[]` annotations
+9. Services via `Depends()` — never instantiate in route bodies
+10. All errors return `{"success": false, "error": "message", "code": "ERROR_CODE"}`
+11. After every prompt: update README.md, MEMORY.md, CLAUDE.md, context.md
 
 ## Quick Reference
 
-- **API prefix:** All endpoints at `/api/v1/`
-- **Python:** ruff + black (line-length=100) + mypy strict. Run `make lint` before completing any task.
-- **TypeScript:** `strict: true` in tsconfig, ESLint + Prettier
-- **Migrations:** Alembic. Every schema change needs `alembic revision --autogenerate -m "describe_change"`
-- **Tests:** pytest (backend), Vitest (frontend), Playwright (E2E)
-- **No secrets in code** — all keys/tokens from environment variables via `Settings` class
+- **Python:** ruff + black (line-length=100), B008 suppressed globally
+- **TypeScript:** `strict: true`, ESLint + Prettier
+- **Tests:** pytest (backend), Next.js build (frontend)
+- **Env:** `.env.example` is the reference; `Settings` class loads all
 
-## Key Rules
+## Build Progress (36/50 done)
 
-1. **Never import from `scraper/` in `backend/`** — use `backend/app/services/embedding_service.py` for embeddings
-2. **Never send PII to the LLM** — no user name, email, or org_name in prompts
-3. **Always validate citations** — strip circular numbers not in retrieved chunks
-4. **Credits deducted only on success** — use `SELECT FOR UPDATE` atomic deduction
-5. **Admin router split** — use `routers/admin/` sub-routers, not a monolithic file
-6. **Pydantic schemas in `schemas/`** — not inline in routers
-7. **SQLAlchemy models in `models/`** — use 2.0 `Mapped[]` annotations
-8. **Services via `Depends()`** — never instantiate in route bodies
-9. **All errors** return `{"success": false, "error": "message", "code": "ERROR_CODE"}`
-10. **Update docs after every prompt/task completion** — after each successful prompt, epic, module, or project milestone, update the following files to reflect current state:
-    - `README.md` — build progress tracker, any new setup steps or Makefile targets
-    - `MEMORY.md` — architecture changes, new tables/columns, new services or patterns
-    - `CLAUDE.md` — new rules, references, or build progress
-    - Any relevant spec files if scope or design changed
-
-## Build Prompts
-
-The project is built using 50 sequential Claude Code prompts in `../files/RegPulse_ClaudeCode_50Prompts.docx`. See `../Improv_Regpulse_v1.md` for the improvement analysis that should be applied during build.
-
-## Build Progress
-
-| Prompt | Description | Status | Improvements Applied |
-|--------|-------------|--------|---------------------|
-| 01 | Monorepo scaffolding | Done | E1, E3, E4, E5, I6 |
-| 02 | PostgreSQL schema + pgvector + Alembic + ORM models | Done | A1, A2, A3, A4, D1 |
-| 03 | Pydantic Settings config.py (backend + scraper) | Done | D7 (DEMO_MODE prod block) |
-| 04 | FastAPI bootstrap, exceptions, db, cache, structlog, routers | Done | A5 (/api/v1/ prefix), A6 (cross-encoder timeout), D4 (webhook CORS exclude) |
-| 04b | Standalone embedding service (no scraper imports) | Done | A9 (shared embedding service), B3 (no cross-module import) |
-| 05 | RBI website crawler — URL discovery | Done | — |
-| 06 | PDF download + text extraction (pdfplumber + OCR) | Done | — |
-| 07 | Metadata extraction (circular_number, dates, dept, teams) | Done | A3 (action_deadline, affected_teams) |
-| 08 | Text chunker (sentence-aware, 512-token, 64-overlap) | Done | — |
-| 09 | Celery tasks, db.py, impact classifier, full pipeline | Done | — |
-| 10 | Supersession resolver + staleness detection + alerts | Done | — |
-| 11 | Auth setup — WorkEmailValidator + InvalidWorkEmailError | Done | B5 (250+ blocklist + MX check), D7 (PII-safe logging) |
-| 11b | OTPService + EmailService + 6 Jinja2 email templates | Done | D7 (PII-safe logging), Redis-based OTP storage |
-| 13 | Auth router — register, login, verify-otp, refresh, logout | Done | B5 (email enumeration protection), D7 (PII-safe), refresh token rotation |
-| 14 | Auth dependencies — get_current_user, require_active/verified/admin | Done | jti blacklist every request, iat < password_changed_at guard |
-| 14b | Frontend auth pages + API client + Zustand store + 401 interceptor | Done | TanStack Query mutations, token in memory, auto-refresh |
-| 15–50 | Remaining prompts | Pending | — |
-
-**Last updated:** 2026-03-23 after Prompt [14b]
+| Prompt | Description | Status |
+|--------|-------------|--------|
+| 01–04b | Infrastructure: monorepo, schema, config, FastAPI, embedding service | Done |
+| 05–10 | Scraper: crawl, PDF, metadata, chunking, Celery, supersession | Done |
+| 11–14 | Auth: email validation, OTP, JWT, frontend auth | Done |
+| 15–17 | Circular Library: hybrid search API, frontend, detail page | Done |
+| 18–23 | RAG Q&A: retrieval, LLM, SSE streaming, caching, ask/history | Done |
+| 24–27 | Subscriptions: Razorpay, plans, upgrade/account pages | Done |
+| 28–32 | Admin: dashboard, review, prompts, users, circulars, scraper | Done |
+| 33–36 | Action items + saved interpretations (backend + frontend) | Done |
+| 37–50 | Remaining: auth pages, admin frontend, analytics, deploy | Pending |
 
 ## File Reference
 
 | File | Purpose |
 |------|---------|
-| `MEMORY.md` | Full project context — architecture, schema, rules, patterns |
-| `../files/RegPulse_ClaudeCode_50Prompts.docx` | 50 build prompts |
-| `../files/RegPulse_PRD_v1.0.docx` | Product Requirements Document |
-| `../files/RegPulse_FSD_v1.0.docx` | Functional Specification Document |
-| `../Improv_Regpulse_v1.md` | Improvement analysis (40 items across 9 categories) |
-| `../regpulse_mockup_all_screens.html` | UI mockup prototypes |
+| `MEMORY.md` | Architecture, schema, business rules, patterns |
+| `context.md` | Live session state — what's done, what's next |
+| `spec.md` | Full technical spec — schema, API, RAG pipeline, security |
+| `README.md` | External docs — build progress, API ref, setup |
