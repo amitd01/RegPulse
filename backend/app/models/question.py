@@ -31,9 +31,7 @@ class ActionItemStatus(enum.StrEnum):
 class Question(Base):
     __tablename__ = "questions"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
@@ -42,9 +40,7 @@ class Question(Base):
     answer_text: Mapped[str | None] = mapped_column(Text)
     quick_answer: Mapped[str | None] = mapped_column(Text)
     risk_level: Mapped[str | None] = mapped_column(String(10))
-    recommended_actions: Mapped[dict | None] = mapped_column(
-        JSONB, server_default="'[]'::jsonb"
-    )
+    recommended_actions: Mapped[dict | None] = mapped_column(JSONB, server_default="'[]'::jsonb")
     affected_teams: Mapped[dict | None] = mapped_column(JSONB, server_default="'[]'::jsonb")
     citations: Mapped[dict | None] = mapped_column(JSONB, server_default="'[]'::jsonb")
     chunks_used: Mapped[dict | None] = mapped_column(JSONB, server_default="'[]'::jsonb")
@@ -76,9 +72,7 @@ class Question(Base):
 class ActionItem(Base):
     __tablename__ = "action_items"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
@@ -114,9 +108,7 @@ class ActionItem(Base):
 class SavedInterpretation(Base):
     __tablename__ = "saved_interpretations"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )

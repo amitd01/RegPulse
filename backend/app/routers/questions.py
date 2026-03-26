@@ -352,6 +352,56 @@ async def get_question(
 
 
 # ---------------------------------------------------------------------------
+# GET /questions/{id}/export — compliance brief export
+# ---------------------------------------------------------------------------
+
+
+@router.get("/{question_id}/export")
+async def export_question(
+    question_id: uuid.UUID,
+    user: User = Depends(require_verified_user),
+    db: AsyncSession = Depends(get_db),
+) -> StreamingResponse:
+    """Export question as a downloadable compliance brief."""
+    stmt = select(Question).where(
+        Question.id == question_id,
+        Question.user_id == user.id,
+    )
+    result = await db.execute(stmt)
+    question = result.scalar_one_or_none()
+
+    if question is None:
+        from app.exceptions import RegPulseException
+
+        class QuestionNotFoundError(RegPulseException):
+            http_status = 404
+            error_code = "QUESTION_NOT_FOUND"
+
+        raise QuestionNotFoundError("Question not found")
+
+    from app.services.pdf_export_service import PDFExportService
+
+    brief = PDFExportService.generate_brief(
+        question_text=question.question_text,
+        answer_text=question.answer_text,
+        quick_answer=question.quick_answer,
+        risk_level=question.risk_level,
+        affected_teams=question.affected_teams,
+        citations=question.citations,
+        recommended_actions=question.recommended_actions,
+        created_at=question.created_at.isoformat() if question.created_at else None,
+    )
+
+    return StreamingResponse(
+        iter([brief]),
+        media_type="text/plain",
+        headers={
+            "Content-Disposition": f'attachment; filename="regpulse_brief_{question_id}.txt"',
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
 # PATCH /questions/{id}/feedback
 # ---------------------------------------------------------------------------
 
