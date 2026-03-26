@@ -43,4 +43,5 @@
 |------|---------|
 | `MEMORY.md` | Architecture, schema, business rules, patterns |
 | `context.md` | Live session state — what's done, what's next |
+| `spec.md` | Full technical spec — schema, API, RAG pipeline, security |
 | `README.md` | External docs — build progress, API ref, setup |
