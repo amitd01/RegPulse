@@ -23,7 +23,7 @@
 - **Tests:** pytest (backend), Next.js build (frontend)
 - **Env:** `.env.example` is the reference; `Settings` class loads all
 
-## Build Progress (36/50 done)
+## Build Progress (42/50 done)
 
 | Prompt | Description | Status |
 |--------|-------------|--------|
@@ -35,7 +35,10 @@
 | 24–27 | Subscriptions: Razorpay, plans, upgrade/account pages | Done |
 | 28–32 | Admin: dashboard, review, prompts, users, circulars, scraper | Done |
 | 33–36 | Action items + saved interpretations (backend + frontend) | Done |
-| 37–50 | Remaining: auth pages, admin frontend, analytics, deploy | Pending |
+| 37–38 | Dashboard page + regulatory updates feed | Done |
+| 39–40 | Admin frontend (6 pages: dashboard, review, prompts, users, circulars, scraper) | Done |
+| 41–42 | Analytics service + summary service (backend) | Done |
+| 43–50 | Remaining: polish, CI/CD, deploy | Pending |
 
 ## File Reference
 

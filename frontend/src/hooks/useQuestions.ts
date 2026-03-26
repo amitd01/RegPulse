@@ -40,9 +40,6 @@ export function useQuestionDetail(id: string) {
 /** Submit a question (non-streaming). */
 export function useAskQuestion() {
   const queryClient = useQueryClient();
-  const setAuth = useAuthStore((s) => s.setAuth);
-  const user = useAuthStore((s) => s.user);
-
   return useMutation<QuestionResponse, Error, string>({
     mutationFn: async (question: string) => {
       const { data } = await api.post<QuestionResponse>("/questions", {
@@ -51,15 +48,12 @@ export function useAskQuestion() {
       return data;
     },
     onSuccess: (data) => {
-      // Update credit balance
-      if (user) {
-        const token = useAuthStore.getState().accessToken;
-        if (token) {
-          setAuth(
-            { ...user, credit_balance: data.credit_balance },
-            token,
-          );
-        }
+      // Update credit balance in store
+      const currentUser = useAuthStore.getState().user;
+      if (currentUser) {
+        useAuthStore.setState({
+          user: { ...currentUser, credit_balance: data.credit_balance },
+        });
       }
       // Invalidate history
       queryClient.invalidateQueries({ queryKey: ["questions", "history"] });

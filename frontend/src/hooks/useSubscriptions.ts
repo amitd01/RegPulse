@@ -83,9 +83,6 @@ export function useCreateOrder() {
 /** Verify payment after Razorpay checkout. */
 export function useVerifyPayment() {
   const queryClient = useQueryClient();
-  const user = useAuthStore((s) => s.user);
-  const setAuth = useAuthStore((s) => s.setAuth);
-
   return useMutation<
     { success: boolean; credit_balance: number },
     Error,
@@ -96,11 +93,11 @@ export function useVerifyPayment() {
       return data;
     },
     onSuccess: (data) => {
-      if (user) {
-        const token = useAuthStore.getState().accessToken;
-        if (token) {
-          setAuth({ ...user, credit_balance: data.credit_balance }, token);
-        }
+      const currentUser = useAuthStore.getState().user;
+      if (currentUser) {
+        useAuthStore.setState({
+          user: { ...currentUser, credit_balance: data.credit_balance },
+        });
       }
       queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
     },

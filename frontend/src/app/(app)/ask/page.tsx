@@ -39,7 +39,6 @@ export default function AskPage() {
   const abortRef = useRef<AbortController | null>(null);
   const accessToken = useAuthStore((s) => s.accessToken);
   const user = useAuthStore((s) => s.user);
-  const setAuth = useAuthStore((s) => s.setAuth);
 
   const handleAsk = useCallback(async () => {
     if (!question.trim() || question.trim().length < 5) return;
@@ -131,11 +130,10 @@ export default function AskPage() {
                   creditBalance: data.credit_balance,
                 }));
                 // Update credit balance in store
-                if (user && accessToken && data.credit_balance !== undefined) {
-                  setAuth(
-                    { ...user, credit_balance: data.credit_balance },
-                    accessToken,
-                  );
+                if (user && data.credit_balance !== undefined) {
+                  useAuthStore.setState({
+                    user: { ...user, credit_balance: data.credit_balance },
+                  });
                 }
               } else if ("error" in data) {
                 setState((prev) => ({
@@ -163,7 +161,7 @@ export default function AskPage() {
         errorMessage: err instanceof Error ? err.message : "Request failed",
       }));
     }
-  }, [question, state.status, accessToken, user, setAuth]);
+  }, [question, state.status, accessToken, user]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
