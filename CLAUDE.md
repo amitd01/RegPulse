@@ -51,9 +51,15 @@ The project is built using 50 sequential Claude Code prompts in `../files/RegPul
 | 15 | Circular Library API — Hybrid Search + Autocomplete | Done | A5 (hybrid RRF), A9 (embedding service reuse) |
 | 16 | Circular Library Frontend — list page, filters, search | Done | — |
 | 17 | Circular Detail Page — metadata, summary, chunks | Done | — |
-| 18–50 | Remaining prompts | Pending | — |
+| 18 | RAG Service — hybrid retrieval, RRF, cross-encoder rerank | Done | A5 (hybrid RRF on chunks) |
+| 19 | LLM Service — structured JSON, injection guard, GPT-4o fallback | Done | B1 (injection guard), B2 (citation validation) |
+| 20 | Questions router — POST /questions with SSE streaming | Done | — |
+| 21 | Answer caching + credit deduction (SELECT FOR UPDATE) | Done | A7 (atomic credits) |
+| 22 | Q&A frontend — ask page with SSE streaming | Done | — |
+| 23 | Q&A history page + detail page | Done | — |
+| 24–50 | Remaining prompts | Pending | — |
 
-**Last updated:** 2026-03-26 after Prompt [17]
+**Last updated:** 2026-03-26 after Prompt [23]
 
 ## File Reference
 

@@ -83,8 +83,8 @@ regpulse/
 │   │   │   ├── email_service.py
 │   │   │   ├── embedding_service.py          # Standalone — NOT imported from scraper
 │   │   │   ├── circular_library_service.py  # Hybrid search, autocomplete, facets
-│   │   │   ├── rag_service.py               # Hybrid BM25+vector with RRF
-│   │   │   ├── llm_service.py        # Injection defense + structured JSON + fallback
+│   │   │   ├── rag_service.py               # RAG pipeline: embed→vector+FTS→RRF→dedup→rerank
+│   │   │   ├── llm_service.py               # LLM: Anthropic primary, GPT-4o fallback, SSE stream
 │   │   │   ├── summary_service.py
 │   │   │   ├── action_item_service.py
 │   │   │   └── analytics_service.py

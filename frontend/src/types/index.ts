@@ -41,6 +41,41 @@ export interface CircularDetail extends CircularListItem {
   updated_at: string;
 }
 
+// --- Question types ---
+
+export interface CitationItem {
+  circular_number: string;
+  verbatim_quote: string;
+  section_reference: string | null;
+}
+
+export interface RecommendedAction {
+  team: string;
+  action_text: string;
+  priority: string;
+}
+
+export interface QuestionSummary {
+  id: string;
+  question_text: string;
+  quick_answer: string | null;
+  risk_level: string | null;
+  model_used: string | null;
+  feedback: number | null;
+  credit_deducted: boolean;
+  created_at: string;
+}
+
+export interface QuestionDetail extends QuestionSummary {
+  answer_text: string | null;
+  prompt_version: string | null;
+  affected_teams: string[] | null;
+  citations: CitationItem[] | null;
+  recommended_actions: RecommendedAction[] | null;
+  streaming_completed: boolean;
+  latency_ms: number | null;
+}
+
 // --- API response wrappers ---
 
 export interface PaginatedResponse<T> {
@@ -60,6 +95,12 @@ export interface SingleResponse<T> {
 export interface ListResponse<T> {
   success: boolean;
   data: T[];
+}
+
+export interface QuestionResponse {
+  success: boolean;
+  data: QuestionDetail;
+  credit_balance: number;
 }
 
 export interface AutocompleteItem {
