@@ -31,9 +31,7 @@ pytestmark = pytest.mark.asyncio
 # ---------------------------------------------------------------------------
 
 
-async def test_valid_token_returns_user(
-    client: AsyncClient, test_user: User, make_access_token
-):
+async def test_valid_token_returns_user(client: AsyncClient, test_user: User, make_access_token):
     token, _jti = make_access_token(test_user)
     resp = await client.get("/test/me", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200
@@ -58,9 +56,7 @@ async def test_missing_auth_header_returns_403(client: AsyncClient):
 
 
 async def test_invalid_token_returns_401(client: AsyncClient):
-    resp = await client.get(
-        "/test/me", headers={"Authorization": "Bearer totally-invalid-token"}
-    )
+    resp = await client.get("/test/me", headers={"Authorization": "Bearer totally-invalid-token"})
     assert resp.status_code == 401
     data = resp.json()
     assert data["success"] is False
@@ -134,9 +130,7 @@ async def test_deactivated_user_returns_401(
 
     from sqlalchemy import update
 
-    await db_session.execute(
-        update(User).where(User.id == test_user.id).values(is_active=False)
-    )
+    await db_session.execute(update(User).where(User.id == test_user.id).values(is_active=False))
     await db_session.commit()
 
     resp = await client.get("/test/active", headers={"Authorization": f"Bearer {token}"})
@@ -173,9 +167,7 @@ async def test_unverified_user_returns_403(
 # ---------------------------------------------------------------------------
 
 
-async def test_non_admin_returns_403(
-    client: AsyncClient, test_user: User, make_access_token
-):
+async def test_non_admin_returns_403(client: AsyncClient, test_user: User, make_access_token):
     token, _jti = make_access_token(test_user)
     resp = await client.get("/test/admin", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 403
@@ -189,9 +181,7 @@ async def test_non_admin_returns_403(
 # ---------------------------------------------------------------------------
 
 
-async def test_admin_user_returns_200(
-    client: AsyncClient, admin_user: User, make_access_token
-):
+async def test_admin_user_returns_200(client: AsyncClient, admin_user: User, make_access_token):
     token, _jti = make_access_token(admin_user)
     resp = await client.get("/test/admin", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200
@@ -211,9 +201,7 @@ async def test_zero_credits_returns_402(
 
     from sqlalchemy import update
 
-    await db_session.execute(
-        update(User).where(User.id == test_user.id).values(credit_balance=0)
-    )
+    await db_session.execute(update(User).where(User.id == test_user.id).values(credit_balance=0))
     await db_session.commit()
 
     resp = await client.get("/test/credits", headers={"Authorization": f"Bearer {token}"})

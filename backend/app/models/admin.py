@@ -13,9 +13,7 @@ from app.models import Base
 class PromptVersion(Base):
     __tablename__ = "prompt_versions"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     version_tag: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     prompt_text: Mapped[str] = mapped_column(Text, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -30,9 +28,7 @@ class PromptVersion(Base):
 class AdminAuditLog(Base):
     __tablename__ = "admin_audit_log"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     actor_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
@@ -50,9 +46,7 @@ class AdminAuditLog(Base):
 class AnalyticsEvent(Base):
     __tablename__ = "analytics_events"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     event_type: Mapped[str] = mapped_column(String(100), nullable=False)
     event_data: Mapped[dict | None] = mapped_column(JSONB, server_default="'{}'::jsonb")
