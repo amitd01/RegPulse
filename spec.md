@@ -1,6 +1,6 @@
 # RegPulse — Technical Specification
 
-> **Living spec. Reflects actual implementation state as of Prompt [36].**
+> **Living spec. Reflects actual implementation state — all 50 prompts complete.**
 > For architecture rules, see `MEMORY.md`. For build progress, see `CLAUDE.md`.
 
 ---
@@ -87,6 +87,7 @@ All endpoints at `/api/v1/`. Error format: `{"success": false, "error": "...", "
 | POST | /questions | Credits | Ask question. SSE when `Accept: text/event-stream`, JSON otherwise. Events: `token`, `citations`, `done`, `error`. Credit deducted on `done` only. |
 | GET | /questions | Verified | Paginated history (user's own) |
 | GET | /questions/{id} | Verified | Detail (owner only) |
+| GET | /questions/{id}/export | Verified | Download compliance brief (text format) |
 | PATCH | /questions/{id}/feedback | Verified | Submit feedback (-1/+1) with optional comment |
 
 ### 3.3 Subscriptions (6 endpoints)
@@ -259,15 +260,26 @@ Schedule: daily_scrape at 02:00 IST, priority_scrape every 4h.
 | Route | Page | Auth | Description |
 |-------|------|------|-------------|
 | `/` | Landing | Public | Product intro |
+| `/login` | Login | Public | Work email + Send OTP |
+| `/register` | Register | Public | Full profile form (name, org, type) |
+| `/verify` | Verify OTP | Public | 6-digit OTP with auto-submit |
 | `/library` | Library | Public | Browse circulars with filters, search, pagination |
 | `/library/[id]` | Detail | Public | Circular metadata, AI summary, text chunks |
+| `/dashboard` | Dashboard | Verified | Welcome, stats, quick actions, recent questions |
 | `/ask` | Ask | Credits | SSE streaming Q&A with citations and actions |
 | `/history` | History | Verified | Paginated question list |
 | `/history/[id]` | Q&A Detail | Verified | Full answer, citations, actions, feedback |
+| `/updates` | Updates | Verified | Regulatory updates feed (recent circulars) |
 | `/upgrade` | Upgrade | Verified | Plan cards with pricing |
 | `/account` | Account | Verified | Profile, plan info, payment history |
 | `/action-items` | Actions | Verified | CRUD with status filter tabs |
 | `/saved` | Saved | Verified | Saved interpretations with needs_review badge |
+| `/admin` | Admin Dashboard | Admin | 8 aggregate stat cards |
+| `/admin/review` | Review | Admin | Flagged questions, override/mark-reviewed |
+| `/admin/prompts` | Prompts | Admin | Version CRUD with activate |
+| `/admin/users` | Users | Admin | Search table, activate/deactivate |
+| `/admin/circulars` | Circulars | Admin | Pending summaries with approve |
+| `/admin/scraper` | Scraper | Admin | Run history, trigger priority/full |
 
 ### Component Library
 - `AppSidebar` — navigation (Library, Ask, History, Updates, Action Items, Saved)
@@ -281,8 +293,8 @@ Schedule: daily_scrape at 02:00 IST, priority_scrape every 4h.
 
 ### Data Layer
 - **TanStack Query** for all API calls (staleTime per query type)
-- **Zustand** auth store (token in memory only, never localStorage)
-- **Axios** interceptor: auto-attach Bearer token, 401 → clearAuth
+- **Zustand** auth store (access + refresh tokens in memory, never localStorage)
+- **Axios** interceptor: auto-attach Bearer token, 401 → silent refresh → retry (one attempt)
 - **Middleware** (`src/middleware.ts`): library browsable without auth, protected routes redirect to `/login`
 - **SSE**: native `fetch` + `ReadableStream` (not EventSource, for POST body support)
 
