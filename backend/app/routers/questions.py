@@ -71,7 +71,7 @@ def _build_llm_service(request: Request) -> LLMService:
 # ---------------------------------------------------------------------------
 
 
-@router.post("")
+@router.post("", response_model=None)
 async def ask_question(
     body: QuestionRequest,
     request: Request,
