@@ -1,15 +1,73 @@
-.PHONY: help jira-status jira-transitions jira-move jira-comment jira-done jira-progress
+.PHONY: help up down logs build lint test-backend test-frontend migrate seed clean
 
 help:
+	@echo "RegPulse Development Commands:"
+	@echo ""
+	@echo "  make up              Start all services (docker compose)"
+	@echo "  make down            Stop all services"
+	@echo "  make logs            Follow logs (all services)"
+	@echo "  make build           Build all Docker images"
+	@echo "  make lint            Run ruff + black (backend) + eslint (frontend)"
+	@echo "  make test-backend    Run backend pytest"
+	@echo "  make test-frontend   Run frontend build (type-check + lint)"
+	@echo "  make migrate         Run Alembic migrations"
+	@echo "  make seed            Seed admin user + initial prompt"
+	@echo "  make clean           Remove build artifacts"
+	@echo ""
 	@echo "Jira Commands:"
-	@echo "  make jira-status ISSUE=RP-2              Get issue status"
-	@echo "  make jira-transitions ISSUE=RP-2        List available transitions"
-	@echo "  make jira-move ISSUE=RP-2 STATUS=Done   Move issue to status"
-	@echo "  make jira-comment ISSUE=RP-2 MSG='...'  Add comment to issue"
-	@echo "  make jira-done ISSUE=RP-2 MSG='...'     Move to Done with comment"
-	@echo "  make jira-progress ISSUE=RP-2 MSG='...' Move to In Progress with comment"
+	@echo "  make jira-status ISSUE=RP-2"
+	@echo "  make jira-done ISSUE=RP-2 MSG='...'"
 
+# ---------------------------------------------------------------------------
+# Docker
+# ---------------------------------------------------------------------------
+up:
+	docker compose up -d
+
+down:
+	docker compose down
+
+logs:
+	docker compose logs -f
+
+build:
+	docker compose build
+
+# ---------------------------------------------------------------------------
+# Quality
+# ---------------------------------------------------------------------------
+lint:
+	cd backend && ruff check . && black --check --line-length 100 .
+	cd frontend && npx next lint
+
+test-backend:
+	PYTHONPATH=backend pytest backend/tests/unit/ -v
+
+test-frontend:
+	cd frontend && npx tsc --noEmit && npx next lint && npx next build
+
+test: test-backend test-frontend
+
+# ---------------------------------------------------------------------------
+# Database
+# ---------------------------------------------------------------------------
+migrate:
+	cd backend && alembic upgrade head
+
+seed:
+	@echo "Seed command — implement via backend/scripts/seed.py"
+
+# ---------------------------------------------------------------------------
+# Cleanup
+# ---------------------------------------------------------------------------
+clean:
+	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name .pytest_cache -exec rm -rf {} + 2>/dev/null || true
+	rm -rf frontend/.next 2>/dev/null || true
+
+# ---------------------------------------------------------------------------
 # Jira integration
+# ---------------------------------------------------------------------------
 jira-status:
 	@./scripts/jira.sh status $(ISSUE)
 
