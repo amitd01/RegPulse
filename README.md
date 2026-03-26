@@ -17,11 +17,12 @@
 | 5 — RAG Q&A | 18–23 | RAG pipeline, LLM service, SSE streaming, caching, Q&A pages | Done |
 | 6 — Subscriptions | 24–27 | Plans, Razorpay, credit system, upgrade page | Done |
 | 7 — Admin | 28–32 | Dashboard, review, prompts, users, circulars, scraper | Done |
-| 8 — Frontend | 33–42 | Auth pages, account, saved items, action items, updates | Pending |
+| 8 — Frontend | 33–36 | Action items, saved interpretations (backend + frontend) | Done |
+| 8 — Frontend | 37–42 | Auth pages, admin frontend, remaining polish | Pending |
 | 9 — Polish | 43–47 | Analytics, load tests, PDF export, email notifications | Pending |
 | 10 — Deploy | 48–50 | CI/CD, Nginx, launch checks | Pending |
 
-**Last updated:** 2026-03-26 — Prompt [32] complete
+**Last updated:** 2026-03-26 — Prompt [36] complete
 
 ---
 
@@ -119,6 +120,15 @@ pnpm dev                          # Start frontend dev server
 | POST | /subscriptions/webhook | Webhook | Razorpay webhook (HMAC) |
 | GET | /subscriptions/plan | Verified | Current plan info |
 | GET | /subscriptions/history | Verified | Payment history |
+| GET | /action-items | Verified | List action items |
+| POST | /action-items | Verified | Create action item |
+| PATCH | /action-items/{id} | Verified | Update action item |
+| DELETE | /action-items/{id} | Verified | Delete action item |
+| GET | /saved | Verified | List saved interpretations |
+| POST | /saved | Verified | Save interpretation |
+| GET | /saved/{id} | Verified | Get saved detail |
+| PATCH | /saved/{id} | Verified | Update saved |
+| DELETE | /saved/{id} | Verified | Delete saved |
 | GET | /admin/dashboard | Admin | Aggregate stats |
 | GET | /admin/review | Admin | Flagged questions |
 | PATCH | /admin/review/{id}/override | Admin | Override answer |

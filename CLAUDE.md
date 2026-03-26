@@ -66,9 +66,13 @@ The project is built using 50 sequential Claude Code prompts in `../files/RegPul
 | 30 | Admin prompts — CRUD + activate prompt versions | Done | — |
 | 31 | Admin users — list, update, credit grants | Done | — |
 | 32 | Admin circulars + scraper — approve summaries, trigger scrapes | Done | — |
-| 33–50 | Remaining prompts | Pending | — |
+| 33 | Action items router — CRUD | Done | — |
+| 34 | Saved interpretations router — CRUD + detail | Done | — |
+| 35 | Action items frontend page | Done | — |
+| 36 | Saved interpretations frontend page | Done | — |
+| 37–50 | Remaining prompts | Pending | — |
 
-**Last updated:** 2026-03-26 after Prompt [32]
+**Last updated:** 2026-03-26 after Prompt [36]
 
 ## File Reference
 
