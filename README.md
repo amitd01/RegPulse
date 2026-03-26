@@ -16,12 +16,12 @@
 | 4 — Circular Library | 15–17 | Hybrid search API, library frontend, detail page | Done |
 | 5 — RAG Q&A | 18–23 | RAG pipeline, LLM service, SSE streaming, caching, Q&A pages | Done |
 | 6 — Subscriptions | 24–27 | Plans, Razorpay, credit system, upgrade page | Done |
-| 7 — Admin | 28–32 | Review, prompts, dashboard, scraper controls | Pending |
+| 7 — Admin | 28–32 | Dashboard, review, prompts, users, circulars, scraper | Done |
 | 8 — Frontend | 33–42 | Auth pages, account, saved items, action items, updates | Pending |
 | 9 — Polish | 43–47 | Analytics, load tests, PDF export, email notifications | Pending |
 | 10 — Deploy | 48–50 | CI/CD, Nginx, launch checks | Pending |
 
-**Last updated:** 2026-03-26 — Prompt [27] complete
+**Last updated:** 2026-03-26 — Prompt [32] complete
 
 ---
 
@@ -119,6 +119,18 @@ pnpm dev                          # Start frontend dev server
 | POST | /subscriptions/webhook | Webhook | Razorpay webhook (HMAC) |
 | GET | /subscriptions/plan | Verified | Current plan info |
 | GET | /subscriptions/history | Verified | Payment history |
+| GET | /admin/dashboard | Admin | Aggregate stats |
+| GET | /admin/review | Admin | Flagged questions |
+| PATCH | /admin/review/{id}/override | Admin | Override answer |
+| GET | /admin/prompts | Admin | List prompt versions |
+| POST | /admin/prompts | Admin | Create + activate prompt |
+| GET | /admin/users | Admin | List users |
+| PATCH | /admin/users/{id} | Admin | Update user |
+| GET | /admin/circulars/pending-summaries | Admin | Pending summaries |
+| PATCH | /admin/circulars/{id} | Admin | Update circular |
+| POST | /admin/circulars/{id}/approve-summary | Admin | Approve summary |
+| GET | /admin/scraper/runs | Admin | Scraper run history |
+| POST | /admin/scraper/trigger | Admin | Trigger scrape |
 | GET | /health | Public | Liveness probe |
 | GET | /health/ready | Public | Readiness probe |
 

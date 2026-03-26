@@ -7,9 +7,9 @@
 ## Current State
 
 - **Branch:** `claude/regpulse-sprint-4-setup-qdC85`
-- **Last prompt completed:** **Prompt [27]** — Account Page
-- **Next prompt:** **Prompt [28]** — Admin Panel
-- **Sprint:** Sprint 6 complete. Sprint 7 (Admin) begins at Prompt [28].
+- **Last prompt completed:** **Prompt [32]** — Admin Scraper
+- **Next prompt:** **Prompt [33]** — Remaining Frontend
+- **Sprint:** Sprint 7 complete. Sprint 8 (Remaining Frontend) begins at Prompt [33].
 - **Date:** 2026-03-26
 
 ---
@@ -18,41 +18,42 @@
 
 | Prompt | Description | Status | Tests |
 |--------|-------------|--------|-------|
-| 15 | Circular Library API | Done | 30/30 |
-| 16–17 | Library frontend + detail page | Done | Build pass |
-| 18–23 | RAG pipeline, LLM, SSE, caching, Q&A pages | Done | 54/54 |
-| 24–25 | Subscription service + router | Done | 64/64 |
-| 26–27 | Upgrade page + account page | Done | Build pass (9 routes) |
+| 15–17 | Circular Library API + frontend + detail | Done | 30→54 |
+| 18–23 | RAG pipeline, LLM, SSE, Q&A pages | Done | 54/54 |
+| 24–27 | Subscriptions service + frontend | Done | 64/64 |
+| 28–32 | Admin: dashboard, review, prompts, users, circulars, scraper | Done | 64/64 |
 
 ---
 
-## What Exists
+## Backend Status
 
-### Backend Services
-- `embedding_service.py`, `circular_library_service.py`, `rag_service.py`, `llm_service.py`, `subscription_service.py`
-
-### Backend Routers (implemented)
+### Routers (all implemented)
 - `circulars.py` — 7 endpoints
-- `questions.py` — POST ask + SSE, GET history, GET detail, PATCH feedback
-- `subscriptions.py` — GET plans, POST order, POST verify, POST webhook, GET plan, GET history
+- `questions.py` — 4 endpoints (ask+SSE, history, detail, feedback)
+- `subscriptions.py` — 6 endpoints (plans, order, verify, webhook, plan, history)
+- `admin/dashboard.py` — GET dashboard stats
+- `admin/review.py` — GET flagged, PATCH override, PATCH mark-reviewed
+- `admin/prompts.py` — GET list, POST create, POST activate
+- `admin/users.py` — GET list, PATCH update
+- `admin/circulars.py` — GET pending, PATCH update, POST approve-summary
+- `admin/scraper.py` — GET runs, POST trigger
 
-### Backend Routers (stubs)
-- `auth.py`, `action_items.py`, `saved.py`, `admin/*` (6 sub-routers)
+### Routers (still stubs)
+- `auth.py`, `action_items.py`, `saved.py`
 
-### Backend Tests — 64 passing
-
-### Frontend Pages (9 routes)
-- `/`, `/library`, `/library/[id]`, `/ask`, `/history`, `/history/[id]`, `/upgrade`, `/account`
-
-### Frontend Hooks
-- `useCirculars.ts` (7), `useQuestions.ts` (4), `useSubscriptions.ts` (5)
+### Tests — 64 passing
 
 ---
 
-## Upcoming Prompts
+## Frontend Status — 9 routes, build clean
+
+Pages: `/`, `/library`, `/library/[id]`, `/ask`, `/history`, `/history/[id]`, `/upgrade`, `/account`
+
+---
+
+## Upcoming
 
 | Prompt | Description | Sprint |
 |--------|-------------|--------|
-| 28–32 | Admin panel: review, prompts, dashboard, users, scraper | Sprint 7 |
-| 33–42 | Remaining frontend: auth pages, saved, action-items, updates | Sprint 8 |
-| 43–50 | Polish, analytics, deploy | Sprint 9–10 |
+| 33–42 | Auth pages, saved items, action items, updates, admin frontend | Sprint 8 |
+| 43–50 | Polish, analytics, PDF export, CI/CD, deploy | Sprint 9–10 |

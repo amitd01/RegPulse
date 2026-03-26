@@ -61,9 +61,14 @@ The project is built using 50 sequential Claude Code prompts in `../files/RegPul
 | 25 | Subscription router — order, verify, webhook, plan info | Done | — |
 | 26 | Subscription frontend — upgrade page with plan cards | Done | — |
 | 27 | Account page — plan info, payment history, credits | Done | — |
-| 28–50 | Remaining prompts | Pending | — |
+| 28 | Admin dashboard — aggregate stats endpoint | Done | — |
+| 29 | Admin review — flagged questions, answer override | Done | — |
+| 30 | Admin prompts — CRUD + activate prompt versions | Done | — |
+| 31 | Admin users — list, update, credit grants | Done | — |
+| 32 | Admin circulars + scraper — approve summaries, trigger scrapes | Done | — |
+| 33–50 | Remaining prompts | Pending | — |
 
-**Last updated:** 2026-03-26 after Prompt [27]
+**Last updated:** 2026-03-26 after Prompt [32]
 
 ## File Reference
 
