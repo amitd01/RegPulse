@@ -52,7 +52,7 @@ import fakeredis.aioredis
 import pytest
 from fastapi import Depends, FastAPI
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import String, event, text
+from sqlalchemy import String, event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.cache import get_redis
