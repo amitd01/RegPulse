@@ -57,9 +57,13 @@ The project is built using 50 sequential Claude Code prompts in `../files/RegPul
 | 21 | Answer caching + credit deduction (SELECT FOR UPDATE) | Done | A7 (atomic credits) |
 | 22 | Q&A frontend — ask page with SSE streaming | Done | — |
 | 23 | Q&A history page + detail page | Done | — |
-| 24–50 | Remaining prompts | Pending | — |
+| 24 | Subscription service — plan config, Razorpay orders | Done | — |
+| 25 | Subscription router — order, verify, webhook, plan info | Done | — |
+| 26 | Subscription frontend — upgrade page with plan cards | Done | — |
+| 27 | Account page — plan info, payment history, credits | Done | — |
+| 28–50 | Remaining prompts | Pending | — |
 
-**Last updated:** 2026-03-26 after Prompt [23]
+**Last updated:** 2026-03-26 after Prompt [27]
 
 ## File Reference
 

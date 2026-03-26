@@ -15,13 +15,13 @@
 | 3 — Auth | 11–14 | Email validation, OTP, JWT, auth routes, frontend auth | Done |
 | 4 — Circular Library | 15–17 | Hybrid search API, library frontend, detail page | Done |
 | 5 — RAG Q&A | 18–23 | RAG pipeline, LLM service, SSE streaming, caching, Q&A pages | Done |
-| 6 — Subscriptions | 24–27 | Plans, Razorpay, credit system, upgrade page | Pending |
+| 6 — Subscriptions | 24–27 | Plans, Razorpay, credit system, upgrade page | Done |
 | 7 — Admin | 28–32 | Review, prompts, dashboard, scraper controls | Pending |
 | 8 — Frontend | 33–42 | Auth pages, account, saved items, action items, updates | Pending |
 | 9 — Polish | 43–47 | Analytics, load tests, PDF export, email notifications | Pending |
 | 10 — Deploy | 48–50 | CI/CD, Nginx, launch checks | Pending |
 
-**Last updated:** 2026-03-26 — Prompt [23] complete
+**Last updated:** 2026-03-26 — Prompt [27] complete
 
 ---
 
@@ -113,6 +113,12 @@ pnpm dev                          # Start frontend dev server
 | GET | /questions | Verified | Question history |
 | GET | /questions/{id} | Verified | Question detail |
 | PATCH | /questions/{id}/feedback | Verified | Submit feedback |
+| GET | /subscriptions/plans | Public | Available plans |
+| POST | /subscriptions/order | Verified | Create Razorpay order |
+| POST | /subscriptions/verify | Verified | Verify payment + activate |
+| POST | /subscriptions/webhook | Webhook | Razorpay webhook (HMAC) |
+| GET | /subscriptions/plan | Verified | Current plan info |
+| GET | /subscriptions/history | Verified | Payment history |
 | GET | /health | Public | Liveness probe |
 | GET | /health/ready | Public | Readiness probe |
 
