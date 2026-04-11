@@ -57,6 +57,24 @@ from app.schemas.questions import (  # noqa: F401
     SavedInterpretationUpdateRequest,
     SaveInterpretationRequest,
 )
+from app.schemas.kg import (  # noqa: F401
+    KGEntityResponse,
+    KGRelationshipResponse,
+)
+from app.schemas.news import (  # noqa: F401
+    NewsItemDetail,
+    NewsItemSummary,
+    NewsListResponse,
+    NewsStatusUpdate,
+)
+from app.schemas.snippet import (  # noqa: F401
+    PublicSnippetResponse,
+    PublicSnippetView,
+    SnippetCitation,
+    SnippetCreateRequest,
+    SnippetListItem,
+    SnippetListResponse,
+)
 from app.schemas.subscriptions import (  # noqa: F401
     CreateOrderRequest,
     OrderResponse,
