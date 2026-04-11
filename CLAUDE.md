@@ -11,10 +11,12 @@
 5. Credits deducted only on success — `SELECT FOR UPDATE`
 6. Admin routers in `routers/admin/` sub-package
 7. Pydantic schemas in `schemas/` — not inline in routers
-8. SQLAlchemy models use 2.0 `Mapped[]` annotations
+8. SQLAlchemy models use 2.0 `Mapped[]` annotations — TIMESTAMPTZ columns must declare `DateTime(timezone=True)` or asyncpg will reject naive datetimes
 9. Services via `Depends()` — never instantiate in route bodies
 10. All errors return `{"success": false, "error": "message", "code": "ERROR_CODE"}`
-11. After every prompt: update README.md, MEMORY.md, CLAUDE.md, context.md
+11. Public snippet sharing must NEVER expose `detailed_interpretation` — only `quick_answer` (truncated) + 1 citation, or the consult-expert fallback
+12. RSS news items are stored in `news_items` and surfaced in `/updates`, but they are **never** mixed into the RAG retrieval corpus — RAG-only-from-circulars is invariant
+13. After every prompt: update README.md, MEMORY.md, CLAUDE.md, context.md
 
 ## Quick Reference
 
@@ -44,7 +46,7 @@
 |--------|-------------|--------|
 | Sprint 1 | Hardening (HTTPOnly cookies, Scraper Embedder), Analytics (PostHog), Landing Page | ✅ Complete (`363b1ef`) |
 | Sprint 2 | Anti-Hallucination Guardrails, Golden Dataset Eval Pipeline, k6 Load Tests | ✅ Complete (`1858575`) |
-| Sprint 3 | Knowledge Graph, RSS/News Ingest, Social Sharing (Public Snippets) | ⏳ Planned |
+| Sprint 3 | Public Snippet Sharing, RSS/News Ingest, Knowledge Graph + RAG Expansion (flag-gated) | ✅ Complete (`5379c49`/`5d6dec3`/`52375b8`/`516acf9`) |
 | Sprint 4 | Premium UI Polish (Skeleton loaders, Dark mode, Confidence Meter), A/B UX Evals | ⏳ Planned |
 | Sprint 5 | Admin Content (Manual PDF upload), Semantic Clustering Usage Heatmaps | ⏳ Planned |
 | Post-Build | Real data migration, AWS deployment, Beta launch | ⏳ Planned |
@@ -61,6 +63,8 @@ Status: **Running** (updated 2026-04-11). All 6 containers operational via `dock
 - Anti-hallucination guardrails active: confidence scoring + "Consult Expert" fallback
 - Golden dataset eval: `tests/evals/test_hallucination.py` (30 test cases)
 - k6 load test: `tests/load/k6_load_test.js` (smoke/load/spike scenarios)
+- Sprint 3: public snippet sharing (`/s/[slug]`), RSS news ingest (60 RBI press items live), knowledge graph (95 entities, 29 edges across 6 demo circulars)
+- KG-driven RAG expansion is built but **off by default** — flip `RAG_KG_EXPANSION_ENABLED=true` after Sprint 4 ships the Confidence Meter UI
 - See `PRODUCTION_PLAN.md` for AWS deployment roadmap
 
 ## File Reference

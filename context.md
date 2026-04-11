@@ -1,71 +1,95 @@
 # RegPulse — Project Status
 
-> **All 50 prompts + Sprint 1 & 2 complete. Paused before Sprint 3.**
+> **All 50 prompts + Sprints 1, 2, 3 of Phase 2 complete.**
 
 ---
 
 ## Current State (2026-04-11)
 
-- **Branch:** `main` (all changes merged and pushed)
-- **Phase:** Phase 2 — Sprint 1 & 2 complete, Sprint 3 planned
-- **Backend tests:** 64 unit + 30 hallucination eval tests
-- **Frontend:** 22 routes, tsc clean, eslint clean, build clean
-- **Docker:** 6 containers running (postgres, redis, backend, frontend, scraper, celery-beat)
-- **Load tests:** k6 (3 scenarios: smoke, load, spike)
+- **Branch:** `main` — Sprints 1–3 of Phase 2 merged
+- **Phase:** Phase 2 — **Sprint 3 complete**, Sprint 4 next (Premium UI Polish + Confidence Meter)
+- **Backend tests:** 64 unit + 30 anti-hallucination + new Sprint 3 unit suites (snippet, RSS, entity extractor — 30 additional assertions verified via in-container python)
+- **Frontend:** 23 routes (added `/s/[slug]` public snippet page), tsc + next build clean
+- **Docker:** 6 containers running
+- **Knowledge graph:** 95 entities + 29 edges across 6 demo circulars (backfilled via `scripts/backfill_kg.py`)
+- **News ingest:** 60 RBI press releases live, beat schedule every 30 min
+- **Public snippets:** end-to-end share flow verified (POST → public GET → OG image → revoke)
 
 ---
 
 ## Git History (main)
 
 ```
-1858575  feat(sprint-2): anti-hallucination guardrails, golden dataset, and load tests
-363b1ef  feat(sprint-1): security hardening, analytics, embedder, and landing page
-8c79f8c  docs: final update — all 5 docs reflect complete project state (50/50 prompts) (#9)
+516acf9  feat(sprint-3): knowledge graph extraction and RAG expansion
+52375b8  feat(sprint-3): RSS / news ingest pipeline
+5d6dec3  feat(sprint-3): public safe snippet sharing
+5379c49  feat(sprint-3): schema + models for KG, news, snippets
+dad1fff  docs: Sprint 1+2 completion
+1858575  feat(sprint-2): anti-hallucination guardrails, golden dataset, load tests
+363b1ef  feat(sprint-1): security hardening, analytics, embedder, landing page
+8c79f8c  docs: final update — 50/50 prompts (#9)
 fc03e8e  fix: response_model=None for POST /questions (#8)
-316ddd3  Prompts 37–50 — Dashboard, admin UI, analytics, PDF export, CI/CD (#7)
-5b388b4  Prompts 15–36 — Library, RAG Q&A, Subscriptions, Admin (#6)
-43e4a02  Prompt 14b — docs update (#5)
-2539301  Prompts 11–14 — Auth (Sprint 3)
-91393f0  Prompts 01–10 — Infrastructure + Scraper
+316ddd3  Prompts 37–50 (#7)
+5b388b4  Prompts 15–36 (#6)
 ```
 
 ---
 
-## Sprint 1 Changes (commit `363b1ef`)
+## Sprint 3 Changes
 
+### Pillar A — Knowledge Graph (`516acf9`)
 | File | Change |
 |------|--------|
-| `backend/app/routers/auth.py` | HTTPOnly cookie lifecycle (set/read/clear refresh_token) |
-| `backend/app/config.py` | PEM newline expansion, cookie domain config |
-| `backend/app/main.py` | DEMO_MODE cross-encoder skip |
-| `frontend/src/stores/authStore.ts` | Removed client-side cookie handling, 2-arg `setAuth(user, accessToken)` |
-| `frontend/src/lib/api.ts` | `withCredentials: true` for cookie auto-send |
-| `frontend/src/app/page.tsx` | Full marketing landing page (navy hero, feature cards, footer) |
-| `frontend/src/providers/PostHogProvider.tsx` | PostHog analytics integration |
-| `frontend/src/components/PostHogPageView.tsx` | Client-side pageview tracking |
-| `scraper/processor/embedder.py` | Stub → OpenAI `text-embedding-3-large` with batching |
-| `.env.example` | PostHog env vars added |
-| `PRODUCTION_PLAN.md` | AWS deployment roadmap |
+| `scraper/processor/entity_extractor.py` | Two-pass extractor: regex pre-pass (circular numbers, sections, amounts, dates) + Claude Haiku LLM pass for orgs/regulations/teams + triples |
+| `scraper/tasks.py` | Step 6.5 in `process_document` runs extraction + `persist_kg` helper for upsert |
+| `backend/app/services/kg_service.py` | Read-only helpers: `find_entities_in_text`, `get_neighbors`, `neighbor_circular_numbers` |
+| `backend/app/services/rag_service.py` | Optional `_kg_expand` step gated by `RAG_KG_EXPANSION_ENABLED` (default OFF) |
+| `backend/scripts/backfill_kg.py` | Walks ACTIVE circulars and populates KG from existing chunks |
+| `scraper/tests/test_entity_extractor.py` | 13 unit assertions (regex, LLM mocking, validation, determinism) |
 
-## Sprint 2 Changes (commit `1858575`)
-
+### Pillar B — RSS / News Ingest (`52375b8`)
 | File | Change |
 |------|--------|
-| `backend/app/services/llm_service.py` | Confidence scoring, "Consult Expert" fallback, hardened system prompt (8 rules) |
-| `backend/tests/evals/golden_dataset.json` | 30 synthetic test cases (12 factual, 3 multi-circular, 8 OOS, 5 injection) |
-| `backend/tests/evals/test_hallucination.py` | Evaluation pipeline: confidence, citations, injection, golden dataset structure |
-| `backend/tests/evals/conftest.py` | Lightweight test setup for eval-only runs |
-| `tests/load/k6_load_test.js` | Load test: smoke (1 VU), load (20 VU ramp), spike (50 VU burst) |
+| `scraper/crawler/rss_fetcher.py` | feedparser-based fetcher with dedup + graceful failure (RBI Press, BS, LiveMint, ET Banking) |
+| `scraper/processor/news_relevance.py` | Embed news title+summary, score against active circulars via pgvector cosine, link above 0.75 |
+| `scraper/tasks.py` | New `ingest_news` task with per-item savepoints (idempotent) |
+| `scraper/celery_app.py` | Beat schedule every 30 min, routes to scraper queue |
+| `scraper/requirements.txt` | `feedparser==6.0.11` |
+| `backend/app/routers/news.py` | `GET /api/v1/news`, `GET /api/v1/news/{id}` (verified) |
+| `backend/app/routers/admin/news.py` | `GET /admin/news`, `PATCH /admin/news/{id}` |
+| `frontend/src/lib/api/news.ts` | News client + `sourceLabel` helper |
+| `frontend/src/app/(app)/updates/page.tsx` | Tab control: Circulars + Market News |
+| `scraper/tests/test_rss_fetcher.py` | 8 fetcher assertions (mocked feedparser) |
+
+### Pillar C — Public Safe Snippet Sharing (`5d6dec3`)
+| File | Change |
+|------|--------|
+| `backend/app/services/snippet_service.py` | Pure builder enforcing redaction guarantee (quick_answer ≤80 words, citation quote ≤200 chars, consult_expert fallback) |
+| `backend/app/services/og_image_service.py` | 1200×630 PNG renderer (Pillow) |
+| `backend/app/routers/snippets.py` | POST/GET/DELETE/list with slowapi rate limit (60/min) on public read |
+| `backend/app/rate_limit.py` | Extracted shared limiter (avoids circular import) |
+| `backend/app/config.py` | `SNIPPET_RATE_LIMIT_PER_MIN`, `SNIPPET_EXPIRY_DAYS`, `BACKEND_PUBLIC_URL`, KG/RSS env knobs |
+| `frontend/src/lib/api/snippets.ts` | Client + `fetchPublicSnippet` SSR helper |
+| `frontend/src/components/ShareSnippetDialog.tsx` | Generate + LinkedIn/X share UI |
+| `frontend/src/app/(app)/history/[id]/page.tsx` | Share button wired to dialog |
+| `frontend/src/app/s/[slug]/page.tsx` | Public Server Component with `generateMetadata` for og:image |
+| `frontend/src/middleware.ts` | `/s/*` allowlisted as public |
+| `backend/tests/unit/test_snippet_service.py` | 9 redaction-guarantee assertions |
+
+### Schema Migration (`5379c49`)
+- `backend/migrations/002_sprint3_knowledge_graph.sql` — `kg_entities`, `kg_relationships`, `news_items`, `public_snippets` + 4 enum types
+- ORM models: `app/models/{kg,news,snippet}.py`
+- Pydantic schemas: `app/schemas/{kg,news,snippet}.py`
 
 ---
 
-## Resolved Tech Debt (from Sprint 1)
+## Resolved Tech Debt
 
 | ID | Was | Resolution |
 |----|-----|------------|
-| TD-05 | Scraper embedder returned empty vectors | Uses OpenAI `text-embedding-3-large` with batching |
-| TD-06 | Landing page was bare placeholder | Full marketing landing page with hero, features, footer |
-| TD-07 | `refresh_token` cookie not httpOnly | Backend `Set-Cookie: HttpOnly; Secure; SameSite=lax` |
+| TD-05 | Scraper embedder returned empty vectors | Sprint 1 — OpenAI batching |
+| TD-06 | Landing page was placeholder | Sprint 1 — Full marketing page |
+| TD-07 | refresh_token cookie not httpOnly | Sprint 1 — `Set-Cookie: HttpOnly` |
 
 ## Remaining Tech Debt
 
@@ -74,25 +98,29 @@ fc03e8e  fix: response_model=None for POST /questions (#8)
 | TD-01 | Scraper writes directly to backend DB | API isolation in v2 |
 | TD-02 | No graceful shutdown handlers | SIGTERM handlers post-launch |
 | TD-03 | Manual api.ts client | OpenAPI codegen in v1.1 |
-| TD-04 | admin_audit_log.actor_id NOT NULL | Seed system user |
+| TD-04 | admin_audit_log.actor_id NOT NULL — scraper can't log | Seed system user |
+| TD-08 | `process_document` INSERT omits `embedding` column — only `backfill_embeddings.py` populates it | Wire `_embeddings` into the chunk INSERT in scraper Step 6 |
+| TD-09 | `BACKEND_PUBLIC_URL` unset in demo (OG image URL falls back to localhost:8000) | Set when AWS deploy lands |
 
 ---
 
 ## Inventory
 
-**Backend services (8):** embedding, circular_library, rag, llm, subscription, analytics, summary, pdf_export
+**Backend services (11):** embedding, circular_library, rag, llm, subscription, analytics, summary, pdf_export, snippet, kg, og_image
 
-**Backend routers (14 files, 48 endpoints):**
+**Backend routers (17 files, ~58 endpoints):**
 - `auth.py` — register, login, verify-otp, refresh, logout
 - `circulars.py` — list, search, autocomplete, detail, departments, tags, doc-types
 - `questions.py` — ask (SSE+JSON), history, detail, export, feedback
 - `subscriptions.py` — plans, order, verify, webhook, plan, history
 - `action_items.py` — list, create, update, delete
 - `saved.py` — list, create, detail, update, delete
-- `admin/` — dashboard, review (3), prompts (3), users (2), circulars (3), scraper (2)
+- `snippets.py` — create, list, public get, og image, revoke (Sprint 3)
+- `news.py` — list, detail (Sprint 3)
+- `admin/` — dashboard, review, prompts, users, circulars, scraper, news (Sprint 3)
 
-**Frontend (22 routes):**
-- Public: `/`, `/library`, `/library/[id]`, `/login`, `/register`, `/verify`
+**Frontend (23 routes):**
+- Public: `/`, `/library`, `/library/[id]`, `/login`, `/register`, `/verify`, `/s/[slug]` (Sprint 3)
 - Auth: `/dashboard`, `/ask`, `/history`, `/history/[id]`, `/upgrade`, `/account`, `/action-items`, `/saved`, `/updates`
 - Admin: `/admin`, `/admin/review`, `/admin/prompts`, `/admin/users`, `/admin/circulars`, `/admin/scraper`
 
@@ -108,16 +136,18 @@ fc03e8e  fix: response_model=None for POST /questions (#8)
 | Social Sharing | Public Safe Snippets + registration gate | Prevents IP leakage, drives organic growth |
 | Anti-Hallucination | 3-layer protection (injection guard → context guard → confidence scoring) | Zero tolerance for fabricated regulatory advice |
 | Auth Security | HTTPOnly backend cookies | XSS-resistant refresh token management |
-| AWS Deployment | Deferred to post-Sprint 3 | Saves ~$205/mo while features are in flux |
-| Golden Dataset | Synthetic for dev phase | Enables adversarial test cases without live API costs |
-| Load Testing | Local Docker Compose | Zero cost, reproducible, same k6 scripts work on AWS later |
+| KG Storage | Plain Postgres (no Neo4j) | ~100 entities fits trivially; can migrate later if depth grows |
+| News Source Separation | `news_items` table, never mixed into RAG corpus | Preserves "RAG-only-from-circulars" invariant |
+| KG RAG Expansion | Built but flag-gated OFF | Enable after Sprint 4 ships the Confidence Meter UI for safe rollout |
+| AWS Deployment | Deferred to post-Sprint 5 | Saves ~$205/mo while features are in flux |
 
 ---
 
-## Next Steps (Sprint 3 — when resumed)
+## Next Steps (Sprint 4)
 
-1. Knowledge Graph service for cross-circular references
-2. RSS/News ingestion pipeline for market-event awareness
-3. LinkedIn/X social sharing buttons on Q&A history
-4. Public share page (`/share/[id]`) with safe snippet + registration CTA
-5. Social proof section on landing page
+1. **Confidence Meter UI** — render `confidence_score` and `consult_expert` from the LLM response in `/ask` and `/history/[id]`
+2. **Skeleton loaders** across `/library`, `/history`, `/updates` lists
+3. **Dark mode** with WCAG-AA contrast
+4. **Streaming citation jitter** — stabilize SSE token rendering in `/ask`
+5. **A/B UX evals** — PostHog feature flags + analytics events
+6. After Sprint 4 ships, flip `RAG_KG_EXPANSION_ENABLED=true` and watch the golden dataset eval for regressions

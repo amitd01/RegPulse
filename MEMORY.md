@@ -8,13 +8,14 @@
 
 B2B SaaS for Indian banking professionals. RAG-powered Q&A over RBI Circulars with cited answers. Work-email-gated, subscription-based, 5 free lifetime credits.
 
-**(Phase 2 — Sprint 1 & 2 Complete)**:
+**(Phase 2 — Sprints 1, 2, 3 Complete)**:
 - Strict zero-hallucination constraint with multi-signal confidence scoring (0.0-1.0).
 - "Consult an Expert" fallback when confidence < 0.5 or zero valid citations.
 - PostHog adopted for event/journey analytics to prevent lock-in.
 - HTTPOnly cookie-based refresh tokens (XSS-resistant).
-- Social sharing uses "Public Safe Snippets" with a registration gate (Sprint 3).
-- Future roadmap includes Knowledge Graphs and RSS/News crawler (Sprint 3).
+- Sprint 3: public safe snippet sharing (`/s/[slug]`), RSS/news ingest with embedding-based circular linking, knowledge graph extraction with optional RAG expansion (flag-gated, default off).
+- News items live alongside circulars in `/updates` but are **never** mixed into the RAG retrieval corpus.
+- KG-driven RAG expansion is built but stays off until the Sprint 4 Confidence Meter UI lands.
 
 ---
 
@@ -30,9 +31,9 @@ B2B SaaS for Indian banking professionals. RAG-powered Q&A over RBI Circulars wi
 
 ---
 
-## Schema (13 tables)
+## Schema (17 tables)
 
-Ground truth: `backend/migrations/001_initial_schema.sql`
+Ground truth: `backend/migrations/001_initial_schema.sql` + `002_sprint3_knowledge_graph.sql`
 
 | Table | Model | Key columns |
 |-------|-------|-------------|
@@ -49,6 +50,10 @@ Ground truth: `backend/migrations/001_initial_schema.sql`
 | admin_audit_log | `admin.py` | actor_id, action, target_table, old/new_value |
 | analytics_events | `admin.py` | user_hash, event_type, event_data |
 | pending_domain_reviews | `user.py` | domain, mx_valid, approved |
+| kg_entities (Sprint 3) | `kg.py` | entity_type, canonical_name, aliases (JSONB) |
+| kg_relationships (Sprint 3) | `kg.py` | source/target_entity_id, relation_type, source_document_id |
+| news_items (Sprint 3) | `news.py` | source, external_id, title, url, linked_circular_id, relevance_score |
+| public_snippets (Sprint 3) | `snippet.py` | slug, question_id, snippet_text, top_citation, consult_expert |
 
 Indexes: ivfflat on embeddings (lists=100), GIN on FTS + citations JSONB + tags JSONB, btree on FKs/status/timestamps.
 
@@ -168,3 +173,5 @@ docker compose up --build -d
 | ~~TD-05~~ | ~~Scraper embedder is a stub~~ | ✅ Fixed (Sprint 1) — Uses OpenAI `text-embedding-3-large` |
 | ~~TD-06~~ | ~~Landing page is bare placeholder~~ | ✅ Fixed (Sprint 1) — Full marketing landing page |
 | ~~TD-07~~ | ~~refresh_token cookie is not httpOnly~~ | ✅ Fixed (Sprint 1) — Backend `Set-Cookie: HttpOnly; Secure; SameSite=lax` |
+| TD-08 | `document_chunks.embedding` not populated by `process_document` (insert omits column) | Wire embedder output into Step 6 INSERT — currently only `backfill_embeddings.py` populates it |
+| TD-09 | OG image URL uses `BACKEND_PUBLIC_URL` config which is unset in demo | Set when AWS deploy lands, falls back to localhost:8000 |

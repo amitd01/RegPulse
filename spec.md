@@ -1,6 +1,6 @@
 # RegPulse — Technical Specification
 
-> **Living spec. Reflects actual implementation state — all 50 prompts + Sprint 1 & 2 complete.**
+> **Living spec. Reflects actual implementation state — all 50 prompts + Sprints 1, 2, 3 of Phase 2 complete.**
 > For architecture rules, see `MEMORY.md`. For build progress, see `CLAUDE.md`.
 
 ---
@@ -9,7 +9,7 @@
 
 RegPulse is a B2B SaaS platform delivering RAG-powered Q&A over RBI Circulars for Indian banking professionals. Two modules: a Celery scraper that indexes RBI documents into pgvector, and a FastAPI+Next.js web app that retrieves and answers questions with cited sources.
 
-**(Phase 2 — Sprint 1 & 2 Complete)**: HTTPOnly cookie security, PostHog analytics, OpenAI embedding pipeline, marketing landing page, anti-hallucination confidence scoring with "Consult an Expert" fallback, golden dataset evaluation pipeline, and k6 load tests.
+**(Phase 2 — Sprints 1, 2, 3 Complete)**: HTTPOnly cookie security, PostHog analytics, OpenAI embedding pipeline, marketing landing page, anti-hallucination confidence scoring with "Consult an Expert" fallback, golden dataset evaluation pipeline, k6 load tests, public safe snippet sharing, RSS news ingest with embedding-based circular linking, and knowledge graph extraction with optional flag-gated RAG expansion.
 
 ```
 rbi.org.in → Scraper (Celery/Redis) → PostgreSQL+pgvector
@@ -25,7 +25,7 @@ rbi.org.in → Scraper (Celery/Redis) → PostgreSQL+pgvector
 
 ## 2. Database Schema
 
-**13 tables.** Ground truth: `backend/migrations/001_initial_schema.sql`
+**17 tables.** Ground truth: `backend/migrations/001_initial_schema.sql` + `backend/migrations/002_sprint3_knowledge_graph.sql`
 
 ### Users & Auth
 | Table | Columns | Notes |
@@ -59,6 +59,14 @@ rbi.org.in → Scraper (Celery/Redis) → PostgreSQL+pgvector
 |-------|---------|-------|
 | `subscription_events` | id, user_id FK, order_id, razorpay_event_id (unique), plan, amount_paise, status, created_at | Razorpay payment records |
 | `scraper_runs` | id, started_at, completed_at, status, documents_processed, documents_failed, error_message, created_at | Pipeline run tracking |
+
+### Sprint 3 Tables
+| Table | Columns | Notes |
+|-------|---------|-------|
+| `kg_entities` | id, entity_type (enum: CIRCULAR/SECTION/REGULATION/ENTITY_TYPE/AMOUNT/DATE/TEAM/ORG), canonical_name, aliases JSONB, metadata JSONB, first/last_seen_at | Unique on (entity_type, canonical_name) |
+| `kg_relationships` | id, source/target_entity_id FK, relation_type (enum: SUPERSEDES/REFERENCES/AMENDS/APPLIES_TO/MENTIONS/EFFECTIVE_FROM), source_document_id FK, confidence, created_at | Unique on (source, target, relation_type, source_document_id) |
+| `news_items` | id, source (enum: RBI_PRESS/BUSINESS_STANDARD/LIVEMINT/ET_BANKING), external_id, title, url, published_at, summary, raw_html_hash, linked_circular_id FK, linked_entity_ids JSONB, relevance_score, status (enum: NEW/REVIEWED/DISMISSED), created_at | Unique on (source, external_id) |
+| `public_snippets` | id, slug (unique 12 char), question_id FK, user_id FK, snippet_text, top_citation JSONB, consult_expert, view_count, revoked, expires_at, created_at | Owner-generated, redacted answer previews |
 
 ### Key Indexes
 - **ivfflat** on `document_chunks.embedding` and `questions.question_embedding` (lists=100)
@@ -137,7 +145,24 @@ All endpoints at `/api/v1/`. Error format: `{"success": false, "error": "...", "
 | GET | /admin/scraper/runs | Scraper run history |
 | POST | /admin/scraper/trigger | Trigger priority or full scrape |
 
-### 3.7 Health (2 endpoints)
+### 3.7 Snippets (Sprint 3, 5 endpoints)
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | /snippets | Verified | Create a public snippet from one of the user's questions. Returns slug + share_url |
+| GET | /snippets | Verified | List the caller's snippets |
+| GET | /snippets/{slug} | Public (60/min) | Public snippet view — redacted, no auth, increments view_count |
+| GET | /snippets/{slug}/og | Public (60/min) | 1200×630 PNG OG image, cached 24h |
+| DELETE | /snippets/{slug} | Owner or Admin | Soft revoke |
+
+### 3.8 News (Sprint 3, 4 endpoints)
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | /news | Verified | Paginated news feed with `source` and `only_linked` filters |
+| GET | /news/{id} | Verified | News item detail |
+| GET | /admin/news | Admin | Includes dismissed items, status filter |
+| PATCH | /admin/news/{id} | Admin | Update status (NEW/REVIEWED/DISMISSED) |
+
+### 3.9 Health (2 endpoints)
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | /health | Liveness probe |
@@ -175,6 +200,8 @@ User question
 14. DB: INSERT question + deduct 1 credit (SELECT FOR UPDATE atomic)
 15. Cache answer in Redis → return via SSE stream or JSON
 ```
+
+**Sprint 3 — Optional knowledge graph expansion (default OFF):** When `RAG_KG_EXPANSION_ENABLED=true`, after step 5 (dedup) the pipeline seeds from the top-3 chunks, runs the regex entity finder over their text, looks up neighbour circulars in `kg_relationships`, and pulls additional chunks from those circulars with a small boost (`RAG_KG_BOOST_WEIGHT`). Best-effort — any failure short-circuits to the un-expanded result.
 
 ### RAG Config (env vars)
 | Variable | Default | Description |
@@ -260,6 +287,7 @@ Webhook: POST /webhook (no CORS, no auth) handles `payment.captured` events idem
 4. Metadata extraction — regex for circular_number, dates, department, affected_teams
 5. Impact classification — Claude Haiku → HIGH/MEDIUM/LOW
 6. Chunking — 512-token chunks, 64-token overlap, sentence-aware
+6.5 (Sprint 3) Knowledge graph extraction — regex pre-pass + Haiku LLM pass, persist via persist_kg
 7. Embedding — text-embedding-3-large, batched in 100s
 8. Storage — circular_documents + document_chunks
 9. Supersession — exact + fuzzy match, SELECT FOR UPDATE, staleness flags
@@ -267,7 +295,18 @@ Webhook: POST /webhook (no CORS, no auth) handles `payment.captured` events idem
 11. Admin alert — email notification
 ```
 
-Schedule: daily_scrape at 02:00 IST, priority_scrape every 4h.
+Schedule: daily_scrape at 02:00 IST, priority_scrape every 4h, **ingest_news every 30 min** (Sprint 3).
+
+### Sprint 3 — Knowledge Graph Extraction
+- `scraper/processor/entity_extractor.py` — two-pass extractor: deterministic regex (circular numbers, sections, amounts, dates) + Claude Haiku LLM pass (orgs, regulations, entity types, teams + S-P-O triples).
+- Persisted by `persist_kg` in `scraper/tasks.py` with idempotent upsert (entity unique key: `(entity_type, canonical_name)`; relationship unique key: `(source, target, relation_type, source_document_id)`).
+- Backfill: `backend/scripts/backfill_kg.py` (run inside scraper container).
+- Gated by `KG_EXTRACTION_ENABLED` (default true).
+
+### Sprint 3 — RSS / News Ingest
+- `scraper/crawler/rss_fetcher.py` — feedparser-based, RSS only, dedup by `(source, external_id)`, 50 entries/feed cap, graceful failure handling.
+- `scraper/processor/news_relevance.py` — embed title+summary, project chunk-level pgvector cosine to document level via MAX, link if score ≥ `NEWS_RELEVANCE_THRESHOLD`.
+- `scraper.tasks.ingest_news` — idempotent task with per-item savepoints, beat schedule every 30 minutes.
 
 ---
 

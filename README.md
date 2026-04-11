@@ -27,7 +27,7 @@
 |--------------|-------------|--------|
 | Sprint 1 | Analytics (PostHog), Core Hardening (HTTPOnly cookies, Direct Embedder), Landing Page | ✅ Complete (`363b1ef`) |
 | Sprint 2 | Anti-Hallucination Guardrails, Golden Dataset Eval Pipeline, k6 Load Tests | ✅ Complete (`1858575`) |
-| Sprint 3 | Knowledge Graph mapping, RSS/News Ingest, Social Sharing (Public Safe Snippet) | ⏳ Planned |
+| Sprint 3 | Public Safe Snippet Sharing, RSS/News Ingest, Knowledge Graph + RAG Expansion (flag-gated) | ✅ Complete (`5379c49`/`5d6dec3`/`52375b8`/`516acf9`) |
 | Sprint 4 | Premium UI Polish, Skeleton loaders, Dark Mode, Confidence Meter UI | ⏳ Planned |
 | Sprint 5 | Admin Workflow: Manual PDF Onboarding, Semantic Clustering Heatmaps for Queries | ⏳ Planned |
 | Post-Build | Real data migration, AWS deployment (PRODUCTION_PLAN.md), Beta launch | ⏳ Planned |
@@ -46,7 +46,7 @@ rbi.org.in → Scraper (Celery) → PostgreSQL + pgvector ← FastAPI ← Next.j
 |-------|------|
 | Backend | FastAPI, SQLAlchemy 2.0 async, Pydantic v2, Python 3.11 |
 | Frontend | Next.js 14, TypeScript strict, Tailwind, TanStack Query, Zustand |
-| Database | PostgreSQL 16 + pgvector (13 tables, ivfflat + GIN indexes) |
+| Database | PostgreSQL 16 + pgvector (17 tables, ivfflat + GIN indexes) |
 | Cache/Queue | Redis 7, Celery |
 | LLM | claude-sonnet-4-20250514 with extended thinking (primary), gpt-4o (fallback) |
 | Payments | Razorpay (INR) |
@@ -79,7 +79,7 @@ docker exec regpulse-backend python scripts/backfill_embeddings.py
 
 ---
 
-## API (48 endpoints at /api/v1/)
+## API (~58 endpoints at /api/v1/)
 
 | Group | Endpoints |
 |-------|-----------|
@@ -89,7 +89,9 @@ docker exec regpulse-backend python scripts/backfill_embeddings.py
 | Subscriptions | plans, order, verify, webhook, plan info, history |
 | Action Items | list, create, update, delete |
 | Saved | list, create, detail, update, delete |
-| Admin | dashboard, review (3), prompts (3), users (2), circulars (3), scraper (2) |
+| Snippets (Sprint 3) | create, list, public get, og image, revoke |
+| News (Sprint 3) | list, detail |
+| Admin | dashboard, review (3), prompts (3), users (2), circulars (3), scraper (2), news (2) |
 | Health | liveness, readiness |
 
 ---
@@ -123,6 +125,13 @@ k6 run tests/load/k6_load_test.js   # Runs against local Docker Compose
 ```
 
 3 scenarios: smoke (1 VU), load (ramp to 20 VU), spike (burst to 50 VU).
+
+### Sprint 3 Features
+
+- **Public snippet sharing**: any signed-in user can share a redacted preview of any of their answers via `/s/[slug]`. The full `detailed_interpretation` is enforced never to leave the snippet service. Open Graph image rendered server-side via Pillow.
+- **RSS news ingest**: Celery beat task `ingest_news` runs every 30 min, pulls from RBI Press, Business Standard, LiveMint, ET Banking via RSS only. Items are embedded and linked to active circulars by cosine similarity above `NEWS_RELEVANCE_THRESHOLD` (default 0.75). Surfaced in `/updates` under a "Market News" tab. Never mixed into the RAG corpus.
+- **Knowledge graph**: each circular indexed by the scraper runs a regex pre-pass (circular numbers, sections, amounts, dates) plus a Claude Haiku LLM pass for orgs/regulations/teams + relationship triples. Stored in `kg_entities` + `kg_relationships`. RAG expansion is built into `rag_service` but feature-flagged off via `RAG_KG_EXPANSION_ENABLED` until the Sprint 4 Confidence Meter UI ships.
+- **Backfill**: `python /scraper/backfill_kg.py` (run inside the scraper container) walks every active circular and populates the KG.
 
 ## Launch Check
 
