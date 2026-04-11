@@ -1,13 +1,13 @@
 # RegPulse — Project Status
 
-> **All 50 prompts + Sprints 1, 2, 3, 4 pushed to origin/main. Sprint 4 follow-up (LLM SDK + config hardening) staged locally, push pending.**
+> **All 50 prompts + Sprints 1, 2, 3, 4 + Sprint 4 LLM follow-up pushed to `origin/main`. Working tree clean. Session closed pending Sprint 5.**
 
 ---
 
 ## Current State (2026-04-11)
 
-- **Branch:** `main` — Sprints 1–4 pushed (`f6c3a5a`); LLM hardening commit staged locally
-- **Phase:** Phase 2 — **Sprint 4 + LLM follow-up complete**, KG expansion flag now ON in local `.env`, end-to-end smoke verified
+- **Branch:** `main` — fully synced with `origin/main` at `fdc784c`
+- **Phase:** Phase 2 — **Sprint 4 + LLM hardening shipped**, KG expansion flag is ON in local `.env`, end-to-end smoke verified, ready for Sprint 5
 - **Backend tests:** 64 unit + Sprint 3 unit suites (unchanged in Sprint 4 — only schema/persistence touched on the backend)
 - **Anti-hallucination eval:** **28/28 PASS, 0 FAIL** re-run on 2026-04-11 after Sprint 4 backend persistence changes (router + schema + ORM)
 - **Frontend:** 23 routes, `tsc --noEmit` clean, `next lint` clean
@@ -23,6 +23,9 @@
 ## Git History (main, all pushed to origin)
 
 ```
+fdc784c  fix(llm): bump anthropic SDK + assert OpenAI-compatible fallback model
+f6c3a5a  feat(sprint-4): Confidence Meter UI, dark mode, skeletons, SSE jitter fix
+ed1f433  docs: record Sprint 3 exit verification (eval pass, push, checklist)
 c83fd1f  docs: add LEARNINGS.md capturing Phase 2 gotchas
 2de014b  docs: Sprint 3 complete — KG, news ingest, public snippets
 516acf9  feat(sprint-3): knowledge graph extraction and RAG expansion
@@ -168,7 +171,7 @@ After Sprint 4 was pushed at `f6c3a5a`, an end-to-end smoke test against `POST /
 - Live `/questions` smoke test: returned `confidence_score: 0.23`, `consult_expert: true`, `model_used: "claude-sonnet-4-20250514"` (primary path, no fallback), credit deducted 5 → 4. The low score correctly triggered the consult-expert fallback, which is the intended Sprint 2 + Sprint 4 behaviour for a question that the demo's tiny corpus can't ground.
 - Golden eval re-run: 28/28 PASS, 0 FAIL.
 
-## Sprint 4 — Done (local, push pending)
+## Sprint 4 — Done (`f6c3a5a`, pushed)
 
 1. **Confidence Meter UI** — `frontend/src/components/ui/ConfidenceMeter.tsx` (full + compact). Wired into `/ask` (live SSE), `/history/[id]` (post-API), `/history` list (compact pill). Backend persists `confidence_score` + `consult_expert` on `questions` (migration `003_sprint4_confidence.sql`).
 2. **Skeleton loaders** — `frontend/src/components/ui/Skeleton.tsx` (`Skeleton`, `CardListSkeleton`). Replace `Spinner` on `/library`, `/history`, `/updates` (both tabs).

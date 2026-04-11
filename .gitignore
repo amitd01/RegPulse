@@ -1,5 +1,10 @@
+# Secrets / config
 .env
-HEAD
+
+# macOS
+.DS_Store
+
+# Python
 __pycache__/
 *.pyc
 
@@ -8,8 +13,7 @@ node_modules/
 .next/
 next-env.d.ts
 *.tsbuildinfo
+
+# Scraper
 scraper/.venv/
-__pycache__/
-*.pyc
 scraper/test_RBI.pdf
-origin/main
