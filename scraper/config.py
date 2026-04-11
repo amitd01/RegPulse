@@ -44,6 +44,15 @@ class ScraperSettings(BaseSettings):
     DEMO_MODE: bool = False
     SENTRY_DSN: str | None = None
 
+    # --- Sprint 3: RSS / news ingest ---
+    RSS_INGEST_ENABLED: bool = True
+    NEWS_RELEVANCE_THRESHOLD: float = 0.75
+    # CSV of source keys: RBI_PRESS,BUSINESS_STANDARD,LIVEMINT,ET_BANKING
+    RSS_SOURCES: str = "RBI_PRESS,BUSINESS_STANDARD,LIVEMINT,ET_BANKING"
+
+    # --- Sprint 3: Knowledge graph ---
+    KG_EXTRACTION_ENABLED: bool = True
+
     # ------------------------------------------------------------------
     # Validators
     # ------------------------------------------------------------------

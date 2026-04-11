@@ -22,13 +22,16 @@ from celery import shared_task
 from celery.exceptions import SoftTimeLimitExceeded
 from sqlalchemy import text
 
+from scraper.config import get_scraper_settings
 from scraper.crawler.rbi_crawler import RBI_SECTIONS, RBICrawler
+from scraper.crawler.rss_fetcher import fetch_all_sources
 from scraper.db import get_db_session
 from scraper.extractor.metadata_extractor import MetadataExtractor
 from scraper.extractor.pdf_extractor import PDFExtractor
 from scraper.processor.chunker import TextChunker
 from scraper.processor.embedder import Embedder
 from scraper.processor.impact_classifier import ImpactClassifier
+from scraper.processor.news_relevance import score_and_link
 from scraper.processor.supersession_resolver import SupersessionResolver
 
 logger: structlog.stdlib.BoundLogger = structlog.get_logger("regpulse.tasks")
@@ -541,6 +544,136 @@ def send_staleness_alerts(self, circular_id: str) -> dict:  # noqa: ANN001
             exc_info=True,
         )
         return {"status": "failed", "circular_id": circular_id, "error": str(exc)}
+
+
+# ---------------------------------------------------------------------------
+# Sprint 3: News ingest task
+# ---------------------------------------------------------------------------
+
+
+@shared_task(
+    bind=True,
+    name="scraper.tasks.ingest_news",
+    queue="scraper",
+    max_retries=2,
+    default_retry_delay=120,
+)
+def ingest_news(self, sources: list[str] | None = None) -> dict:  # noqa: ANN001, ARG001
+    """Fetch RSS feeds, dedupe, score relevance, persist news_items.
+
+    Sprint 3 Pillar B. Idempotent: skips items already present by
+    (source, external_id). Each new item is embedded and matched
+    against active circulars; high-confidence matches set
+    linked_circular_id.
+    """
+    settings = get_scraper_settings()
+    if not settings.RSS_INGEST_ENABLED:
+        logger.info("rss_ingest_disabled")
+        return {"status": "skipped", "reason": "RSS_INGEST_ENABLED=false"}
+
+    requested = sources or [s.strip() for s in settings.RSS_SOURCES.split(",") if s.strip()]
+    logger.info("ingest_news_start", sources=requested)
+
+    items = fetch_all_sources(requested)
+    inserted = 0
+    skipped = 0
+    linked = 0
+
+    if not items:
+        logger.info("ingest_news_no_items")
+        return {"status": "success", "inserted": 0, "skipped": 0, "linked": 0}
+
+    embedder: Embedder | None = None
+    try:
+        embedder = Embedder()
+    except Exception:
+        logger.exception("embedder_init_failed_news")
+
+    with get_db_session() as db:
+        existing_rows = db.execute(
+            text("SELECT source::text, external_id FROM news_items")
+        ).fetchall()
+        existing = {(r[0], r[1]) for r in existing_rows}
+
+        for item in items:
+            key = (item.source, item.external_id)
+            if key in existing:
+                skipped += 1
+                continue
+
+            # Each item runs in its own savepoint so a single failure
+            # (relevance query, insert, etc.) does not poison the rest.
+            try:
+                with db.begin_nested():
+                    score: float | None = None
+                    linked_id: str | None = None
+                    if embedder is not None:
+                        try:
+                            score, linked_id = score_and_link(
+                                db,
+                                title=item.title,
+                                summary=item.summary,
+                                embedder=embedder,
+                            )
+                        except Exception:
+                            logger.exception("news_scoring_failed")
+                            # Reset the savepoint state for the insert below
+                            score, linked_id = None, None
+
+                    db.execute(
+                        text(
+                            """
+                            INSERT INTO news_items
+                                (id, source, external_id, title, url, published_at,
+                                 summary, raw_html_hash, linked_circular_id,
+                                 linked_entity_ids, relevance_score, status, created_at)
+                            VALUES
+                                (gen_random_uuid(), CAST(:source AS news_source_enum),
+                                 :external_id, :title, :url, :published_at, :summary,
+                                 :raw_html_hash, CAST(:linked_circular_id AS uuid),
+                                 '[]'::jsonb, :relevance_score,
+                                 'NEW'::news_status_enum, now())
+                            ON CONFLICT (source, external_id) DO NOTHING
+                            """
+                        ),
+                        {
+                            "source": item.source,
+                            "external_id": item.external_id,
+                            "title": item.title,
+                            "url": item.url,
+                            "published_at": item.published_at,
+                            "summary": item.summary,
+                            "raw_html_hash": item.raw_html_hash,
+                            "linked_circular_id": linked_id,
+                            "relevance_score": score,
+                        },
+                    )
+                inserted += 1
+                if linked_id:
+                    linked += 1
+            except Exception:
+                logger.exception(
+                    "news_insert_failed",
+                    source=item.source,
+                    external_id=item.external_id,
+                )
+
+        db.commit()
+
+    logger.info(
+        "ingest_news_complete",
+        inserted=inserted,
+        skipped=skipped,
+        linked=linked,
+        total_seen=len(items),
+    )
+    return {
+        "status": "success",
+        "inserted": inserted,
+        "skipped": skipped,
+        "linked": linked,
+        "total_seen": len(items),
+    }
 
 
 # ---------------------------------------------------------------------------

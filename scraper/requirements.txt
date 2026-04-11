@@ -33,6 +33,9 @@ rapidfuzz==3.10.1
 # Resilience
 tenacity==9.0.0
 
+# RSS / news ingest (Sprint 3)
+feedparser==6.0.11
+
 # Config
 pydantic==2.10.4
 pydantic-settings==2.7.1

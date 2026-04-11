@@ -48,6 +48,7 @@ app.conf.update(
         "scraper.tasks.process_document": {"queue": "scraper"},
         "scraper.tasks.generate_summary": {"queue": "scraper"},
         "scraper.tasks.send_staleness_alerts": {"queue": "scraper"},
+        "scraper.tasks.ingest_news": {"queue": "scraper"},
     },
 )
 
@@ -66,6 +67,12 @@ app.conf.beat_schedule = {
     "priority-scrape-every-4h": {
         "task": "scraper.tasks.priority_scrape",
         "schedule": crontab(hour="6,10,14,18,22", minute=0),
+        "args": (),
+    },
+    # Sprint 3: RSS news ingest every 30 minutes
+    "ingest-news-every-30-min": {
+        "task": "scraper.tasks.ingest_news",
+        "schedule": crontab(minute="*/30"),
         "args": (),
     },
 }

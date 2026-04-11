@@ -4,6 +4,7 @@ from fastapi import APIRouter
 
 from app.routers.admin.circulars import router as circulars_router
 from app.routers.admin.dashboard import router as dashboard_router
+from app.routers.admin.news import router as news_router
 from app.routers.admin.prompts import router as prompts_router
 from app.routers.admin.review import router as review_router
 from app.routers.admin.scraper import router as scraper_router
@@ -17,3 +18,4 @@ router.include_router(prompts_router, prefix="/prompts")
 router.include_router(users_router, prefix="/users")
 router.include_router(circulars_router, prefix="/circulars")
 router.include_router(scraper_router, prefix="/scraper")
+router.include_router(news_router, prefix="/news")
