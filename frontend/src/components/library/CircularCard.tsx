@@ -26,7 +26,7 @@ export function CircularCard({ circular }: CircularCardProps) {
   return (
     <Link
       href={`/library/${circular.id}`}
-      className="block rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+      className="block rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md dark:border-gray-800 dark:bg-gray-900 dark:hover:shadow-none"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
@@ -49,17 +49,17 @@ export function CircularCard({ circular }: CircularCardProps) {
             </span>
           </div>
 
-          <h3 className="text-sm font-medium text-gray-900 line-clamp-2">
+          <h3 className="text-sm font-medium text-gray-900 line-clamp-2 dark:text-gray-100">
             {circular.title}
           </h3>
 
           {isSearchResult(circular) && circular.snippet && (
-            <p className="mt-2 text-xs text-gray-500 line-clamp-2">
+            <p className="mt-2 text-xs text-gray-500 line-clamp-2 dark:text-gray-400">
               {circular.snippet}
             </p>
           )}
 
-          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-gray-500">
+          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
             {formattedDate && <span>{formattedDate}</span>}
             {circular.department && (
               <>

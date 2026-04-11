@@ -1,6 +1,6 @@
 # RegPulse — Technical Specification
 
-> **Living spec. Reflects actual implementation state — all 50 prompts + Sprints 1, 2, 3 of Phase 2 complete.**
+> **Living spec. Reflects actual implementation state — all 50 prompts + Sprints 1, 2, 3 pushed; Sprint 4 complete locally.**
 > For architecture rules, see `MEMORY.md`. For build progress, see `CLAUDE.md`.
 
 ---
@@ -9,7 +9,7 @@
 
 RegPulse is a B2B SaaS platform delivering RAG-powered Q&A over RBI Circulars for Indian banking professionals. Two modules: a Celery scraper that indexes RBI documents into pgvector, and a FastAPI+Next.js web app that retrieves and answers questions with cited sources.
 
-**(Phase 2 — Sprints 1, 2, 3 Complete)**: HTTPOnly cookie security, PostHog analytics, OpenAI embedding pipeline, marketing landing page, anti-hallucination confidence scoring with "Consult an Expert" fallback, golden dataset evaluation pipeline, k6 load tests, public safe snippet sharing, RSS news ingest with embedding-based circular linking, and knowledge graph extraction with optional flag-gated RAG expansion.
+**(Phase 2 — Sprints 1, 2, 3 pushed; Sprint 4 complete locally)**: HTTPOnly cookie security, PostHog analytics, OpenAI embedding pipeline, marketing landing page, anti-hallucination confidence scoring with "Consult an Expert" fallback, golden dataset evaluation pipeline, k6 load tests, public safe snippet sharing, RSS news ingest with embedding-based circular linking, knowledge graph extraction with optional flag-gated RAG expansion, **Confidence Meter UI** (now persisted on `questions.confidence_score`/`consult_expert` so the meter survives a refresh), class-based dark mode with WCAG-AA contrast, skeleton loaders, rAF-buffered SSE rendering, and PostHog feature-flag scaffolding.
 
 ```
 rbi.org.in → Scraper (Celery/Redis) → PostgreSQL+pgvector
@@ -25,7 +25,7 @@ rbi.org.in → Scraper (Celery/Redis) → PostgreSQL+pgvector
 
 ## 2. Database Schema
 
-**17 tables.** Ground truth: `backend/migrations/001_initial_schema.sql` + `backend/migrations/002_sprint3_knowledge_graph.sql`
+**17 tables.** Ground truth: `backend/migrations/001_initial_schema.sql` + `backend/migrations/002_sprint3_knowledge_graph.sql` + `backend/migrations/003_sprint4_confidence.sql`
 
 ### Users & Auth
 | Table | Columns | Notes |
@@ -43,7 +43,7 @@ rbi.org.in → Scraper (Celery/Redis) → PostgreSQL+pgvector
 ### Q&A
 | Table | Columns | Notes |
 |-------|---------|-------|
-| `questions` | id, user_id FK, question_text, question_embedding vector(3072), answer_text, quick_answer, risk_level, recommended_actions (JSONB), affected_teams (JSONB), citations (JSONB), chunks_used (JSONB), model_used, prompt_version, feedback, feedback_comment, admin_override, reviewed, reviewed_at, credit_deducted, streaming_completed, latency_ms, created_at | Core Q&A record |
+| `questions` | id, user_id FK, question_text, question_embedding vector(3072), answer_text, quick_answer, risk_level, **confidence_score (REAL nullable, Sprint 4)**, **consult_expert (BOOL default false, Sprint 4)**, recommended_actions (JSONB), affected_teams (JSONB), citations (JSONB), chunks_used (JSONB), model_used, prompt_version, feedback, feedback_comment, admin_override, reviewed, reviewed_at, credit_deducted, streaming_completed, latency_ms, created_at | Core Q&A record |
 | `action_items` | id, user_id FK, source_question_id FK, source_circular_id FK, title, description, assigned_team, priority, due_date, status (enum: PENDING/IN_PROGRESS/COMPLETED), created_at, updated_at | Auto-generated from answers |
 | `saved_interpretations` | id, user_id FK, question_id FK, name, tags (JSONB), needs_review, created_at | Staleness flag on re-index |
 
@@ -337,8 +337,11 @@ Schedule: daily_scrape at 02:00 IST, priority_scrape every 4h, **ingest_news eve
 | `/admin/scraper` | Scraper | Admin | Run history, trigger priority/full |
 
 ### Component Library
-- `AppSidebar` — navigation (Library, Ask, History, Updates, Action Items, Saved)
+- `AppSidebar` — navigation (Library, Ask, History, Updates, Action Items, Saved) + theme toggle (Sprint 4)
 - `Badge` — variants: default, high, medium, low, active, superseded, draft
+- `ConfidenceMeter` (Sprint 4) — full panel + compact pill, WCAG-AA bands (high / medium / low / fallback), reads `confidence_score` + `consult_expert`
+- `Skeleton` / `CardListSkeleton` (Sprint 4) — animated placeholders for list pages
+- `ThemeToggle` / `ThemeBootstrap` (Sprint 4) — Tailwind class-based dark mode + system-pref bootstrap
 - `Pagination` — page numbers with ellipsis
 - `SearchInput` — debounced (300ms) with clear
 - `Select` — styled dropdown

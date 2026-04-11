@@ -5,7 +5,7 @@ import { CircularCard } from "@/components/library/CircularCard";
 import { FilterPanel } from "@/components/library/FilterPanel";
 import { Pagination } from "@/components/ui/Pagination";
 import { SearchInput } from "@/components/ui/SearchInput";
-import { Spinner } from "@/components/ui/Spinner";
+import { CardListSkeleton } from "@/components/ui/Skeleton";
 import { useCircularList, useCircularSearch } from "@/hooks/useCirculars";
 import { useAuthStore } from "@/stores/authStore";
 import type { CircularFilters } from "@/types";
@@ -64,8 +64,10 @@ export default function LibraryPage() {
     <div className="px-6 py-6 lg:px-8">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Circular Library</h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-50">
+          Circular Library
+        </h1>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
           Browse and search RBI circulars, master directions, and notifications.
         </p>
       </div>
@@ -100,7 +102,7 @@ export default function LibraryPage() {
 
       {/* Results count */}
       {data && (
-        <div className="mb-4 text-sm text-gray-500">
+        <div className="mb-4 text-sm text-gray-500 dark:text-gray-400">
           {data.total === 0
             ? "No circulars found"
             : `Showing ${(data.page - 1) * data.page_size + 1}–${Math.min(
@@ -111,11 +113,7 @@ export default function LibraryPage() {
       )}
 
       {/* Loading state */}
-      {isLoading && (
-        <div className="flex items-center justify-center py-20">
-          <Spinner size="lg" />
-        </div>
-      )}
+      {isLoading && <CardListSkeleton rows={6} />}
 
       {/* Error state */}
       {isError && (

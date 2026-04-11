@@ -1,20 +1,21 @@
 # RegPulse — Project Status
 
-> **All 50 prompts + Sprints 1, 2, 3 of Phase 2 complete, evals re-run, pushed to origin/main.**
+> **All 50 prompts + Sprints 1, 2, 3 pushed to origin/main. Sprint 4 complete locally on `main`, push pending user authorization.**
 
 ---
 
 ## Current State (2026-04-11)
 
-- **Branch:** `main` — Sprints 1–3 of Phase 2 merged AND pushed to `origin/main`
-- **Phase:** Phase 2 — **Sprint 3 complete**, Sprint 4 next (Premium UI Polish + Confidence Meter)
-- **Backend tests:** 64 unit + Sprint 3 unit suites (snippet × 9, RSS × 8, entity extractor × 13 assertions verified via in-container python)
-- **Anti-hallucination eval:** **28/28 PASS, 0 FAIL** post-Sprint-3 (12 factual + 3 multi-circular + 8 OOS + 5 injection — re-run after KG expansion path was added with the flag off)
-- **Frontend:** 23 routes (added `/s/[slug]` public snippet page), tsc + next build clean
-- **Docker:** 6 containers running
+- **Branch:** `main` — Sprints 1–3 pushed to `origin/main`; Sprint 4 staged locally (uncommitted)
+- **Phase:** Phase 2 — **Sprint 4 complete locally**, push next, then flip `RAG_KG_EXPANSION_ENABLED=true`
+- **Backend tests:** 64 unit + Sprint 3 unit suites (unchanged in Sprint 4 — only schema/persistence touched on the backend)
+- **Anti-hallucination eval:** **28/28 PASS, 0 FAIL** re-run on 2026-04-11 after Sprint 4 backend persistence changes (router + schema + ORM)
+- **Frontend:** 23 routes, `tsc --noEmit` clean, `next lint` clean
+- **Docker:** 6 containers running; backend hot-synced via `docker cp` after migration `003_sprint4_confidence.sql` applied
 - **Knowledge graph:** 95 entities + 29 edges across 6 demo circulars (backfilled via `scripts/backfill_kg.py`)
 - **News ingest:** 60 RBI press releases live, beat schedule every 30 min
 - **Public snippets:** end-to-end share flow verified (POST → public GET → OG image → revoke)
+- **Sprint 4 deliverables:** ConfidenceMeter (full + compact variants), class-based dark mode (Tailwind `darkMode:"class"`, ThemeBootstrap pre-hydration script, ThemeToggle in sidebar), CardListSkeleton, rAF token buffer + stable layout containers in `/ask`, `useFeatureFlag` hook + `trackEvent` helper, new analytics events
 - **`LEARNINGS.md`** at repo root captures Phase 2 mistakes/root-causes/prevention — read before any sprint
 
 ---
@@ -145,14 +146,19 @@ fc03e8e  fix: response_model=None for POST /questions (#8)
 
 ---
 
-## Next Steps (Sprint 4)
+## Sprint 4 — Done (local, push pending)
 
-1. **Confidence Meter UI** — render `confidence_score` and `consult_expert` from the LLM response in `/ask` and `/history/[id]`
-2. **Skeleton loaders** across `/library`, `/history`, `/updates` lists
-3. **Dark mode** with WCAG-AA contrast
-4. **Streaming citation jitter** — stabilize SSE token rendering in `/ask`
-5. **A/B UX evals** — PostHog feature flags + analytics events
-6. After Sprint 4 ships, flip `RAG_KG_EXPANSION_ENABLED=true` and re-run the golden dataset eval to verify no regression before going GA
+1. **Confidence Meter UI** — `frontend/src/components/ui/ConfidenceMeter.tsx` (full + compact). Wired into `/ask` (live SSE), `/history/[id]` (post-API), `/history` list (compact pill). Backend persists `confidence_score` + `consult_expert` on `questions` (migration `003_sprint4_confidence.sql`).
+2. **Skeleton loaders** — `frontend/src/components/ui/Skeleton.tsx` (`Skeleton`, `CardListSkeleton`). Replace `Spinner` on `/library`, `/history`, `/updates` (both tabs).
+3. **Dark mode** — `tailwind.config.ts darkMode: "class"`, `frontend/src/stores/themeStore.ts`, `frontend/src/components/ThemeBootstrap.tsx`, `frontend/src/components/ThemeToggle.tsx`. Pre-hydration script in `app/layout.tsx` prevents FOUC. WCAG-AA palette in ConfidenceMeter bands.
+4. **SSE jitter fix** — `/ask` buffers tokens and flushes once per animation frame; ConfidenceMeter wrapper has a stable `min-h-[1px]` container so no layout shift when the citations event arrives mid-stream.
+5. **A/B UX flag scaffolding** — `frontend/src/lib/analytics.ts` (`trackEvent`), `frontend/src/hooks/useFeatureFlag.ts`. Events emitted: `ask_question_submitted`, `confidence_meter_viewed`, `dark_mode_toggled`, `share_snippet_dialog_opened`.
+
+## Next Steps (post-Sprint-4)
+
+1. Push to `origin/main` after user authorization.
+2. Flip `RAG_KG_EXPANSION_ENABLED=true` and re-run the golden eval to verify zero regression before GA.
+3. Sprint 5 — Manual PDF onboarding + semantic clustering heatmaps.
 
 ---
 

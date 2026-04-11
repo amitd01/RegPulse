@@ -1,6 +1,10 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  // Class-based dark mode — toggled by `useThemeStore` adding/removing
+  // the `dark` class on <html>. System preference is the initial value
+  // when no explicit preference is stored in localStorage.
+  darkMode: "class",
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",

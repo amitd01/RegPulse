@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { ShareSnippetDialog } from "@/components/ShareSnippetDialog";
 import { Badge, impactVariant } from "@/components/ui/Badge";
+import { ConfidenceMeter } from "@/components/ui/ConfidenceMeter";
 import { Spinner } from "@/components/ui/Spinner";
+import { trackEvent } from "@/lib/analytics";
 import { useQuestionDetail, useSubmitFeedback } from "@/hooks/useQuestions";
 
 export default function QuestionDetailPage() {
@@ -16,6 +18,26 @@ export default function QuestionDetailPage() {
 
   const { data, isLoading, isError } = useQuestionDetail(id);
   const feedbackMutation = useSubmitFeedback();
+
+  // Fire `confidence_meter_viewed` once per question, after the data
+  // resolves. The `firedFor` ref guards against the analytics event
+  // being re-emitted on every re-render of the same question.
+  const firedForRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!data?.data) return;
+    if (firedForRef.current === data.data.id) return;
+    firedForRef.current = data.data.id;
+    if (
+      data.data.confidence_score !== null ||
+      data.data.consult_expert
+    ) {
+      trackEvent("confidence_meter_viewed", {
+        confidence_score: data.data.confidence_score,
+        consult_expert: data.data.consult_expert,
+        source: "history_detail",
+      });
+    }
+  }, [data]);
 
   if (isLoading) {
     return (
@@ -88,13 +110,24 @@ export default function QuestionDetailPage() {
         </div>
       </div>
 
+      {/* Confidence meter (Sprint 4 — only present on questions persisted
+          after the migration; older questions render nothing) */}
+      {(q.confidence_score !== null || q.consult_expert) && (
+        <div className="mb-6">
+          <ConfidenceMeter
+            score={q.confidence_score}
+            consultExpert={q.consult_expert}
+          />
+        </div>
+      )}
+
       {/* Quick answer */}
       {q.quick_answer && (
-        <div className="mb-6 rounded-lg border border-navy-100 bg-navy-50 p-4">
-          <h3 className="mb-1 text-xs font-semibold uppercase text-navy-600">
+        <div className="mb-6 rounded-lg border border-navy-100 bg-navy-50 p-4 dark:border-navy-800 dark:bg-navy-900/40">
+          <h3 className="mb-1 text-xs font-semibold uppercase text-navy-600 dark:text-navy-300">
             Quick Answer
           </h3>
-          <p className="text-sm text-gray-800">{q.quick_answer}</p>
+          <p className="text-sm text-gray-800 dark:text-gray-100">{q.quick_answer}</p>
         </div>
       )}
 
@@ -202,8 +235,11 @@ export default function QuestionDetailPage() {
           </div>
 
           <button
-            onClick={() => setShareOpen(true)}
-            className="inline-flex items-center gap-2 rounded-lg border border-navy-300 bg-white px-4 py-2 text-sm font-medium text-navy-700 hover:bg-navy-50"
+            onClick={() => {
+              trackEvent("share_snippet_dialog_opened", { question_id: id });
+              setShareOpen(true);
+            }}
+            className="inline-flex items-center gap-2 rounded-lg border border-navy-300 bg-white px-4 py-2 text-sm font-medium text-navy-700 hover:bg-navy-50 dark:border-navy-600 dark:bg-gray-900 dark:text-navy-200 dark:hover:bg-navy-900/40"
           >
             <svg
               className="h-4 w-4"

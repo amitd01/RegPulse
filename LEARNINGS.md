@@ -169,6 +169,52 @@
 
 ---
 
+## Sprint 4 — Premium UI Polish, Confidence Meter, Dark Mode
+
+### L4.1 — `confidence_score` was computed but never persisted, so the meter couldn't survive a refresh
+**What bit us:** Sprint 2 added confidence scoring + consult_expert fallback in `llm_service.py`, but the values were only ever passed to the SSE `citations` event. The router that saves the question to the DB silently dropped both fields, and the `Question` ORM had no columns for them. Sprint 4's first attempt to render a meter on `/history/[id]` showed nothing because every persisted question had `confidence_score = undefined`.
+**Root cause:** Sprint 2 changed the LLM contract but only the live answer path consumed it. The persistence path was never updated, and there was no test that round-tripped a question through `POST /questions` → `GET /questions/{id}` and asserted the new fields.
+**Fix:** Migration `003_sprint4_confidence.sql` adds `confidence_score REAL` + `consult_expert BOOLEAN NOT NULL DEFAULT FALSE`. ORM, Pydantic schema, and both router paths (JSON + SSE) now wire the fields end-to-end. The frontend treats `confidence_score === null` as "no signal" and renders nothing rather than fake a value for pre-Sprint-4 questions.
+**Prevention:** Whenever a service returns a new field, audit *both* the live consumer (the SSE event in this case) AND the persistence layer (ORM column + INSERT + cache payload) in the same commit. Add a contract test that posts a question and re-reads it to assert the round trip.
+
+### L4.2 — Class-based Tailwind dark mode needs a pre-hydration script or every page flashes light
+**What bit us:** First dark-mode pass set the `dark` class via the React `useEffect` in `ThemeBootstrap`. Result: every page load painted light, then flipped to dark a few hundred ms later — a visible white flash for any user whose OS preference is dark.
+**Root cause:** Next.js renders the HTML on the server with no `dark` class, the browser paints that, *then* React hydrates and `useEffect` runs. The script timing is fundamentally wrong for a body-class theme switch.
+**Fix:** Inline `<script dangerouslySetInnerHTML>` in the root layout `<head>` reads `localStorage` + `prefers-color-scheme` and toggles `document.documentElement.classList.add('dark')` BEFORE React hydrates. The `ThemeBootstrap` React component is still mounted to take over for runtime switching, but the first-paint correctness comes from the inline script.
+**Prevention:** Any class-based theme strategy (`darkMode: "class"` in Tailwind, or equivalent) requires a synchronous pre-hydration script. SSR + `useEffect` is always too late. The script must live in `<head>` so it runs before the body paints.
+
+### L4.3 — `useState`/`localStorage`-derived store causes hydration mismatch on the toggle
+**What bit us:** The first `ThemeToggle` component read `useThemeStore((s) => s.theme)` and rendered "Light" or "Dark" directly. On dark-OS users this caused a hydration mismatch: server rendered "Light" (because `localStorage` doesn't exist server-side and the store's `initial.theme` defaults to `"light"`), client immediately rendered "Dark", and React threw the warning.
+**Root cause:** Any component that depends on browser-only state (localStorage, matchMedia, window dimensions) cannot render that state on the first hydration without a mismatch.
+**Fix:** `ThemeToggle` keeps a `mounted` state that flips on `useEffect` and renders a same-size placeholder until then. The actual toggle markup only appears post-mount.
+**Prevention:** For any UI that mirrors persisted/system state, adopt the "render placeholder until mounted" pattern. The placeholder must occupy the same physical space so the layout doesn't shift when it swaps in.
+
+### L4.4 — SSE token rendering jitter comes from per-token React re-renders, not from the network
+**What bit us:** During Anthropic's streaming response, every 1–3 character delta caused `setState((prev) => ({...prev, answer: prev.answer + token}))`. React re-rendered the entire `/ask` page on every event — visible jitter, especially when ReactMarkdown re-parsed mid-stream.
+**Root cause:** The naive "append on every event" pattern. Network arrival is not the right cadence for UI updates; the display refresh rate is.
+**Fix:** Tokens accumulate in a `useRef` buffer; a `requestAnimationFrame`-scheduled `flushTokens` drains the buffer into state at most once per frame. The buffer is also flushed before swapping in the citations metadata so the citations panel never appears ahead of its prose.
+**Prevention:** Never feed network events directly into React state at the network's rate. Buffer to a ref and flush on a steady cadence (rAF for visual smoothness, setTimeout for non-critical updates). Especially important for SSE/WebSocket streams where event frequency can be hundreds per second.
+
+### L4.5 — Stable layout containers prevent the citations panel from "punching" the prose down
+**What bit us:** Once the buffered token rendering was smooth, the next jank source was the citations event arriving mid-stream — the page suddenly grew a confidence meter + Quick Answer card *above* the in-flight prose, shoving the user's reading position downward.
+**Root cause:** The conditional render `{state.confidenceScore !== null && <ConfidenceMeter ... />}` had no reserved space, so the prose layout shifted the moment the metadata arrived.
+**Fix:** Wrap the conditional in a `<div className="min-h-[1px]">` that always exists during streaming. The meter snaps in without growing the parent container until its actual height is needed, and even then the visual displacement is at the top of the answer (above the prose) where it doesn't disrupt the active reading region.
+**Prevention:** Any element that appears mid-stream needs a stable container. Either reserve space with min-height, or place the new element below the in-flight content rather than above it. Layout shift is always perceptible — design for it.
+
+### L4.6 — Sprint 1 fixed `posthog-js/react` hooks but `onFeatureFlags` returns shape varies between minor versions
+**What bit us:** The first `useFeatureFlag` hook called `posthog.onFeatureFlags(handler)` and stored the returned value as `unsub`. Some versions of `posthog-js` return a function (the unsubscribe), others return undefined. Calling `unsub()` unconditionally would crash on the older shape.
+**Root cause:** The library's API contract for `onFeatureFlags` is inconsistent across minor versions, and we can't pin both posthog-js *and* posthog-js/react to a known-good combination without auditing every other consumer.
+**Fix:** `if (typeof unsub === "function") unsub();` — defensive cleanup that tolerates either shape.
+**Prevention:** When subscribing to any third-party event hook, validate the return type before invoking it as a cleanup. Library minor versions silently change these contracts; defensive type checks are cheaper than version pins.
+
+### L4.7 — `docker cp` after schema changes still requires the migration to be applied separately
+**What bit us:** First post-Sprint-4 backend restart after `docker cp`'ing the new ORM threw `column "confidence_score" of relation "questions" does not exist` on the very first answer write. The ORM expected the column; the running database didn't have it.
+**Root cause:** L3.3 documented the `docker cp` workflow for code changes. It does NOT auto-apply migrations — those still need an explicit `psql < migration.sql`.
+**Fix:** `docker exec -i regpulse-postgres psql -U regpulse -d regpulse < backend/migrations/003_sprint4_confidence.sql` *before* restarting the backend.
+**Prevention:** Sprint exit checklist now includes "applied any new SQL migrations against the running demo DB" as a pre-restart step. Code-only `docker cp` is fine for service code; schema changes need a database write.
+
+---
+
 ## Cross-Sprint Patterns
 
 ### LX.1 — Memory drift between point-in-time notes and live state

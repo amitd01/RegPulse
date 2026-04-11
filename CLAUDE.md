@@ -49,7 +49,7 @@
 | Sprint 1 | Hardening (HTTPOnly cookies, Scraper Embedder), Analytics (PostHog), Landing Page | ✅ Complete (`363b1ef`) |
 | Sprint 2 | Anti-Hallucination Guardrails, Golden Dataset Eval Pipeline, k6 Load Tests | ✅ Complete (`1858575`) |
 | Sprint 3 | Public Snippet Sharing, RSS/News Ingest, Knowledge Graph + RAG Expansion (flag-gated) | ✅ Complete (`5379c49`/`5d6dec3`/`52375b8`/`516acf9`) |
-| Sprint 4 | Premium UI Polish (Skeleton loaders, Dark mode, Confidence Meter), A/B UX Evals | ⏳ Planned |
+| Sprint 4 | Premium UI Polish (Confidence Meter UI, Skeleton loaders, Dark mode, SSE jitter fix), A/B UX flag scaffolding | ✅ Complete (local — push pending) |
 | Sprint 5 | Admin Content (Manual PDF upload), Semantic Clustering Usage Heatmaps | ⏳ Planned |
 | Post-Build | Real data migration, AWS deployment, Beta launch | ⏳ Planned |
 
@@ -66,7 +66,9 @@ Status: **Running** (updated 2026-04-11). All 6 containers operational via `dock
 - Golden dataset eval: `tests/evals/test_hallucination.py` (30 test cases)
 - k6 load test: `tests/load/k6_load_test.js` (smoke/load/spike scenarios)
 - Sprint 3: public snippet sharing (`/s/[slug]`), RSS news ingest (60 RBI press items live), knowledge graph (95 entities, 29 edges across 6 demo circulars)
-- KG-driven RAG expansion is built but **off by default** — flip `RAG_KG_EXPANSION_ENABLED=true` after Sprint 4 ships the Confidence Meter UI
+- Sprint 4: Confidence Meter UI in `/ask` + `/history/[id]` + `/history` list, class-based dark mode (Tailwind `darkMode: "class"`) with system-pref bootstrap + WCAG-AA palette, skeleton loaders on library/history/updates, rAF-buffered SSE token rendering, PostHog `useFeatureFlag` hook + analytics events (`confidence_meter_viewed`, `dark_mode_toggled`, `share_snippet_dialog_opened`, `ask_question_submitted`)
+- Sprint 4 added two columns to `questions` (migration `003_sprint4_confidence.sql`): `confidence_score REAL NULL`, `consult_expert BOOLEAN NOT NULL DEFAULT FALSE`. Older questions render no meter (null is treated as "no signal")
+- KG-driven RAG expansion is still **off by default** — Sprint 4 shipped the UI, so the next safe step is to flip `RAG_KG_EXPANSION_ENABLED=true` and re-run the golden eval to verify no regression before going GA
 - See `PRODUCTION_PLAN.md` for AWS deployment roadmap
 
 ## File Reference

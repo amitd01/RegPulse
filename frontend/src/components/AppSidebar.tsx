@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { useAuthStore } from "@/stores/authStore";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const navigation = [
   {
@@ -97,10 +98,13 @@ export function AppSidebar() {
   const user = useAuthStore((s) => s.user);
 
   return (
-    <aside className="flex h-screen w-64 flex-col border-r border-gray-200 bg-white">
+    <aside className="flex h-screen w-64 flex-col border-r border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
       {/* Logo */}
-      <div className="flex h-16 items-center border-b border-gray-200 px-6">
-        <Link href="/library" className="text-xl font-bold text-navy-800">
+      <div className="flex h-16 items-center border-b border-gray-200 px-6 dark:border-gray-800">
+        <Link
+          href="/library"
+          className="text-xl font-bold text-navy-800 dark:text-navy-200"
+        >
           RegPulse
         </Link>
       </div>
@@ -116,8 +120,8 @@ export function AppSidebar() {
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                 isActive
-                  ? "bg-navy-50 text-navy-700"
-                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
+                  ? "bg-navy-50 text-navy-700 dark:bg-navy-900/40 dark:text-navy-200"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-gray-100",
               )}
             >
               {item.icon}
@@ -127,14 +131,21 @@ export function AppSidebar() {
         })}
       </nav>
 
+      {/* Theme toggle */}
+      <div className="border-t border-gray-200 px-3 py-3 dark:border-gray-800">
+        <ThemeToggle />
+      </div>
+
       {/* User info */}
       {user && (
-        <div className="border-t border-gray-200 p-4">
-          <div className="text-sm font-medium text-gray-900 truncate">
+        <div className="border-t border-gray-200 p-4 dark:border-gray-800">
+          <div className="text-sm font-medium text-gray-900 truncate dark:text-gray-100">
             {user.full_name}
           </div>
-          <div className="text-xs text-gray-500 truncate">{user.email}</div>
-          <div className="mt-1 text-xs text-navy-600">
+          <div className="text-xs text-gray-500 truncate dark:text-gray-400">
+            {user.email}
+          </div>
+          <div className="mt-1 text-xs text-navy-600 dark:text-navy-300">
             {user.credit_balance} credits
           </div>
         </div>

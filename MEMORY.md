@@ -10,14 +10,15 @@ B2B SaaS for Indian banking professionals. RAG-powered Q&A over RBI Circulars wi
 
 > **Read `LEARNINGS.md` at the repo root before starting any sprint.** Phase 2 mistakes are catalogued there with root causes and prevention rules.
 
-**(Phase 2 — Sprints 1, 2, 3 Complete, pushed to `origin/main` 2026-04-11)**:
+**(Phase 2 — Sprints 1, 2, 3 pushed `origin/main` 2026-04-11; Sprint 4 complete locally same day, push pending)**:
 - Strict zero-hallucination constraint with multi-signal confidence scoring (0.0-1.0).
 - "Consult an Expert" fallback when confidence < 0.5 or zero valid citations.
 - PostHog adopted for event/journey analytics to prevent lock-in.
 - HTTPOnly cookie-based refresh tokens (XSS-resistant).
 - Sprint 3: public safe snippet sharing (`/s/[slug]`), RSS/news ingest with embedding-based circular linking, knowledge graph extraction with optional RAG expansion (flag-gated, default off).
 - News items live alongside circulars in `/updates` but are **never** mixed into the RAG retrieval corpus.
-- KG-driven RAG expansion is built but stays off until the Sprint 4 Confidence Meter UI lands.
+- Sprint 4: Confidence Meter UI in `/ask` + `/history/[id]` + history list (compact pill), class-based dark mode with WCAG-AA palette + system-pref bootstrap, skeleton loaders, rAF-buffered SSE rendering to fix mid-stream jitter, PostHog `useFeatureFlag` + new analytics events. New columns: `questions.confidence_score`, `questions.consult_expert`.
+- KG-driven RAG expansion is built but stays OFF — flip `RAG_KG_EXPANSION_ENABLED=true` and re-run evals after Sprint 4 lands on remote.
 
 ---
 
@@ -35,7 +36,7 @@ B2B SaaS for Indian banking professionals. RAG-powered Q&A over RBI Circulars wi
 
 ## Schema (17 tables)
 
-Ground truth: `backend/migrations/001_initial_schema.sql` + `002_sprint3_knowledge_graph.sql`
+Ground truth: `backend/migrations/001_initial_schema.sql` + `002_sprint3_knowledge_graph.sql` + `003_sprint4_confidence.sql`
 
 | Table | Model | Key columns |
 |-------|-------|-------------|
@@ -43,7 +44,7 @@ Ground truth: `backend/migrations/001_initial_schema.sql` + `002_sprint3_knowled
 | sessions | `user.py` | token_hash, expires_at, revoked |
 | circular_documents | `circular.py` | title, status, impact_level, affected_teams, tags |
 | document_chunks | `circular.py` | chunk_text, embedding vector(3072) |
-| questions | `question.py` | answer_text, quick_answer, risk_level, citations JSONB |
+| questions | `question.py` | answer_text, quick_answer, risk_level, **confidence_score**, **consult_expert**, citations JSONB |
 | action_items | `question.py` | title, assigned_team, priority, status, due_date |
 | saved_interpretations | `question.py` | name, tags, needs_review |
 | prompt_versions | `admin.py` | version_tag, prompt_text, is_active |

@@ -60,6 +60,10 @@ export interface QuestionSummary {
   question_text: string;
   quick_answer: string | null;
   risk_level: string | null;
+  /** 0.0–1.0; null means the question pre-dates Sprint 4 confidence persistence. */
+  confidence_score: number | null;
+  /** True when the answer was replaced by the "Consult an Expert" fallback. */
+  consult_expert: boolean;
   model_used: string | null;
   feedback: number | null;
   credit_deducted: boolean;

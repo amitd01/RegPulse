@@ -7,7 +7,7 @@ import api from "@/lib/api";
 import { listNews, sourceLabel, type NewsListResponse } from "@/lib/api/news";
 import { Badge, impactVariant, statusVariant } from "@/components/ui/Badge";
 import { Pagination } from "@/components/ui/Pagination";
-import { Spinner } from "@/components/ui/Spinner";
+import { CardListSkeleton } from "@/components/ui/Skeleton";
 import type { CircularListItem, PaginatedResponse } from "@/types";
 
 type Tab = "circulars" | "news";
@@ -54,20 +54,22 @@ export default function UpdatesPage() {
   return (
     <div className="px-6 py-6 lg:px-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Regulatory Updates</h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-50">
+          Regulatory Updates
+        </h1>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
           RBI circulars and curated banking news.
         </p>
       </div>
 
       {/* Tabs */}
-      <div className="mb-6 flex gap-2 border-b border-gray-200">
+      <div className="mb-6 flex gap-2 border-b border-gray-200 dark:border-gray-800">
         <button
           onClick={() => setTab("circulars")}
           className={`border-b-2 px-3 pb-2 text-sm font-medium ${
             tab === "circulars"
-              ? "border-navy-600 text-navy-700"
-              : "border-transparent text-gray-500 hover:text-gray-700"
+              ? "border-navy-600 text-navy-700 dark:border-navy-300 dark:text-navy-200"
+              : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
           }`}
         >
           Circulars
@@ -76,8 +78,8 @@ export default function UpdatesPage() {
           onClick={() => setTab("news")}
           className={`border-b-2 px-3 pb-2 text-sm font-medium ${
             tab === "news"
-              ? "border-navy-600 text-navy-700"
-              : "border-transparent text-gray-500 hover:text-gray-700"
+              ? "border-navy-600 text-navy-700 dark:border-navy-300 dark:text-navy-200"
+              : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
           }`}
         >
           Market News
@@ -87,14 +89,12 @@ export default function UpdatesPage() {
       {/* Circulars tab */}
       {tab === "circulars" && (
         <>
-          {circLoading && (
-            <div className="flex justify-center py-20">
-              <Spinner size="lg" />
-            </div>
-          )}
+          {circLoading && <CardListSkeleton rows={6} />}
 
           {circData && circData.data.length === 0 && (
-            <p className="py-20 text-center text-sm text-gray-500">No updates yet.</p>
+            <p className="py-20 text-center text-sm text-gray-500 dark:text-gray-400">
+              No updates yet.
+            </p>
           )}
 
           {circData && circData.data.length > 0 && (
@@ -103,7 +103,7 @@ export default function UpdatesPage() {
                 <Link
                   key={c.id}
                   href={`/library/${c.id}`}
-                  className="block rounded-lg border border-gray-200 bg-white p-4 hover:shadow-sm"
+                  className="block rounded-lg border border-gray-200 bg-white p-4 hover:shadow-sm dark:border-gray-800 dark:bg-gray-900"
                 >
                   <div className="flex flex-wrap items-center gap-2 mb-2">
                     {c.circular_number && (
@@ -163,14 +163,10 @@ export default function UpdatesPage() {
       {/* News tab */}
       {tab === "news" && (
         <>
-          {newsLoading && (
-            <div className="flex justify-center py-20">
-              <Spinner size="lg" />
-            </div>
-          )}
+          {newsLoading && <CardListSkeleton rows={6} />}
 
           {newsData && newsData.items.length === 0 && (
-            <p className="py-20 text-center text-sm text-gray-500">
+            <p className="py-20 text-center text-sm text-gray-500 dark:text-gray-400">
               No news ingested yet.
             </p>
           )}
@@ -183,7 +179,7 @@ export default function UpdatesPage() {
                   href={item.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="block rounded-lg border border-gray-200 bg-white p-4 hover:shadow-sm"
+                  className="block rounded-lg border border-gray-200 bg-white p-4 hover:shadow-sm dark:border-gray-800 dark:bg-gray-900"
                 >
                   <div className="mb-2 flex flex-wrap items-center gap-2">
                     <Badge>{sourceLabel(item.source)}</Badge>

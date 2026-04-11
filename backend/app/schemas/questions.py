@@ -42,6 +42,8 @@ class QuestionSummary(BaseModel):
     question_text: str
     quick_answer: str | None = None
     risk_level: str | None = None
+    confidence_score: float | None = None
+    consult_expert: bool = False
     model_used: str | None = None
     feedback: int | None = None
     credit_deducted: bool
