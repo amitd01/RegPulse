@@ -13,7 +13,7 @@ import type { NextRequest } from "next/server";
  */
 
 const PUBLIC_PATHS = new Set(["/", "/login", "/register", "/verify", "/pricing"]);
-const BROWSABLE_PREFIXES = ["/library"];
+const BROWSABLE_PREFIXES = ["/library", "/s/"];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

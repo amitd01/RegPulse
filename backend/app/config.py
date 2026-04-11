@@ -64,9 +64,24 @@ class Settings(BaseSettings):
     FREE_CREDIT_GRANT: int = 5
     MAX_QUESTION_CHARS: int = 500
     FRONTEND_URL: str
+    PUBLIC_BASE_URL: str | None = None
+    BACKEND_PUBLIC_URL: str | None = None
     ENVIRONMENT: Literal["dev", "staging", "prod"] = "dev"
     DEMO_MODE: bool = False
     SENTRY_DSN: str | None = None
+
+    # --- Sprint 3: Knowledge Graph ---
+    KG_EXTRACTION_ENABLED: bool = True
+    RAG_KG_EXPANSION_ENABLED: bool = False
+    RAG_KG_BOOST_WEIGHT: float = 0.1
+
+    # --- Sprint 3: News ingest ---
+    RSS_INGEST_ENABLED: bool = True
+    NEWS_RELEVANCE_THRESHOLD: float = 0.75
+
+    # --- Sprint 3: Public snippets ---
+    SNIPPET_RATE_LIMIT_PER_MIN: int = 60
+    SNIPPET_EXPIRY_DAYS: int = 90
 
     # ------------------------------------------------------------------
     # Validators

@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useState } from "react";
 import ReactMarkdown from "react-markdown";
+import { ShareSnippetDialog } from "@/components/ShareSnippetDialog";
 import { Badge, impactVariant } from "@/components/ui/Badge";
 import { Spinner } from "@/components/ui/Spinner";
 import { useQuestionDetail, useSubmitFeedback } from "@/hooks/useQuestions";
@@ -10,6 +12,7 @@ import { useQuestionDetail, useSubmitFeedback } from "@/hooks/useQuestions";
 export default function QuestionDetailPage() {
   const params = useParams();
   const id = params.id as string;
+  const [shareOpen, setShareOpen] = useState(false);
 
   const { data, isLoading, isError } = useQuestionDetail(id);
   const feedbackMutation = useSubmitFeedback();
@@ -161,40 +164,70 @@ export default function QuestionDetailPage() {
         </div>
       )}
 
-      {/* Feedback */}
+      {/* Feedback + Share */}
       <div className="border-t border-gray-200 pt-4">
-        <h3 className="mb-2 text-sm font-semibold text-gray-700">
-          Was this helpful?
-        </h3>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h3 className="mb-2 text-sm font-semibold text-gray-700">
+              Was this helpful?
+            </h3>
+            <div className="flex gap-3">
+              <button
+                onClick={() =>
+                  feedbackMutation.mutate({ questionId: id, feedback: 1 })
+                }
+                disabled={q.feedback !== null}
+                className={`rounded-lg border px-4 py-2 text-sm ${
+                  q.feedback === 1
+                    ? "border-green-300 bg-green-50 text-green-700"
+                    : "border-gray-300 text-gray-600 hover:bg-gray-50"
+                } disabled:cursor-not-allowed`}
+              >
+                &#128077; Yes
+              </button>
+              <button
+                onClick={() =>
+                  feedbackMutation.mutate({ questionId: id, feedback: -1 })
+                }
+                disabled={q.feedback !== null}
+                className={`rounded-lg border px-4 py-2 text-sm ${
+                  q.feedback === -1
+                    ? "border-red-300 bg-red-50 text-red-700"
+                    : "border-gray-300 text-gray-600 hover:bg-gray-50"
+                } disabled:cursor-not-allowed`}
+              >
+                &#128078; No
+              </button>
+            </div>
+          </div>
+
           <button
-            onClick={() =>
-              feedbackMutation.mutate({ questionId: id, feedback: 1 })
-            }
-            disabled={q.feedback !== null}
-            className={`rounded-lg border px-4 py-2 text-sm ${
-              q.feedback === 1
-                ? "border-green-300 bg-green-50 text-green-700"
-                : "border-gray-300 text-gray-600 hover:bg-gray-50"
-            } disabled:cursor-not-allowed`}
+            onClick={() => setShareOpen(true)}
+            className="inline-flex items-center gap-2 rounded-lg border border-navy-300 bg-white px-4 py-2 text-sm font-medium text-navy-700 hover:bg-navy-50"
           >
-            &#128077; Yes
-          </button>
-          <button
-            onClick={() =>
-              feedbackMutation.mutate({ questionId: id, feedback: -1 })
-            }
-            disabled={q.feedback !== null}
-            className={`rounded-lg border px-4 py-2 text-sm ${
-              q.feedback === -1
-                ? "border-red-300 bg-red-50 text-red-700"
-                : "border-gray-300 text-gray-600 hover:bg-gray-50"
-            } disabled:cursor-not-allowed`}
-          >
-            &#128078; No
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+              />
+            </svg>
+            Share
           </button>
         </div>
       </div>
+
+      <ShareSnippetDialog
+        questionId={id}
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+      />
     </div>
   );
 }

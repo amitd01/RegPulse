@@ -4,7 +4,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Enum, Float, ForeignKey, String, UniqueConstraint
+from sqlalchemy import DateTime, Enum, Float, ForeignKey, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -46,8 +46,12 @@ class KGEntity(Base):
     entity_metadata: Mapped[dict] = mapped_column(
         "metadata", JSONB, nullable=False, server_default="'{}'::jsonb"
     )
-    first_seen_at: Mapped[datetime] = mapped_column(server_default="now()", nullable=False)
-    last_seen_at: Mapped[datetime] = mapped_column(server_default="now()", nullable=False)
+    first_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default="now()", nullable=False
+    )
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default="now()", nullable=False
+    )
 
 
 class KGRelationship(Base):
@@ -81,7 +85,9 @@ class KGRelationship(Base):
         ForeignKey("circular_documents.id", ondelete="CASCADE"),
     )
     confidence: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
-    created_at: Mapped[datetime] = mapped_column(server_default="now()", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default="now()", nullable=False
+    )
 
     source_entity: Mapped["KGEntity"] = relationship(foreign_keys=[source_entity_id])
     target_entity: Mapped["KGEntity"] = relationship(foreign_keys=[target_entity_id])

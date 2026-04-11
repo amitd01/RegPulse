@@ -18,9 +18,8 @@ from typing import TYPE_CHECKING
 import structlog
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
 from sqlalchemy import text
 
 from app.cache import redis_client
@@ -31,12 +30,14 @@ from app.exceptions import (
     generic_exception_handler,
     regpulse_exception_handler,
 )
+from app.rate_limit import limiter
 from app.routers.action_items import router as action_items_router
 from app.routers.admin import router as admin_router
 from app.routers.auth import router as auth_router
 from app.routers.circulars import router as circulars_router
 from app.routers.questions import router as questions_router
 from app.routers.saved import router as saved_router
+from app.routers.snippets import router as snippets_router
 from app.routers.subscriptions import router as subscriptions_router
 
 if TYPE_CHECKING:
@@ -73,11 +74,6 @@ structlog.configure(
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 logger: structlog.stdlib.BoundLogger = structlog.get_logger("regpulse")
-
-# ---------------------------------------------------------------------------
-# Rate limiter (slowapi)
-# ---------------------------------------------------------------------------
-limiter = Limiter(key_func=get_remote_address, default_limits=["300/minute"])
 
 # ---------------------------------------------------------------------------
 # Cross-encoder loader (runs in subprocess to avoid blocking)
@@ -268,6 +264,7 @@ app.include_router(questions_router, prefix="/api/v1/questions")
 app.include_router(subscriptions_router, prefix="/api/v1/subscriptions")
 app.include_router(action_items_router, prefix="/api/v1/action-items")
 app.include_router(saved_router, prefix="/api/v1/saved")
+app.include_router(snippets_router, prefix="/api/v1/snippets")
 app.include_router(admin_router, prefix="/api/v1/admin")
 
 
