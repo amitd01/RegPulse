@@ -130,22 +130,26 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except Exception:
         log.error("redis_connection_failed", exc_info=True)
 
-    # 4. Load cross-encoder with timeout (30s fallback to None)
-    loop = asyncio.get_running_loop()
-    try:
-        with ProcessPoolExecutor(max_workers=1) as pool:
-            app.state.cross_encoder = await asyncio.wait_for(
-                loop.run_in_executor(pool, _load_cross_encoder),
+    # 4. Load cross-encoder (skip in demo mode — download can hang in Docker)
+    if settings.DEMO_MODE:
+        app.state.cross_encoder = None
+        log.info("cross_encoder_skipped_demo_mode")
+    else:
+        loop = asyncio.get_running_loop()
+        try:
+            with ProcessPoolExecutor(max_workers=1) as pool:
+                app.state.cross_encoder = await asyncio.wait_for(
+                    loop.run_in_executor(pool, _load_cross_encoder),
+                    timeout=_CROSS_ENCODER_LOAD_TIMEOUT,
+                )
+            log.info("cross_encoder_loaded", model=_CROSS_ENCODER_MODEL)
+        except Exception:
+            app.state.cross_encoder = None
+            log.warning(
+                "cross_encoder_load_failed",
+                model=_CROSS_ENCODER_MODEL,
                 timeout=_CROSS_ENCODER_LOAD_TIMEOUT,
             )
-        log.info("cross_encoder_loaded", model=_CROSS_ENCODER_MODEL)
-    except Exception:
-        app.state.cross_encoder = None
-        log.warning(
-            "cross_encoder_load_failed",
-            model=_CROSS_ENCODER_MODEL,
-            timeout=_CROSS_ENCODER_LOAD_TIMEOUT,
-        )
 
     # 5. Init LLM clients → app.state
     import anthropic

@@ -38,6 +38,26 @@
 | 37–42 | Dashboard, updates, admin UI, analytics, summary services | Done |
 | 43–50 | PDF export, CI/CD, Nginx, Makefile, launch checks | Done |
 
+## Phase 2 Roadmap (Sprint 1-5)
+
+| Sprint | Description | Status |
+|--------|-------------|--------|
+| Sprint 1 | Hardening (HTTPOnly cookies, Scraper Embedder), Analytics (PostHog), Landing Page | Pending |
+| Sprint 2 | Anti-Hallucination Evals (Zero Hallucination), CI/CD Evals, AWS Prod Deploy | Pending |
+| Sprint 3 | Knowledge Graph, RSS/News Ingest, Social Sharing (Public Snippets) | Pending |
+| Sprint 4 | Premium UI Polish (Skeleton loaders, Dark mode), A/B UX Evals | Pending |
+| Sprint 5 | Admin Content (Manual PDF upload), Semantic Clustering Usage Heatmaps | Pending |
+
+## Localhost Demo
+
+Status: **Running** (2026-03-27). All 6 containers operational via `docker compose up --build -d`.
+
+- `DEMO_MODE=true` — fixed OTP `123456`, no email/payment, no cross-encoder
+- LLM uses Claude Sonnet with extended thinking (10k token budget)
+- Scraper embedder is a stub — run `backend/scripts/backfill_embeddings.py` after scraper indexes
+- Entry points: `/register` or `/login` (not `/` which is a placeholder)
+- See `PRODUCTION_PLAN.md` for AWS deployment roadmap
+
 ## File Reference
 
 | File | Purpose |
@@ -46,3 +66,4 @@
 | `context.md` | Project state — inventory, verification results |
 | `spec.md` | Full technical spec — schema, API, RAG pipeline, security |
 | `README.md` | External docs — build progress, API ref, setup |
+| `PRODUCTION_PLAN.md` | AWS deployment roadmap and cost estimates |

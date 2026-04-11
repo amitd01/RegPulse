@@ -8,6 +8,12 @@
 
 B2B SaaS for Indian banking professionals. RAG-powered Q&A over RBI Circulars with cited answers. Work-email-gated, subscription-based, 5 free lifetime credits.
 
+*(Phase 2 Decisions)*: 
+- Strict zero-hallucination constraint (fallback to "Consult an expert").
+- PostHog adopted for event/journey analytics to prevent lock-in.
+- Social sharing uses "Public Safe Snippets" with a registration gate.
+- Future roadmap includes Neo4j Knowledge Graphs and RSS/News crawler.
+
 ---
 
 ## Architecture
@@ -18,7 +24,7 @@ B2B SaaS for Indian banking professionals. RAG-powered Q&A over RBI Circulars wi
 
 **Frontend** (`/frontend`): Next.js 14, TypeScript strict, Tailwind, TanStack Query, Zustand. 22 routes.
 
-**LLM:** claude-sonnet-4-20250514 primary, gpt-4o fallback. Embeddings: text-embedding-3-large (3072-dim). Reranker: ms-marco-MiniLM-L-6-v2.
+**LLM:** claude-sonnet-4-20250514 with extended thinking (10k budget) primary, gpt-4o fallback. Embeddings: text-embedding-3-large (3072-dim). Reranker: ms-marco-MiniLM-L-6-v2 (skipped in DEMO_MODE).
 
 ---
 
@@ -104,8 +110,9 @@ LLM returns: `{quick_answer, detailed_interpretation, risk_level, affected_teams
 
 **Frontend:**
 - Access token in Zustand memory only — NEVER localStorage
-- Refresh token also in Zustand (backend can set httpOnly cookie)
-- `authStore.setAuth` takes 3 args: `(user, accessToken, refreshToken)`
+- Refresh token stored in browser cookie via `authStore.setAuth` (middleware reads it)
+- `authStore.setAuth` takes 3 args: `(user, accessToken, refreshToken)` — also sets `refresh_token` cookie
+- `authStore.clearAuth` removes the `refresh_token` cookie
 - For credit balance updates without re-auth: use `useAuthStore.setState({user: {...user, credit_balance: n}})`
 - TanStack Query for data fetching; `QueryProvider` wraps app in root layout
 - SSE via `fetch` + `ReadableStream` (not EventSource)
@@ -114,9 +121,35 @@ LLM returns: `{quick_answer, detailed_interpretation, risk_level, affected_teams
 
 ---
 
+## DEMO_MODE
+
+When `DEMO_MODE=true` (blocked in prod):
+- OTP is fixed to `123456` — no email sent
+- Work email validation skipped (any email accepted)
+- Cross-encoder reranker skipped (fast startup, no HuggingFace download)
+- Razorpay/SMTP use dummy keys — payments and email non-functional
+- `OTP_MAX_SENDS_PER_HOUR` should be raised (default 3 is too low for testing)
+
 ## Environment Variables
 
 See `.env.example`. Key required: `DATABASE_URL`, `REDIS_URL`, `JWT_*`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `RAZORPAY_*`, `SMTP_*`, `FRONTEND_URL`.
+
+## Localhost Deployment
+
+```bash
+cp .env.example .env   # fill in API keys, set DEMO_MODE=true
+docker compose up --build -d
+# Schema auto-applied via initdb.d mount
+# Trigger scraper: docker exec regpulse-scraper celery -A celery_app -b redis://redis:6379/1 call scraper.tasks.daily_scrape
+# Backfill embeddings: docker exec regpulse-backend python scripts/backfill_embeddings.py
+# Frontend: http://localhost:3000  |  API docs: http://localhost:8000/api/v1/docs
+```
+
+**Known issues (demo):**
+- Scraper embedder is a stub — run `backfill_embeddings.py` after scraper indexes new docs
+- Scraper tasks route to `scraper` queue — worker must consume with `-Q celery,scraper`
+- Landing page (`/`) is a placeholder — use `/register` or `/login` as entry points
+- `password_changed_at` column was missing from SQL schema (patched)
 
 ---
 
@@ -128,3 +161,6 @@ See `.env.example`. Key required: `DATABASE_URL`, `REDIS_URL`, `JWT_*`, `OPENAI_
 | TD-02 | No graceful shutdown handlers | SIGTERM handlers post-launch |
 | TD-03 | Manual api.ts client | OpenAPI codegen in v1.1 |
 | TD-04 | admin_audit_log.actor_id NOT NULL — scraper can't log | Seed system user |
+| TD-05 | Scraper embedder is a stub (returns empty vectors) | Use OpenAI API in scraper or call backend embedding service |
+| TD-06 | Landing page (`/`) is bare placeholder | Build marketing/landing page |
+| TD-07 | `refresh_token` cookie is not httpOnly | Move to backend Set-Cookie for production |

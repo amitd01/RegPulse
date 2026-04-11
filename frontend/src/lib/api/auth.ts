@@ -38,9 +38,7 @@ export interface OTPVerifyRequest {
   org_type?: string | null;
 }
 
-export interface RefreshTokenRequest {
-  refresh_token: string;
-}
+// Deprecated: RefreshTokenRequest removed because refresh_token is now an HTTPOnly cookie
 
 // ---------------------------------------------------------------------------
 // Response types (mirrors backend/app/schemas/auth.py)
@@ -107,12 +105,12 @@ export async function verifyOtp(data: OTPVerifyRequest): Promise<AuthResponse> {
   return res.data;
 }
 
-export async function refreshToken(data: RefreshTokenRequest): Promise<AuthResponse> {
-  const res = await api.post<AuthResponse>("/auth/refresh", data);
+export async function refreshToken(): Promise<AuthResponse> {
+  const res = await api.post<AuthResponse>("/auth/refresh");
   return res.data;
 }
 
-export async function logoutUser(data: RefreshTokenRequest): Promise<MessageResponse> {
-  const res = await api.post<MessageResponse>("/auth/logout", data);
+export async function logoutUser(): Promise<MessageResponse> {
+  const res = await api.post<MessageResponse>("/auth/logout");
   return res.data;
 }

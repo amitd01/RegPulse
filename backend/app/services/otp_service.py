@@ -61,7 +61,11 @@ class OTPService:
         await self._enforce_rate_limit(redis, rate_key, domain)
 
         # --- Generate OTP ---
-        otp = f"{secrets.randbelow(1_000_000):06d}"
+        if self._settings.DEMO_MODE:
+            otp = "123456"
+            logger.info("demo_mode_fixed_otp", domain=domain, purpose=purpose)
+        else:
+            otp = f"{secrets.randbelow(1_000_000):06d}"
 
         # --- Bcrypt hash and store ---
         otp_hash = bcrypt.hashpw(otp.encode(), bcrypt.gensalt()).decode()

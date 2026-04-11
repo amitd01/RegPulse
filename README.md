@@ -21,6 +21,18 @@
 
 ---
 
+## Phase 2 Roadmap (Multi-Sprint)
+
+| Phase/Sprint | Description | Status |
+|--------------|-------------|--------|
+| Sprint 1 | Analytics (PostHog), Core Hardening (Cookies, Direct Embedder), Landing Page | Pending |
+| Sprint 2 | Anti-Hallucination Strictness, Evaluation Pipeline (Golden dataset), AWS Deploy | Pending |
+| Sprint 3 | Knowledge Graph mapping, RSS/News Ingest, Social Sharing (Public Safe Snippet) | Pending |
+| Sprint 4 | Premium UI Polish, Skeleton loaders, Streaming UI stability, Dark Mode | Pending |
+| Sprint 5 | Admin Workflow: Manual PDF Onboarding, Semantic Clustering Heatmaps for Queries | Pending |
+
+---
+
 ## Architecture
 
 ```
@@ -35,26 +47,34 @@ rbi.org.in → Scraper (Celery) → PostgreSQL + pgvector ← FastAPI ← Next.j
 | Frontend | Next.js 14, TypeScript strict, Tailwind, TanStack Query, Zustand |
 | Database | PostgreSQL 16 + pgvector (13 tables, ivfflat + GIN indexes) |
 | Cache/Queue | Redis 7, Celery |
-| LLM | claude-sonnet-4-20250514 (primary), gpt-4o (fallback) |
+| LLM | claude-sonnet-4-20250514 with extended thinking (primary), gpt-4o (fallback) |
 | Payments | Razorpay (INR) |
 | CI/CD | GitHub Actions → AWS ECR → ECS |
 | Reverse Proxy | Nginx with TLS 1.3, HSTS, CSP |
 
 ---
 
-## Quick Start
+## Quick Start (Demo Mode)
 
 ```bash
-cp .env.example .env              # Fill in API keys (see .env.example for all vars)
-docker compose up -d              # Start postgres, redis, backend, scraper, frontend
-cd frontend && pnpm install       # Install frontend deps (if running locally)
-pnpm dev                          # Start frontend dev server
+cp .env.example .env              # Fill in OPENAI_API_KEY and ANTHROPIC_API_KEY
+                                  # Set DEMO_MODE=true, dummy Razorpay/SMTP keys
+docker compose up --build -d      # Start all 6 containers (schema auto-applied)
+
+# Trigger scraper to index RBI circulars:
+docker exec regpulse-scraper celery -A celery_app -b redis://redis:6379/1 call scraper.tasks.daily_scrape
+
+# Backfill embeddings (required for Q&A to work):
+docker exec regpulse-backend python scripts/backfill_embeddings.py
 ```
 
 | Service | URL |
 |---------|-----|
+| Register/Login | http://localhost:3000/register |
 | Web app | http://localhost:3000 |
 | API docs (Swagger) | http://localhost:8000/api/v1/docs |
+
+**Demo credentials:** Any work-looking email + OTP `123456`. 5 free credits granted on registration.
 
 ---
 
@@ -86,6 +106,19 @@ make test            # Both
 ```bash
 ./scripts/launch_check.sh http://localhost:8000 http://localhost:3000
 ```
+
+---
+
+---
+
+## Production Deployment
+
+See `PRODUCTION_PLAN.md` for the full AWS deployment roadmap including:
+- ECS Fargate (backend, frontend, scraper, celery-beat)
+- RDS PostgreSQL 16 + pgvector, ElastiCache Redis 7
+- ALB with ACM certificate, WAF
+- CI/CD via GitHub Actions (tag-triggered deploy)
+- Estimated cost: ~$205/month (ap-south-1)
 
 ---
 

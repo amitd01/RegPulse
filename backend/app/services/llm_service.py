@@ -195,13 +195,20 @@ class LLMService:
         try:
             async with self._anthropic.messages.stream(
                 model=self._settings.LLM_MODEL,
-                max_tokens=4096,
+                max_tokens=16000,
+                thinking={
+                    "type": "enabled",
+                    "budget_tokens": 10000,
+                },
                 system=_SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": user_message}],
             ) as stream:
-                async for text in stream.text_stream:
-                    full_response += text
-                    yield "token", json.dumps({"token": text})
+                async for event in stream:
+                    # Only stream text deltas, skip thinking blocks
+                    if hasattr(event, "type") and event.type == "content_block_delta":
+                        if hasattr(event.delta, "text"):
+                            full_response += event.delta.text
+                            yield "token", json.dumps({"token": event.delta.text})
 
         except Exception:
             logger.warning("llm_stream_anthropic_failed", exc_info=True)
@@ -242,14 +249,22 @@ class LLMService:
     # ------------------------------------------------------------------
 
     async def _call_anthropic(self, user_message: str) -> str:
-        """Call Anthropic Claude API."""
+        """Call Anthropic Claude API with extended thinking."""
         response = await self._anthropic.messages.create(
             model=self._settings.LLM_MODEL,
-            max_tokens=4096,
+            max_tokens=16000,
+            thinking={
+                "type": "enabled",
+                "budget_tokens": 10000,
+            },
             system=_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_message}],
         )
-        return response.content[0].text
+        # Extract the text block (skip thinking blocks)
+        for block in response.content:
+            if block.type == "text":
+                return block.text
+        return response.content[-1].text
 
     async def _call_openai(self, user_message: str) -> str:
         """Call OpenAI GPT-4o API as fallback."""

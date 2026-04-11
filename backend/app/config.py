@@ -72,6 +72,14 @@ class Settings(BaseSettings):
     # Validators
     # ------------------------------------------------------------------
 
+    @field_validator("JWT_PRIVATE_KEY", "JWT_PUBLIC_KEY", mode="before")
+    @classmethod
+    def _expand_pem_newlines(cls, v: object) -> str:
+        """Convert literal \\n in single-line PEM strings to real newlines."""
+        if isinstance(v, str) and "\\n" in v:
+            return v.replace("\\n", "\n")
+        return v  # type: ignore[return-value]
+
     @field_validator("ADMIN_EMAIL_ALLOWLIST", mode="before")
     @classmethod
     def _parse_admin_allowlist(cls, v: object) -> list[str]:

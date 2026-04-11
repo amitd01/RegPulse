@@ -50,6 +50,7 @@ CREATE TABLE users (
     last_credit_alert_sent  TIMESTAMPTZ,
     last_seen_updates       TIMESTAMPTZ,
     deletion_requested_at   TIMESTAMPTZ,
+    password_changed_at     TIMESTAMPTZ,
     created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at              TIMESTAMPTZ NOT NULL DEFAULT now()
 );

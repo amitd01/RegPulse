@@ -18,7 +18,7 @@ from datetime import UTC, datetime
 
 import redis.asyncio as aioredis
 import structlog
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Cookie, Depends, Response
 from jose import JWTError
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -37,7 +37,6 @@ from app.schemas.auth import (
     LoginRequest,
     MessageResponse,
     OTPVerifyRequest,
-    RefreshTokenRequest,
     RegisterRequest,
     TokenResponse,
     UserResponse,
@@ -58,11 +57,33 @@ router = APIRouter(tags=["auth"])
 
 
 # ---------------------------------------------------------------------------
-# Dependency factories
+# Dependency factories & Config overrides
 # ---------------------------------------------------------------------------
 
+def _set_refresh_cookie(response: Response, token: str, settings: Settings) -> None:
+    response.set_cookie(
+        key="refresh_token",
+        value=token,
+        httponly=True,
+        secure=settings.ENVIRONMENT == "prod",
+        samesite="lax",
+        max_age=30 * 24 * 3600,
+        path="/",
+    )
 
-def _get_email_validator() -> WorkEmailValidator:
+def _clear_refresh_cookie(response: Response) -> None:
+    response.delete_cookie(
+        key="refresh_token",
+        httponly=True,
+        secure=True,  # Always secure on clear
+        samesite="lax",
+        path="/",
+    )
+
+
+def _get_email_validator() -> WorkEmailValidator | None:
+    if get_settings().DEMO_MODE:
+        return None
     return WorkEmailValidator()
 
 
@@ -88,7 +109,7 @@ def _domain(email: str) -> str:
 async def register(
     body: RegisterRequest,
     db: AsyncSession = Depends(get_db),
-    validator: WorkEmailValidator = Depends(_get_email_validator),
+    validator: WorkEmailValidator | None = Depends(_get_email_validator),
     otp_svc: OTPService = Depends(_get_otp_service),
     email_svc: EmailService = Depends(_get_email_service),
     settings: Settings = Depends(get_settings),
@@ -110,19 +131,20 @@ async def register(
         # Return same message to avoid email enumeration
         return MessageResponse(message="If this is a valid work email, you will receive an OTP.")
 
-    # Validate work email
-    validation = await validator.validate(email)
-    if not validation.is_valid:
-        raise InvalidWorkEmailError(validation.reason)
+    # Validate work email (skipped in demo mode)
+    if not settings.DEMO_MODE:
+        validation = await validator.validate(email)
+        if not validation.is_valid:
+            raise InvalidWorkEmailError(validation.reason)
 
-    # Flag domain for admin review if MX was inconclusive
-    if validation.requires_review:
-        exists = await db.execute(
-            select(PendingDomainReview).where(PendingDomainReview.domain == domain)
-        )
-        if not exists.scalar_one_or_none():
-            db.add(PendingDomainReview(domain=domain, email=email, mx_valid=None))
-            await db.commit()
+        # Flag domain for admin review if MX was inconclusive
+        if validation.requires_review:
+            exists = await db.execute(
+                select(PendingDomainReview).where(PendingDomainReview.domain == domain)
+            )
+            if not exists.scalar_one_or_none():
+                db.add(PendingDomainReview(domain=domain, email=email, mx_valid=None))
+                await db.commit()
 
     # Store registration data in Redis so verify-otp can create the user
     redis = await otp_svc._get_redis()
@@ -142,9 +164,10 @@ async def register(
 
     # Generate and send OTP
     otp = await otp_svc.generate_otp(email, purpose="register")
-    await email_svc.send_otp_email(email, otp, purpose="register")
+    if not settings.DEMO_MODE:
+        await email_svc.send_otp_email(email, otp, purpose="register")
 
-    logger.info("register_otp_sent", domain=domain)
+    logger.info("register_otp_sent", domain=domain, demo_mode=settings.DEMO_MODE)
     return MessageResponse(message="If this is a valid work email, you will receive an OTP.")
 
 
@@ -159,6 +182,7 @@ async def login(
     db: AsyncSession = Depends(get_db),
     otp_svc: OTPService = Depends(_get_otp_service),
     email_svc: EmailService = Depends(_get_email_service),
+    settings: Settings = Depends(get_settings),
 ) -> MessageResponse:
     """Send login OTP to an existing, active user."""
     email = body.email.lower().strip()
@@ -173,9 +197,10 @@ async def login(
         return MessageResponse(message="If you have an account, you will receive an OTP.")
 
     otp = await otp_svc.generate_otp(email, purpose="login")
-    await email_svc.send_otp_email(email, otp, purpose="login")
+    if not settings.DEMO_MODE:
+        await email_svc.send_otp_email(email, otp, purpose="login")
 
-    logger.info("login_otp_sent", domain=domain)
+    logger.info("login_otp_sent", domain=domain, demo_mode=settings.DEMO_MODE)
     return MessageResponse(message="If you have an account, you will receive an OTP.")
 
 
@@ -187,6 +212,7 @@ async def login(
 @router.post("/verify-otp", response_model=AuthResponse)
 async def verify_otp(
     body: OTPVerifyRequest,
+    response: Response,
     db: AsyncSession = Depends(get_db),
     redis: aioredis.Redis = Depends(get_redis),  # type: ignore[type-arg]
     otp_svc: OTPService = Depends(_get_otp_service),
@@ -225,6 +251,7 @@ async def verify_otp(
 
     # Issue tokens
     tokens, session = await _issue_tokens(user, db, settings)
+    _set_refresh_cookie(response, tokens.refresh_token, settings)
 
     logger.info("auth_success", domain=domain, purpose=purpose)
     return AuthResponse(
@@ -240,14 +267,18 @@ async def verify_otp(
 
 @router.post("/refresh", response_model=AuthResponse)
 async def refresh(
-    body: RefreshTokenRequest,
+    response: Response,
+    refresh_token: str | None = Cookie(None),
     db: AsyncSession = Depends(get_db),
     redis: aioredis.Redis = Depends(get_redis),  # type: ignore[type-arg]
     settings: Settings = Depends(get_settings),
 ) -> AuthResponse:
     """Rotate refresh token: revoke old, issue new JWT + refresh token."""
+    if not refresh_token:
+        raise _auth_error("Refresh token missing from cookies")
+
     try:
-        payload = decode_token(body.refresh_token, expected_type="refresh", settings=settings)
+        payload = decode_token(refresh_token, expected_type="refresh", settings=settings)
     except JWTError as exc:
         raise _auth_error("Invalid or expired refresh token") from exc
 
@@ -267,7 +298,7 @@ async def refresh(
         raise _auth_error("Account not found or deactivated")
 
     # Revoke old session + create new session in a single DB commit (atomic)
-    token_hash = _hash_token(body.refresh_token)
+    token_hash = _hash_token(refresh_token)
     result = await db.execute(
         select(Session).where(
             Session.token_hash == token_hash,
@@ -281,6 +312,7 @@ async def refresh(
     # Issue new tokens — _issue_tokens calls db.commit(), flushing both
     # the old session revocation and new session creation atomically
     tokens, _session = await _issue_tokens(user, db, settings)
+    _set_refresh_cookie(response, tokens.refresh_token, settings)
 
     # Blacklist old jti in Redis AFTER successful DB commit
     exp = datetime.fromtimestamp(payload["exp"], tz=UTC)
@@ -301,14 +333,20 @@ async def refresh(
 
 @router.post("/logout", response_model=MessageResponse)
 async def logout(
-    body: RefreshTokenRequest,
+    response: Response,
+    refresh_token: str | None = Cookie(None),
     db: AsyncSession = Depends(get_db),
     redis: aioredis.Redis = Depends(get_redis),  # type: ignore[type-arg]
     settings: Settings = Depends(get_settings),
 ) -> MessageResponse:
     """Revoke refresh token and blacklist its jti."""
+    _clear_refresh_cookie(response)
+    
+    if not refresh_token:
+        return MessageResponse(message="Logged out successfully")
+
     try:
-        payload = decode_token(body.refresh_token, expected_type="refresh", settings=settings)
+        payload = decode_token(refresh_token, expected_type="refresh", settings=settings)
     except JWTError:
         # Even if token is invalid/expired, return success (idempotent logout)
         return MessageResponse(message="Logged out successfully")
@@ -322,7 +360,7 @@ async def logout(
         await blacklist_jti(jti, remaining, redis)
 
     # Revoke session in DB
-    token_hash = _hash_token(body.refresh_token)
+    token_hash = _hash_token(refresh_token)
     await db.execute(update(Session).where(Session.token_hash == token_hash).values(revoked=True))
     await db.commit()
 

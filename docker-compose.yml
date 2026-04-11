@@ -13,6 +13,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./backend/migrations/001_initial_schema.sql:/docker-entrypoint-initdb.d/001_initial_schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-regpulse}"]
       interval: 5s
@@ -48,6 +49,7 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-regpulse}:${POSTGRES_PASSWORD:-regpulse_dev}@postgres:5432/${POSTGRES_DB:-regpulse}
       REDIS_URL: redis://redis:6379/0
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
     depends_on:
       postgres:
         condition: service_healthy
@@ -62,11 +64,13 @@ services:
       dockerfile: Dockerfile
     container_name: regpulse-scraper
     restart: unless-stopped
+    command: celery -A celery_app worker --loglevel=info --concurrency=2 -Q celery,scraper
     env_file:
       - .env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-regpulse}:${POSTGRES_PASSWORD:-regpulse_dev}@postgres:5432/${POSTGRES_DB:-regpulse}
       REDIS_URL: redis://redis:6379/1
+      PYTHONPATH: /
     depends_on:
       postgres:
         condition: service_healthy
@@ -87,6 +91,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-regpulse}:${POSTGRES_PASSWORD:-regpulse_dev}@postgres:5432/${POSTGRES_DB:-regpulse}
       REDIS_URL: redis://redis:6379/1
+      PYTHONPATH: /
     depends_on:
       postgres:
         condition: service_healthy

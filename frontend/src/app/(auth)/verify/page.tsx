@@ -29,7 +29,7 @@ function VerifyContent() {
   const mutation = useMutation<AuthResponse, AxiosError<ApiError>, OTPVerifyRequest>({
     mutationFn: verifyOtp,
     onSuccess: (data) => {
-      setAuth(data.user, data.tokens.access_token, data.tokens.refresh_token);
+      setAuth(data.user, data.tokens.access_token);
       router.push("/dashboard");
     },
   });

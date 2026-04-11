@@ -9,6 +9,8 @@
 
 RegPulse is a B2B SaaS platform delivering RAG-powered Q&A over RBI Circulars for Indian banking professionals. Two modules: a Celery scraper that indexes RBI documents into pgvector, and a FastAPI+Next.js web app that retrieves and answers questions with cited sources.
 
+**(Phase 2 Scope)**: The platform uses PostHog for event tracking, enforcing absolute zero-hallucination strictness in LLM constraints, and will incorporate a Knowledge Graph (Neo4j) for explicit relationship mapping.
+
 ```
 rbi.org.in → Scraper (Celery/Redis) → PostgreSQL+pgvector
                                             ↕
@@ -343,3 +345,31 @@ Schedule: daily_scrape at 02:00 IST, priority_scrape every 4h.
 | App | FREE_CREDIT_GRANT (5), MAX_QUESTION_CHARS (500), FRONTEND_URL, ENVIRONMENT, DEMO_MODE |
 
 Full reference: `.env.example`
+
+---
+
+## 10. DEMO_MODE Behavior
+
+When `DEMO_MODE=true` and `ENVIRONMENT != prod`:
+
+| Feature | Normal | Demo |
+|---------|--------|------|
+| OTP | Random 6-digit, sent via SMTP | Fixed `123456`, no email |
+| Email validation | Work email + MX check + blocklist | Skipped (any email accepted) |
+| Cross-encoder | Downloaded from HuggingFace, 30s timeout | Skipped (`app.state.cross_encoder = None`) |
+| Razorpay | Real orders + HMAC verification | Dummy keys, payment endpoints fail gracefully |
+| LLM | Claude Sonnet (standard) | Claude Sonnet with extended thinking (10k budget) |
+
+---
+
+## 11. Localhost Deployment
+
+**Docker Compose** runs 6 services: postgres (pgvector:pg16), redis (7-alpine), backend (FastAPI, 1 worker), frontend (Next.js standalone), scraper (Celery worker, `-Q celery,scraper`), celery-beat.
+
+**Schema** is auto-applied via postgres `docker-entrypoint-initdb.d` mount from `backend/migrations/001_initial_schema.sql`.
+
+**Embedding backfill** required after scraper indexes new documents — scraper's `Embedder` is a stub. Run: `docker exec regpulse-backend python scripts/backfill_embeddings.py`
+
+**Auth cookie fix:** `authStore.setAuth()` writes `refresh_token` as browser cookie so Next.js middleware can gate protected routes.
+
+See `PRODUCTION_PLAN.md` for AWS deployment roadmap.
