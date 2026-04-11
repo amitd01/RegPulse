@@ -190,6 +190,14 @@ class RAGService:
         # 4. Deduplicate: max chunks per document
         deduped = self._deduplicate(fused, max_per_doc)
 
+        # 4.5. Optional knowledge graph expansion (Sprint 3 Pillar A)
+        # Default OFF — feature-flagged via RAG_KG_EXPANSION_ENABLED.
+        if settings.RAG_KG_EXPANSION_ENABLED and deduped:
+            try:
+                deduped = await self._kg_expand(deduped, max_per_doc=max_per_doc)
+            except Exception:
+                logger.warning("kg_expansion_failed", exc_info=True)
+
         # 5. Cosine threshold filter
         filtered = [c for c in deduped if c.rrf_score > 0]
 
@@ -366,6 +374,95 @@ class RAGService:
                 result.append(chunk)
                 doc_counts[chunk.document_id] += 1
         return result
+
+    # ------------------------------------------------------------------
+    # Internal: Knowledge graph expansion (Sprint 3 Pillar A, opt-in)
+    # ------------------------------------------------------------------
+
+    async def _kg_expand(
+        self,
+        chunks: list[RetrievedChunk],
+        *,
+        max_per_doc: int,
+    ) -> list[RetrievedChunk]:
+        """Pull additional chunks from circulars that are graph-connected
+        to the entities present in the top retrieved chunks.
+
+        New chunks are added with a small RRF-score boost so they sit
+        below organic hits but can still rank above noise. The expansion
+        is best-effort: any failure short-circuits to returning the input
+        unchanged.
+        """
+        from app.services.kg_service import (
+            find_entities_in_text,
+            neighbor_circular_numbers,
+        )
+
+        boost = float(self._settings.RAG_KG_BOOST_WEIGHT)
+        top_chunks = chunks[:3]  # only seed from the very top hits
+        seed_text = " ".join(c.chunk_text for c in top_chunks)
+
+        seed_entities = await find_entities_in_text(self._db, seed_text)
+        if not seed_entities:
+            return chunks
+
+        circular_numbers = await neighbor_circular_numbers(
+            self._db, seed_entities=seed_entities
+        )
+        # Drop circulars already represented in the result set
+        already = {c.circular_number for c in chunks if c.circular_number}
+        new_circulars = [n for n in circular_numbers if n not in already]
+        if not new_circulars:
+            return chunks
+
+        # Pull up to `max_per_doc` chunks per neighbour circular
+        stmt = text(
+            """
+            SELECT
+                dc.id, dc.document_id, dc.chunk_index, dc.chunk_text,
+                dc.token_count, cd.circular_number, cd.title, cd.rbi_url
+            FROM document_chunks dc
+            JOIN circular_documents cd ON cd.id = dc.document_id
+            WHERE cd.status = 'ACTIVE'
+              AND cd.circular_number = ANY(:numbers)
+              AND dc.embedding IS NOT NULL
+            ORDER BY dc.chunk_index
+            LIMIT :hard_limit
+            """
+        )
+        result = await self._db.execute(
+            stmt,
+            {
+                "numbers": new_circulars,
+                "hard_limit": max_per_doc * len(new_circulars),
+            },
+        )
+        rows = result.all()
+        if not rows:
+            return chunks
+
+        added: list[RetrievedChunk] = []
+        for row in rows:
+            chunk = RetrievedChunk(
+                chunk_id=str(row[0]),
+                document_id=str(row[1]),
+                chunk_index=row[2],
+                chunk_text=row[3],
+                token_count=row[4],
+                circular_number=row[5],
+                title=row[6],
+                rbi_url=row[7],
+                rrf_score=boost,
+            )
+            added.append(chunk)
+
+        logger.info(
+            "kg_expansion_applied",
+            seed_entities=len(seed_entities),
+            new_circulars=len(new_circulars),
+            added_chunks=len(added),
+        )
+        return chunks + added
 
     # ------------------------------------------------------------------
     # Internal: Cross-encoder rerank

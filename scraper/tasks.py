@@ -30,6 +30,7 @@ from scraper.extractor.metadata_extractor import MetadataExtractor
 from scraper.extractor.pdf_extractor import PDFExtractor
 from scraper.processor.chunker import TextChunker
 from scraper.processor.embedder import Embedder
+from scraper.processor.entity_extractor import Entity, EntityExtractor, Triple
 from scraper.processor.impact_classifier import ImpactClassifier
 from scraper.processor.news_relevance import score_and_link
 from scraper.processor.supersession_resolver import SupersessionResolver
@@ -316,6 +317,26 @@ def process_document(
             chunks=len(chunks),
         )
 
+        # Step 6.5: Knowledge graph extraction (Sprint 3 Pillar A)
+        try:
+            extractor = EntityExtractor()
+            entities, triples = extractor.extract(
+                extracted.raw_text,
+                circular_number=metadata.circular_number,
+                title=effective_title,
+            )
+            if entities or triples:
+                with get_db_session() as db:
+                    persist_kg(
+                        db,
+                        entities=entities,
+                        triples=triples,
+                        source_document_id=doc_id,
+                    )
+                    db.commit()
+        except Exception:
+            logger.exception("kg_extraction_failed_for_document", doc_id=doc_id)
+
         # Step 7: Supersession resolution
         if metadata.supersession_refs:
             resolver = SupersessionResolver()
@@ -544,6 +565,93 @@ def send_staleness_alerts(self, circular_id: str) -> dict:  # noqa: ANN001
             exc_info=True,
         )
         return {"status": "failed", "circular_id": circular_id, "error": str(exc)}
+
+
+# ---------------------------------------------------------------------------
+# Sprint 3 Pillar A: Knowledge graph persistence helper
+# ---------------------------------------------------------------------------
+
+
+def persist_kg(
+    db,  # noqa: ANN001
+    *,
+    entities: list[Entity],
+    triples: list[Triple],
+    source_document_id: str | None = None,
+) -> tuple[int, int]:
+    """Upsert entities and insert relationships into kg_entities/kg_relationships.
+
+    Idempotent: entity unique key is (entity_type, canonical_name); relationship
+    unique key is (source_entity_id, target_entity_id, relation_type, source_document_id).
+
+    Returns (inserted_entities, inserted_edges).
+    """
+    inserted_entities = 0
+    inserted_edges = 0
+
+    name_to_id: dict[tuple[str, str], str] = {}
+
+    for ent in entities:
+        # Upsert: insert if missing, otherwise refresh last_seen_at and merge aliases
+        row = db.execute(
+            text(
+                """
+                INSERT INTO kg_entities (entity_type, canonical_name, aliases, metadata)
+                VALUES (CAST(:etype AS kg_entity_type_enum), :name, CAST(:aliases AS jsonb), '{}'::jsonb)
+                ON CONFLICT (entity_type, canonical_name) DO UPDATE
+                    SET last_seen_at = now()
+                RETURNING id
+                """
+            ),
+            {
+                "etype": ent.entity_type,
+                "name": ent.canonical_name,
+                "aliases": json.dumps(list(ent.aliases)),
+            },
+        ).first()
+        if row is not None:
+            entity_id = str(row[0])
+            name_to_id[(ent.entity_type, ent.canonical_name)] = entity_id
+            inserted_entities += 1
+
+    for tr in triples:
+        subj_id = name_to_id.get((tr.subject.entity_type, tr.subject.canonical_name))
+        obj_id = name_to_id.get((tr.obj.entity_type, tr.obj.canonical_name))
+        if subj_id is None or obj_id is None:
+            continue
+        try:
+            db.execute(
+                text(
+                    """
+                    INSERT INTO kg_relationships
+                        (source_entity_id, target_entity_id, relation_type,
+                         source_document_id, confidence)
+                    VALUES
+                        (CAST(:s AS uuid), CAST(:t AS uuid),
+                         CAST(:r AS kg_relation_type_enum),
+                         CAST(:doc AS uuid), 1.0)
+                    ON CONFLICT (source_entity_id, target_entity_id, relation_type, source_document_id)
+                        DO NOTHING
+                    """
+                ),
+                {
+                    "s": subj_id,
+                    "t": obj_id,
+                    "r": tr.predicate,
+                    "doc": source_document_id,
+                },
+            )
+            inserted_edges += 1
+        except Exception:
+            logger.exception("kg_edge_insert_failed", subject=tr.subject.canonical_name)
+
+    logger.info(
+        "kg_persisted",
+        entities=inserted_entities,
+        edges=inserted_edges,
+        document_id=source_document_id,
+    )
+    return inserted_entities, inserted_edges
 
 
 # ---------------------------------------------------------------------------
