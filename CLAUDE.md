@@ -75,4 +75,5 @@ Status: **Running** (updated 2026-04-11). All 6 containers operational via `dock
 | `context.md` | Project state — inventory, verification results |
 | `spec.md` | Full technical spec — schema, API, RAG pipeline, security |
 | `README.md` | External docs — build progress, API ref, setup |
+| `LEARNINGS.md` | Phase 2 mistakes, root causes, and prevention rules — read before any sprint |
 | `PRODUCTION_PLAN.md` | AWS deployment roadmap and cost estimates |
