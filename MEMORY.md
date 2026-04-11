@@ -8,11 +8,13 @@
 
 B2B SaaS for Indian banking professionals. RAG-powered Q&A over RBI Circulars with cited answers. Work-email-gated, subscription-based, 5 free lifetime credits.
 
-*(Phase 2 Decisions)*: 
-- Strict zero-hallucination constraint (fallback to "Consult an expert").
+**(Phase 2 — Sprint 1 & 2 Complete)**:
+- Strict zero-hallucination constraint with multi-signal confidence scoring (0.0-1.0).
+- "Consult an Expert" fallback when confidence < 0.5 or zero valid citations.
 - PostHog adopted for event/journey analytics to prevent lock-in.
-- Social sharing uses "Public Safe Snippets" with a registration gate.
-- Future roadmap includes Neo4j Knowledge Graphs and RSS/News crawler.
+- HTTPOnly cookie-based refresh tokens (XSS-resistant).
+- Social sharing uses "Public Safe Snippets" with a registration gate (Sprint 3).
+- Future roadmap includes Knowledge Graphs and RSS/News crawler (Sprint 3).
 
 ---
 
@@ -76,12 +78,14 @@ Indexes: ivfflat on embeddings (lists=100), GIN on FTS + citations JSONB + tags 
 4. RRF fusion: score = Σ 1/(60 + rank_i)
 5. Dedup: max RAG_MAX_CHUNKS_PER_DOC per document
 6. Cross-encoder rerank (ProcessPoolExecutor, 30s timeout) → top K
-7. Empty → no-answer, no credit
+7. Insufficient context guard: < 2 chunks → "Consult Expert" fallback (no LLM call)
 8. Injection guard + XML wrapping → LLM (Anthropic, GPT-4o fallback)
-9. Validate citations → INSERT + deduct credit → cache → SSE/JSON
+9. Validate citations → compute confidence score (3 signals)
+10. Confidence < 0.5 or zero citations → "Consult Expert" fallback
+11. INSERT + deduct credit → cache → SSE/JSON
 ```
 
-LLM returns: `{quick_answer, detailed_interpretation, risk_level, affected_teams, citations[], recommended_actions[]}`
+LLM returns: `{quick_answer, detailed_interpretation, risk_level, confidence_score, consult_expert, affected_teams, citations[], recommended_actions[]}`
 
 ---
 
@@ -110,14 +114,15 @@ LLM returns: `{quick_answer, detailed_interpretation, risk_level, affected_teams
 
 **Frontend:**
 - Access token in Zustand memory only — NEVER localStorage
-- Refresh token stored in browser cookie via `authStore.setAuth` (middleware reads it)
-- `authStore.setAuth` takes 3 args: `(user, accessToken, refreshToken)` — also sets `refresh_token` cookie
-- `authStore.clearAuth` removes the `refresh_token` cookie
+- Refresh token managed via backend `Set-Cookie` with `HttpOnly; Secure; SameSite=lax`
+- Frontend NEVER touches `document.cookie` — relies on `withCredentials: true` in axios
+- `authStore.setAuth` takes 2 args: `(user, accessToken)` — no refresh token arg
+- `authStore.clearAuth` calls `/api/v1/auth/logout` which clears the HTTPOnly cookie
 - For credit balance updates without re-auth: use `useAuthStore.setState({user: {...user, credit_balance: n}})`
 - TanStack Query for data fetching; `QueryProvider` wraps app in root layout
 - SSE via `fetch` + `ReadableStream` (not EventSource)
 - Library browsable without auth; search/ask require verified user
-- Middleware checks `refresh_token` cookie for protected routes
+- Middleware checks protected routes (cookie sent automatically by browser)
 
 ---
 
@@ -146,10 +151,9 @@ docker compose up --build -d
 ```
 
 **Known issues (demo):**
-- Scraper embedder is a stub — run `backfill_embeddings.py` after scraper indexes new docs
 - Scraper tasks route to `scraper` queue — worker must consume with `-Q celery,scraper`
-- Landing page (`/`) is a placeholder — use `/register` or `/login` as entry points
 - `password_changed_at` column was missing from SQL schema (patched)
+- `OTP_MAX_SENDS_PER_HOUR` should be raised (default 3 is too low for testing)
 
 ---
 
@@ -161,6 +165,6 @@ docker compose up --build -d
 | TD-02 | No graceful shutdown handlers | SIGTERM handlers post-launch |
 | TD-03 | Manual api.ts client | OpenAPI codegen in v1.1 |
 | TD-04 | admin_audit_log.actor_id NOT NULL — scraper can't log | Seed system user |
-| TD-05 | Scraper embedder is a stub (returns empty vectors) | Use OpenAI API in scraper or call backend embedding service |
-| TD-06 | Landing page (`/`) is bare placeholder | Build marketing/landing page |
-| TD-07 | `refresh_token` cookie is not httpOnly | Move to backend Set-Cookie for production |
+| ~~TD-05~~ | ~~Scraper embedder is a stub~~ | ✅ Fixed (Sprint 1) — Uses OpenAI `text-embedding-3-large` |
+| ~~TD-06~~ | ~~Landing page is bare placeholder~~ | ✅ Fixed (Sprint 1) — Full marketing landing page |
+| ~~TD-07~~ | ~~refresh_token cookie is not httpOnly~~ | ✅ Fixed (Sprint 1) — Backend `Set-Cookie: HttpOnly; Secure; SameSite=lax` |

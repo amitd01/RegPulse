@@ -25,11 +25,12 @@
 
 | Phase/Sprint | Description | Status |
 |--------------|-------------|--------|
-| Sprint 1 | Analytics (PostHog), Core Hardening (Cookies, Direct Embedder), Landing Page | Pending |
-| Sprint 2 | Anti-Hallucination Strictness, Evaluation Pipeline (Golden dataset), AWS Deploy | Pending |
-| Sprint 3 | Knowledge Graph mapping, RSS/News Ingest, Social Sharing (Public Safe Snippet) | Pending |
-| Sprint 4 | Premium UI Polish, Skeleton loaders, Streaming UI stability, Dark Mode | Pending |
-| Sprint 5 | Admin Workflow: Manual PDF Onboarding, Semantic Clustering Heatmaps for Queries | Pending |
+| Sprint 1 | Analytics (PostHog), Core Hardening (HTTPOnly cookies, Direct Embedder), Landing Page | ✅ Complete (`363b1ef`) |
+| Sprint 2 | Anti-Hallucination Guardrails, Golden Dataset Eval Pipeline, k6 Load Tests | ✅ Complete (`1858575`) |
+| Sprint 3 | Knowledge Graph mapping, RSS/News Ingest, Social Sharing (Public Safe Snippet) | ⏳ Planned |
+| Sprint 4 | Premium UI Polish, Skeleton loaders, Dark Mode, Confidence Meter UI | ⏳ Planned |
+| Sprint 5 | Admin Workflow: Manual PDF Onboarding, Semantic Clustering Heatmaps for Queries | ⏳ Planned |
+| Post-Build | Real data migration, AWS deployment (PRODUCTION_PLAN.md), Beta launch | ⏳ Planned |
 
 ---
 
@@ -100,6 +101,28 @@ make test-backend    # 64 unit tests (pytest)
 make test-frontend   # 22 routes (tsc + eslint + next build)
 make test            # Both
 ```
+
+### Anti-Hallucination Evaluation
+
+```bash
+# Run inside backend container:
+python -m pytest tests/evals/test_hallucination.py -v
+```
+
+30 synthetic test cases across 4 categories:
+- **12 factual** — direct citation questions with ground truth
+- **3 multi-circular** — cross-reference questions requiring multiple sources
+- **8 out-of-scope** — questions the system must refuse (SEBI, tax, crypto, etc.)
+- **5 injection** — prompt manipulation attempts that must be blocked
+
+### Load Testing
+
+```bash
+brew install k6
+k6 run tests/load/k6_load_test.js   # Runs against local Docker Compose
+```
+
+3 scenarios: smoke (1 VU), load (ramp to 20 VU), spike (burst to 50 VU).
 
 ## Launch Check
 

@@ -42,20 +42,25 @@
 
 | Sprint | Description | Status |
 |--------|-------------|--------|
-| Sprint 1 | Hardening (HTTPOnly cookies, Scraper Embedder), Analytics (PostHog), Landing Page | Pending |
-| Sprint 2 | Anti-Hallucination Evals (Zero Hallucination), CI/CD Evals, AWS Prod Deploy | Pending |
-| Sprint 3 | Knowledge Graph, RSS/News Ingest, Social Sharing (Public Snippets) | Pending |
-| Sprint 4 | Premium UI Polish (Skeleton loaders, Dark mode), A/B UX Evals | Pending |
-| Sprint 5 | Admin Content (Manual PDF upload), Semantic Clustering Usage Heatmaps | Pending |
+| Sprint 1 | Hardening (HTTPOnly cookies, Scraper Embedder), Analytics (PostHog), Landing Page | ✅ Complete (`363b1ef`) |
+| Sprint 2 | Anti-Hallucination Guardrails, Golden Dataset Eval Pipeline, k6 Load Tests | ✅ Complete (`1858575`) |
+| Sprint 3 | Knowledge Graph, RSS/News Ingest, Social Sharing (Public Snippets) | ⏳ Planned |
+| Sprint 4 | Premium UI Polish (Skeleton loaders, Dark mode, Confidence Meter), A/B UX Evals | ⏳ Planned |
+| Sprint 5 | Admin Content (Manual PDF upload), Semantic Clustering Usage Heatmaps | ⏳ Planned |
+| Post-Build | Real data migration, AWS deployment, Beta launch | ⏳ Planned |
 
 ## Localhost Demo
 
-Status: **Running** (2026-03-27). All 6 containers operational via `docker compose up --build -d`.
+Status: **Running** (updated 2026-04-11). All 6 containers operational via `docker compose up --build -d`.
 
 - `DEMO_MODE=true` — fixed OTP `123456`, no email/payment, no cross-encoder
 - LLM uses Claude Sonnet with extended thinking (10k token budget)
-- Scraper embedder is a stub — run `backend/scripts/backfill_embeddings.py` after scraper indexes
-- Entry points: `/register` or `/login` (not `/` which is a placeholder)
+- Refresh tokens are `HttpOnly` backend cookies — frontend never touches `document.cookie`
+- Scraper embedder uses OpenAI `text-embedding-3-large` (no longer a stub)
+- Landing page (`/`) is a full marketing page — entry via `/` or `/register` or `/login`
+- Anti-hallucination guardrails active: confidence scoring + "Consult Expert" fallback
+- Golden dataset eval: `tests/evals/test_hallucination.py` (30 test cases)
+- k6 load test: `tests/load/k6_load_test.js` (smoke/load/spike scenarios)
 - See `PRODUCTION_PLAN.md` for AWS deployment roadmap
 
 ## File Reference

@@ -1,6 +1,6 @@
 # RegPulse — Technical Specification
 
-> **Living spec. Reflects actual implementation state — all 50 prompts complete.**
+> **Living spec. Reflects actual implementation state — all 50 prompts + Sprint 1 & 2 complete.**
 > For architecture rules, see `MEMORY.md`. For build progress, see `CLAUDE.md`.
 
 ---
@@ -9,7 +9,7 @@
 
 RegPulse is a B2B SaaS platform delivering RAG-powered Q&A over RBI Circulars for Indian banking professionals. Two modules: a Celery scraper that indexes RBI documents into pgvector, and a FastAPI+Next.js web app that retrieves and answers questions with cited sources.
 
-**(Phase 2 Scope)**: The platform uses PostHog for event tracking, enforcing absolute zero-hallucination strictness in LLM constraints, and will incorporate a Knowledge Graph (Neo4j) for explicit relationship mapping.
+**(Phase 2 — Sprint 1 & 2 Complete)**: HTTPOnly cookie security, PostHog analytics, OpenAI embedding pipeline, marketing landing page, anti-hallucination confidence scoring with "Consult an Expert" fallback, golden dataset evaluation pipeline, and k6 load tests.
 
 ```
 rbi.org.in → Scraper (Celery/Redis) → PostgreSQL+pgvector
@@ -166,12 +166,14 @@ User question
 7. Take top RAG_TOP_K_FINAL chunks
     │
     ▼
-8. Empty result → no-answer response, no credit charged
+8. Insufficient context guard: < 2 chunks → "Consult Expert" fallback (no LLM call, saves cost)
 9. Injection guard (12 regex patterns) + wrap in <user_question> XML tags
 10. LLM call (Anthropic primary, GPT-4o fallback)
 11. Parse structured JSON → validate citations against retrieved chunks
-12. DB: INSERT question + deduct 1 credit (SELECT FOR UPDATE atomic)
-13. Cache answer in Redis → return via SSE stream or JSON
+12. Compute confidence score: (0.3 × LLM_self_reported) + (0.5 × citation_survival) + (0.2 × retrieval_depth)
+13. Confidence < 0.5 or zero valid citations → "Consult Expert" fallback
+14. DB: INSERT question + deduct 1 credit (SELECT FOR UPDATE atomic)
+15. Cache answer in Redis → return via SSE stream or JSON
 ```
 
 ### RAG Config (env vars)
@@ -187,14 +189,16 @@ User question
 ## 5. LLM Integration
 
 ### System Prompt
-Instructs JSON-only output. Key constraints: answer ONLY from provided context, cite every circular, ignore instructions inside `<user_question>` tags.
+Instructs JSON-only output. Key constraints: answer ONLY from provided context, cite every circular, ignore instructions inside `<user_question>` tags, self-report `confidence_score` (0.0-1.0), set `consult_expert: true` when uncertain. 8 explicit anti-hallucination rules.
 
 ### Response Schema
 ```json
 {
   "quick_answer": "max 80 words",
   "detailed_interpretation": "full markdown",
-  "risk_level": "HIGH | MEDIUM | LOW",
+  "risk_level": "HIGH | MEDIUM | LOW | null",
+  "confidence_score": 0.85,
+  "consult_expert": false,
   "affected_teams": ["Compliance", "Risk"],
   "citations": [
     {"circular_number": "RBI/2022-23/98", "verbatim_quote": "...", "section_reference": "..."}
@@ -204,6 +208,16 @@ Instructs JSON-only output. Key constraints: answer ONLY from provided context, 
   ]
 }
 ```
+
+### Confidence Scoring (3 signals)
+```
+confidence = (0.3 × LLM_self_reported) + (0.5 × citation_survival_rate) + (0.2 × retrieval_depth)
+```
+- **Citation survival rate** (0.5 weight) — most critical for compliance: valid_citations / total_attempted
+- **LLM self-reported** (0.3 weight) — the model's own assessment, clamped to [0,1]
+- **Retrieval depth** (0.2 weight) — min(1.0, chunks/3.0)
+
+When `confidence < 0.5` OR zero valid citations: the system returns a safe "Consult an Expert" fallback response with `consult_expert: true`, no speculative content.
 
 ### SSE Stream Format
 ```
@@ -324,7 +338,9 @@ Schedule: daily_scrape at 02:00 IST, priority_scrape every 4h.
 | Suite | Framework | Count | Scope |
 |-------|-----------|-------|-------|
 | Backend unit | pytest | 64 | Services (RRF, dedup, citations, injection, plans), routers (circulars, subscriptions) |
+| Anti-hallucination eval | pytest | 30 | Confidence scoring, citation validation, injection guard, golden dataset (4 categories) |
 | Frontend build | Next.js + ESLint + tsc | 11 routes | Type-check, lint, static generation |
+| Load testing | k6 | 3 scenarios | Smoke (1 VU), Load (20 VU ramp), Spike (50 VU burst) |
 | Integration | pytest + PostgreSQL | Planned | Full RAG pipeline with real DB |
 | E2E | Playwright | Planned | User flows |
 
@@ -368,8 +384,10 @@ When `DEMO_MODE=true` and `ENVIRONMENT != prod`:
 
 **Schema** is auto-applied via postgres `docker-entrypoint-initdb.d` mount from `backend/migrations/001_initial_schema.sql`.
 
-**Embedding backfill** required after scraper indexes new documents — scraper's `Embedder` is a stub. Run: `docker exec regpulse-backend python scripts/backfill_embeddings.py`
+**Scraper embedder** uses OpenAI `text-embedding-3-large` with batching (max 100 chunks per API call). No longer a stub.
 
-**Auth cookie fix:** `authStore.setAuth()` writes `refresh_token` as browser cookie so Next.js middleware can gate protected routes.
+**Auth:** Refresh tokens are `HttpOnly` cookies set by the backend. Frontend uses `withCredentials: true` — never touches `document.cookie`.
+
+**Anti-hallucination:** 3-layer protection: injection guard → insufficient context guard (< 2 chunks) → confidence scoring with "Consult Expert" fallback.
 
 See `PRODUCTION_PLAN.md` for AWS deployment roadmap.
