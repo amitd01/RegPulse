@@ -49,7 +49,7 @@
 | Sprint 1 | Hardening (HTTPOnly cookies, Scraper Embedder), Analytics (PostHog), Landing Page | ✅ Complete (`363b1ef`) |
 | Sprint 2 | Anti-Hallucination Guardrails, Golden Dataset Eval Pipeline, k6 Load Tests | ✅ Complete (`1858575`) |
 | Sprint 3 | Public Snippet Sharing, RSS/News Ingest, Knowledge Graph + RAG Expansion (flag-gated) | ✅ Complete (`5379c49`/`5d6dec3`/`52375b8`/`516acf9`) |
-| Sprint 4 | Premium UI Polish (Confidence Meter UI, Skeleton loaders, Dark mode, SSE jitter fix), A/B UX flag scaffolding | ✅ Complete (local — push pending) |
+| Sprint 4 | Premium UI Polish (Confidence Meter UI, Skeleton loaders, Dark mode, SSE jitter fix), A/B UX flag scaffolding | ✅ Complete (`f6c3a5a`) — LLM SDK + fallback-model config hardening follow-up staged locally |
 | Sprint 5 | Admin Content (Manual PDF upload), Semantic Clustering Usage Heatmaps | ⏳ Planned |
 | Post-Build | Real data migration, AWS deployment, Beta launch | ⏳ Planned |
 

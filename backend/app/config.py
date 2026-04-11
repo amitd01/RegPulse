@@ -131,6 +131,31 @@ class Settings(BaseSettings):
         if self.DEMO_MODE and self.ENVIRONMENT == "prod":
             raise RuntimeError("DEMO_MODE=true is not allowed when ENVIRONMENT=prod")
 
+        # (3) LLM provider/model coherence — LLM_FALLBACK_MODEL is consumed
+        # by the OpenAI client (`openai.chat.completions.create`), so it MUST
+        # be an OpenAI-compatible model name. Catching this at config load
+        # is much louder than discovering it during a live answer when
+        # Anthropic happens to fail. See LEARNINGS L4.10.
+        if self.LLM_FALLBACK_MODEL.startswith("claude-"):
+            raise RuntimeError(
+                f"LLM_FALLBACK_MODEL is set to '{self.LLM_FALLBACK_MODEL}', "
+                "which looks like an Anthropic model. The fallback path "
+                "calls OpenAI and needs a model like 'gpt-4o' or "
+                "'gpt-4o-mini'. Update your .env."
+            )
+        if not self.LLM_MODEL.startswith("claude-"):
+            # Soft warning, not fatal — we may switch primary providers in
+            # the future and the rest of the system shouldn't crash for
+            # the case where someone deliberately points the primary at
+            # a non-Anthropic model. We just log so it's discoverable.
+            import warnings
+            warnings.warn(
+                f"LLM_MODEL='{self.LLM_MODEL}' does not start with 'claude-' — "
+                "the primary path uses the Anthropic SDK; ensure the model "
+                "is supported by Anthropic.",
+                stacklevel=2,
+            )
+
 
 @lru_cache
 def get_settings() -> Settings:

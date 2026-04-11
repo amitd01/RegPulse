@@ -1,13 +1,13 @@
 # RegPulse — Project Status
 
-> **All 50 prompts + Sprints 1, 2, 3 pushed to origin/main. Sprint 4 complete locally on `main`, push pending user authorization.**
+> **All 50 prompts + Sprints 1, 2, 3, 4 pushed to origin/main. Sprint 4 follow-up (LLM SDK + config hardening) staged locally, push pending.**
 
 ---
 
 ## Current State (2026-04-11)
 
-- **Branch:** `main` — Sprints 1–3 pushed to `origin/main`; Sprint 4 staged locally (uncommitted)
-- **Phase:** Phase 2 — **Sprint 4 complete locally**, push next, then flip `RAG_KG_EXPANSION_ENABLED=true`
+- **Branch:** `main` — Sprints 1–4 pushed (`f6c3a5a`); LLM hardening commit staged locally
+- **Phase:** Phase 2 — **Sprint 4 + LLM follow-up complete**, KG expansion flag now ON in local `.env`, end-to-end smoke verified
 - **Backend tests:** 64 unit + Sprint 3 unit suites (unchanged in Sprint 4 — only schema/persistence touched on the backend)
 - **Anti-hallucination eval:** **28/28 PASS, 0 FAIL** re-run on 2026-04-11 after Sprint 4 backend persistence changes (router + schema + ORM)
 - **Frontend:** 23 routes, `tsc --noEmit` clean, `next lint` clean
@@ -104,6 +104,9 @@ fc03e8e  fix: response_model=None for POST /questions (#8)
 | TD-04 | admin_audit_log.actor_id NOT NULL — scraper can't log | Seed system user |
 | TD-08 | `process_document` INSERT omits `embedding` column — only `backfill_embeddings.py` populates it | Wire `_embeddings` into the chunk INSERT in scraper Step 6 |
 | TD-09 | `BACKEND_PUBLIC_URL` unset in demo (OG image URL falls back to localhost:8000) | Set when AWS deploy lands |
+| TD-10 | `LLMService.generate` swallows `TypeError`/`AttributeError` via broad `except Exception` (LEARNINGS L4.13) | Tighten to Anthropic exception family |
+| TD-11 | Golden eval mocks LLM and never exercises `RAGService.retrieve()` (LEARNINGS L4.11) | Add fixture-DB integration eval |
+| TD-12 | `pytest` not in runtime backend image; eval runs need ad-hoc `pip install` after recreate (LEARNINGS L4.12) | Split `requirements-dev.txt` |
 
 ---
 
@@ -145,6 +148,25 @@ fc03e8e  fix: response_model=None for POST /questions (#8)
 | AWS Deployment | Deferred to post-Sprint 5 | Saves ~$205/mo while features are in flux |
 
 ---
+
+## Sprint 4 follow-up (post-merge LLM hardening)
+
+After Sprint 4 was pushed at `f6c3a5a`, an end-to-end smoke test against `POST /api/v1/questions` with `RAG_KG_EXPANSION_ENABLED=true` exposed two preexisting demo failures (NOT Sprint 4 regressions):
+- `anthropic==0.42.0` predates the `thinking={"type": "enabled"}` kwarg added in Sprint 1, so every primary LLM call was silently falling through to the OpenAI fallback (LEARNINGS L4.9).
+- The local `.env` had `LLM_FALLBACK_MODEL=claude-sonnet-4-20250514`, so the OpenAI fallback then crashed with `404 model not found` (LEARNINGS L4.10).
+
+**Fixes applied (next commit):**
+- `backend/requirements.txt` → `anthropic==0.49.0`
+- `backend/app/config.py` → `model_post_init` now hard-fails at startup if `LLM_FALLBACK_MODEL.startswith("claude-")`
+- `.env.example` → comments spell out which LLM_* model id is consumed by which provider client
+- `.env` (local, gitignored) → fallback restored to `gpt-4o`
+- `LEARNINGS.md` → L4.8–L4.13 (compose recreate vs restart, SDK pin drift, LLM fallback config, eval mocking limits, pytest in runtime image, broad-except antipattern)
+- `MEMORY.md` + `context.md` → TD-10/11/12 added to the Tech Debt table
+
+**Verification:**
+- Backend image rebuilt + recreated; `anthropic.__version__ == "0.49.0"`, `LLM_FALLBACK_MODEL == "gpt-4o"`, `RAG_KG_EXPANSION_ENABLED == True`
+- Live `/questions` smoke test: returned `confidence_score: 0.23`, `consult_expert: true`, `model_used: "claude-sonnet-4-20250514"` (primary path, no fallback), credit deducted 5 → 4. The low score correctly triggered the consult-expert fallback, which is the intended Sprint 2 + Sprint 4 behaviour for a question that the demo's tiny corpus can't ground.
+- Golden eval re-run: 28/28 PASS, 0 FAIL.
 
 ## Sprint 4 — Done (local, push pending)
 

@@ -178,3 +178,6 @@ docker compose up --build -d
 | ~~TD-07~~ | ~~refresh_token cookie is not httpOnly~~ | ✅ Fixed (Sprint 1) — Backend `Set-Cookie: HttpOnly; Secure; SameSite=lax` |
 | TD-08 | `document_chunks.embedding` not populated by `process_document` (insert omits column) | Wire embedder output into Step 6 INSERT — currently only `backfill_embeddings.py` populates it |
 | TD-09 | OG image URL uses `BACKEND_PUBLIC_URL` config which is unset in demo | Set when AWS deploy lands, falls back to localhost:8000 |
+| TD-10 | `LLMService.generate` swallows `TypeError`/`AttributeError` via broad `except Exception`, masking developer bugs as API failures (see LEARNINGS L4.13) | Tighten to `(anthropic.APIError, APIConnectionError, APIStatusError)`; let programmer errors propagate |
+| TD-11 | Golden eval mocks the LLM and never reaches `RAGService.retrieve()`, so retrieval-side flags (KG expansion) are unverified by the eval (see LEARNINGS L4.11) | Add an integration eval against fixture postgres that exercises retrieval + KG expansion |
+| TD-12 | `pytest` isn't in the runtime backend image; eval runs need an ad-hoc `pip install` after every container recreate (see LEARNINGS L4.12) | Split `requirements-dev.txt` and bake a `regpulse-backend:dev` image for eval/CI runs |

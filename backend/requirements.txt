@@ -34,7 +34,11 @@ structlog==24.4.0
 slowapi==0.1.9
 
 # LLM clients
-anthropic==0.42.0
+# anthropic >= 0.49 is required for the `thinking={"type": "enabled", ...}`
+# kwarg used by llm_service. 0.42 silently rejects it as an unexpected
+# keyword and the call falls through to the OpenAI fallback. See
+# LEARNINGS L4.9.
+anthropic==0.49.0
 openai==1.58.1
 
 # Cross-encoder reranking
