@@ -1,36 +1,38 @@
 # RegPulse — Project Status
 
-> **All 50 prompts + Sprints 1, 2, 3 of Phase 2 complete.**
+> **All 50 prompts + Sprints 1, 2, 3 of Phase 2 complete, evals re-run, pushed to origin/main.**
 
 ---
 
 ## Current State (2026-04-11)
 
-- **Branch:** `main` — Sprints 1–3 of Phase 2 merged
+- **Branch:** `main` — Sprints 1–3 of Phase 2 merged AND pushed to `origin/main`
 - **Phase:** Phase 2 — **Sprint 3 complete**, Sprint 4 next (Premium UI Polish + Confidence Meter)
-- **Backend tests:** 64 unit + 30 anti-hallucination + new Sprint 3 unit suites (snippet, RSS, entity extractor — 30 additional assertions verified via in-container python)
+- **Backend tests:** 64 unit + Sprint 3 unit suites (snippet × 9, RSS × 8, entity extractor × 13 assertions verified via in-container python)
+- **Anti-hallucination eval:** **28/28 PASS, 0 FAIL** post-Sprint-3 (12 factual + 3 multi-circular + 8 OOS + 5 injection — re-run after KG expansion path was added with the flag off)
 - **Frontend:** 23 routes (added `/s/[slug]` public snippet page), tsc + next build clean
 - **Docker:** 6 containers running
 - **Knowledge graph:** 95 entities + 29 edges across 6 demo circulars (backfilled via `scripts/backfill_kg.py`)
 - **News ingest:** 60 RBI press releases live, beat schedule every 30 min
 - **Public snippets:** end-to-end share flow verified (POST → public GET → OG image → revoke)
+- **`LEARNINGS.md`** at repo root captures Phase 2 mistakes/root-causes/prevention — read before any sprint
 
 ---
 
-## Git History (main)
+## Git History (main, all pushed to origin)
 
 ```
+c83fd1f  docs: add LEARNINGS.md capturing Phase 2 gotchas
+2de014b  docs: Sprint 3 complete — KG, news ingest, public snippets
 516acf9  feat(sprint-3): knowledge graph extraction and RAG expansion
 52375b8  feat(sprint-3): RSS / news ingest pipeline
-5d6dec3  feat(sprint-3): public safe snippet sharing
+45f0f2c  feat(sprint-3): public safe snippet sharing
 5379c49  feat(sprint-3): schema + models for KG, news, snippets
 dad1fff  docs: Sprint 1+2 completion
 1858575  feat(sprint-2): anti-hallucination guardrails, golden dataset, load tests
 363b1ef  feat(sprint-1): security hardening, analytics, embedder, landing page
 8c79f8c  docs: final update — 50/50 prompts (#9)
 fc03e8e  fix: response_model=None for POST /questions (#8)
-316ddd3  Prompts 37–50 (#7)
-5b388b4  Prompts 15–36 (#6)
 ```
 
 ---
@@ -150,4 +152,15 @@ fc03e8e  fix: response_model=None for POST /questions (#8)
 3. **Dark mode** with WCAG-AA contrast
 4. **Streaming citation jitter** — stabilize SSE token rendering in `/ask`
 5. **A/B UX evals** — PostHog feature flags + analytics events
-6. After Sprint 4 ships, flip `RAG_KG_EXPANSION_ENABLED=true` and watch the golden dataset eval for regressions
+6. After Sprint 4 ships, flip `RAG_KG_EXPANSION_ENABLED=true` and re-run the golden dataset eval to verify no regression before going GA
+
+---
+
+## Sprint Exit Checklist (codified after Sprint 3)
+
+Before declaring any sprint complete, all four must be green:
+
+1. **Evals re-run** — golden dataset eval at `backend/tests/evals/test_hallucination.py` must pass if the sprint touched retrieval or answer logic. Run via `docker exec regpulse-backend bash -c 'cd /app && PYTHONPATH=/app python tests/evals/test_hallucination.py'`.
+2. **`LEARNINGS.md` updated** — append any new gotchas from the sprint in the standard format (what bit us → root cause → fix → prevention).
+3. **All commits pushed** — `git push origin main`. Local-only commits do not count as "shipped."
+4. **All five docs refreshed** — README, CLAUDE, MEMORY, spec, context all reflect the current state in the same commit batch as the feature work.

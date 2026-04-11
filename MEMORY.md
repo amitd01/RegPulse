@@ -8,7 +8,9 @@
 
 B2B SaaS for Indian banking professionals. RAG-powered Q&A over RBI Circulars with cited answers. Work-email-gated, subscription-based, 5 free lifetime credits.
 
-**(Phase 2 — Sprints 1, 2, 3 Complete)**:
+> **Read `LEARNINGS.md` at the repo root before starting any sprint.** Phase 2 mistakes are catalogued there with root causes and prevention rules.
+
+**(Phase 2 — Sprints 1, 2, 3 Complete, pushed to `origin/main` 2026-04-11)**:
 - Strict zero-hallucination constraint with multi-signal confidence scoring (0.0-1.0).
 - "Consult an Expert" fallback when confidence < 0.5 or zero valid citations.
 - PostHog adopted for event/journey analytics to prevent lock-in.

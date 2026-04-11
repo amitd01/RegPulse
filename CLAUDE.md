@@ -1,6 +1,8 @@
 # Claude Code Instructions — RegPulse
 
-> **Read `MEMORY.md` before starting any task.**
+> **Read `MEMORY.md` and `LEARNINGS.md` before starting any task.**
+>
+> Sprint exit checklist: (1) re-run golden dataset eval if the sprint touched retrieval/answer code, (2) append new gotchas to `LEARNINGS.md`, (3) `git push origin main`, (4) refresh all 5 docs (README, CLAUDE, MEMORY, spec, context). All four must be green before declaring "done."
 
 ## Rules
 
