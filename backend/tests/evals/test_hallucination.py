@@ -271,8 +271,8 @@ class TestInsufficientContextFallback:
     @pytest.mark.asyncio
     async def test_one_chunk_returns_consult_expert(self):
         """Single chunk → below threshold (< 2), expert fallback."""
-        from app.services.rag_service import RetrievedChunk
         from app.services.llm_service import LLMService
+        from app.services.rag_service import RetrievedChunk
 
         single_chunk = RetrievedChunk(
             chunk_id="c1",
@@ -358,8 +358,8 @@ if __name__ == "__main__":
 
             if category == "injection":
                 # Test injection guard directly
-                from app.utils.injection_guard import check_injection
                 from app.exceptions import PotentialInjectionError
+                from app.utils.injection_guard import check_injection
 
                 try:
                     check_injection(tc["question"])
@@ -382,7 +382,6 @@ if __name__ == "__main__":
 
             if category == "out_of_scope":
                 # Should get consult_expert = True
-                from app.services.llm_service import _consult_expert_response
 
                 if len(chunks) < 2:
                     results["pass"] += 1

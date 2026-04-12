@@ -44,6 +44,16 @@ from app.schemas.circulars import (  # noqa: F401
     CircularSearchParams,
     CircularUpdateRequest,
 )
+from app.schemas.kg import (  # noqa: F401
+    KGEntityResponse,
+    KGRelationshipResponse,
+)
+from app.schemas.news import (  # noqa: F401
+    NewsItemDetail,
+    NewsItemSummary,
+    NewsListResponse,
+    NewsStatusUpdate,
+)
 from app.schemas.questions import (  # noqa: F401
     ActionItemCreateRequest,
     ActionItemListResponse,
@@ -62,16 +72,6 @@ from app.schemas.questions import (  # noqa: F401
     SavedInterpretationResponse,
     SavedInterpretationUpdateRequest,
     SaveInterpretationRequest,
-)
-from app.schemas.kg import (  # noqa: F401
-    KGEntityResponse,
-    KGRelationshipResponse,
-)
-from app.schemas.news import (  # noqa: F401
-    NewsItemDetail,
-    NewsItemSummary,
-    NewsListResponse,
-    NewsStatusUpdate,
 )
 from app.schemas.snippet import (  # noqa: F401
     PublicSnippetResponse,

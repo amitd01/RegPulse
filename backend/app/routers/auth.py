@@ -341,7 +341,7 @@ async def logout(
 ) -> MessageResponse:
     """Revoke refresh token and blacklist its jti."""
     _clear_refresh_cookie(response)
-    
+
     if not refresh_token:
         return MessageResponse(message="Logged out successfully")
 
