@@ -114,12 +114,11 @@ async def get_cluster_heatmap(
         for c in clusters
     ]
 
-    # Generate time buckets
-    bucket_fn = "day" if time_bucket == "day" else "week"
-    bucket_query = text(f"""
+    # Generate time buckets — two static queries to avoid f-string in SQL (S608)
+    _HEATMAP_SQL_DAY = text("""
         SELECT
             q.cluster_id::text,
-            date_trunc('{bucket_fn}', q.created_at)::date AS bucket_date,
+            date_trunc('day', q.created_at)::date AS bucket_date,
             COUNT(*)::int AS question_count
         FROM questions q
         WHERE q.cluster_id IS NOT NULL
@@ -127,6 +126,18 @@ async def get_cluster_heatmap(
         GROUP BY q.cluster_id, bucket_date
         ORDER BY bucket_date, q.cluster_id
     """)
+    _HEATMAP_SQL_WEEK = text("""
+        SELECT
+            q.cluster_id::text,
+            date_trunc('week', q.created_at)::date AS bucket_date,
+            COUNT(*)::int AS question_count
+        FROM questions q
+        WHERE q.cluster_id IS NOT NULL
+          AND q.created_at >= :start_date
+        GROUP BY q.cluster_id, bucket_date
+        ORDER BY bucket_date, q.cluster_id
+    """)
+    bucket_query = _HEATMAP_SQL_WEEK if time_bucket == "week" else _HEATMAP_SQL_DAY
 
     rows = (await db.execute(bucket_query, {"start_date": start_date})).fetchall()
 
