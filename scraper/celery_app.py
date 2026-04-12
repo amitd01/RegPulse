@@ -49,6 +49,8 @@ app.conf.update(
         "scraper.tasks.generate_summary": {"queue": "scraper"},
         "scraper.tasks.send_staleness_alerts": {"queue": "scraper"},
         "scraper.tasks.ingest_news": {"queue": "scraper"},
+        "scraper.tasks.process_uploaded_pdf": {"queue": "scraper"},
+        "scraper.tasks.run_question_clustering": {"queue": "scraper"},
     },
 )
 
@@ -74,6 +76,12 @@ app.conf.beat_schedule = {
         "task": "scraper.tasks.ingest_news",
         "schedule": crontab(minute="*/30"),
         "args": (),
+    },
+    # Sprint 5: Question clustering daily at 03:00 UTC
+    "question-clustering-daily": {
+        "task": "scraper.tasks.run_question_clustering",
+        "schedule": crontab(hour=3, minute=0),
+        "args": (30,),
     },
 }
 

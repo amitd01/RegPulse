@@ -568,6 +568,244 @@ def send_staleness_alerts(self, circular_id: str) -> dict:  # noqa: ANN001
 
 
 # ---------------------------------------------------------------------------
+# Sprint 5 Pillar B: Semantic question clustering
+# ---------------------------------------------------------------------------
+
+
+@shared_task(
+    bind=True,
+    soft_time_limit=600,
+    name="scraper.tasks.run_question_clustering",
+)
+def run_question_clustering(
+    self,  # noqa: ANN001
+    period_days: int = 30,
+) -> dict:
+    """Cluster user questions semantically and label each cluster.
+
+    Fetches question embeddings from the last N days, runs k-means with PCA
+    dimensionality reduction, generates human-readable labels via Claude Haiku,
+    and stores results in question_clusters + questions.cluster_id.
+
+    Runs daily at 03:00 UTC via Celery Beat.
+    """
+    import numpy as np
+    from sklearn.cluster import KMeans
+    from sklearn.decomposition import PCA
+    from sklearn.metrics import silhouette_score
+
+    import anthropic
+
+    logger.info("run_question_clustering_started", period_days=period_days)
+    settings = get_scraper_settings()
+
+    try:
+        # Step 1: Fetch questions with embeddings from the period
+        with get_db_session() as db:
+            rows = db.execute(
+                text("""
+                    SELECT id, question_text, question_embedding::text
+                    FROM questions
+                    WHERE question_embedding IS NOT NULL
+                      AND created_at >= now() - interval ':days days'
+                    ORDER BY created_at DESC
+                """.replace(":days", str(int(period_days)))),
+            ).fetchall()
+
+        if len(rows) < 15:
+            logger.info(
+                "run_question_clustering_skipped",
+                reason="not_enough_questions",
+                count=len(rows),
+            )
+            return {"status": "skipped", "reason": "fewer_than_15_questions", "count": len(rows)}
+
+        question_ids = [str(r[0]) for r in rows]
+        question_texts = [r[1] for r in rows]
+
+        # Parse embedding vectors from PostgreSQL text representation
+        embeddings = []
+        for r in rows:
+            vec_str = r[2]  # "[0.1,0.2,...]"
+            vec = [float(x) for x in vec_str.strip("[]").split(",")]
+            embeddings.append(vec)
+
+        X = np.array(embeddings, dtype=np.float32)
+
+        # Step 2: PCA to reduce dimensionality (3072 → 50)
+        n_components = min(50, X.shape[0] - 1, X.shape[1])
+        pca = PCA(n_components=n_components)
+        X_reduced = pca.fit_transform(X)
+
+        # Step 3: Find best k via silhouette score
+        max_k = min(12, len(rows) // 3)
+        min_k = min(5, max_k)
+
+        if min_k < 2:
+            min_k = 2
+        if max_k < min_k:
+            max_k = min_k
+
+        best_k = min_k
+        best_score = -1.0
+
+        for k in range(min_k, max_k + 1):
+            km = KMeans(n_clusters=k, n_init=10, random_state=42)
+            labels = km.fit_predict(X_reduced)
+            score = silhouette_score(X_reduced, labels)
+            if score > best_score:
+                best_score = score
+                best_k = k
+
+        # Step 4: Final clustering with best k
+        km = KMeans(n_clusters=best_k, n_init=10, random_state=42)
+        labels = km.fit_predict(X_reduced)
+
+        # Step 5: For each cluster, find representative questions and generate label
+        client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+        from datetime import date, timedelta
+
+        period_end = date.today()
+        period_start = period_end - timedelta(days=period_days)
+
+        cluster_records = []
+        for cluster_idx in range(best_k):
+            member_indices = [i for i, lbl in enumerate(labels) if lbl == cluster_idx]
+            member_texts = [question_texts[i] for i in member_indices]
+
+            # Pick up to 5 representative questions (closest to centroid)
+            centroid = km.cluster_centers_[cluster_idx]
+            distances = [
+                np.linalg.norm(X_reduced[i] - centroid) for i in member_indices
+            ]
+            sorted_indices = sorted(range(len(member_indices)), key=lambda x: distances[x])
+            rep_indices = sorted_indices[:5]
+            rep_questions = [member_texts[i] for i in rep_indices]
+
+            # Generate label via Claude Haiku
+            try:
+                label_resp = client.messages.create(
+                    model=settings.LLM_SUMMARY_MODEL,
+                    max_tokens=30,
+                    system=(
+                        "You label clusters of banking regulatory questions. "
+                        "Given sample questions, produce a 3-5 word label. "
+                        "No preamble, just the label."
+                    ),
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": "Questions:\n" + "\n".join(
+                                f"- {q}" for q in rep_questions
+                            ),
+                        }
+                    ],
+                )
+                cluster_label = label_resp.content[0].text.strip()[:200]
+            except Exception:
+                cluster_label = f"Cluster {cluster_idx + 1}"
+                logger.exception("cluster_labeling_failed", cluster_idx=cluster_idx)
+
+            # Compute centroid in original embedding space for storage
+            original_centroid = X[member_indices].mean(axis=0).tolist()
+
+            cluster_records.append({
+                "cluster_idx": cluster_idx,
+                "label": cluster_label,
+                "rep_questions": rep_questions[:5],
+                "centroid": original_centroid,
+                "count": len(member_indices),
+                "member_question_ids": [question_ids[i] for i in member_indices],
+            })
+
+        # Step 6: Persist to database
+        with get_db_session() as db:
+            # Delete old clusters for overlapping period
+            db.execute(
+                text("""
+                    DELETE FROM question_clusters
+                    WHERE period_start = :ps AND period_end = :pe
+                """),
+                {"ps": str(period_start), "pe": str(period_end)},
+            )
+            db.commit()
+
+            # Clear old cluster assignments
+            db.execute(
+                text("""
+                    UPDATE questions SET cluster_id = NULL
+                    WHERE cluster_id IS NOT NULL
+                      AND created_at >= :start
+                """),
+                {"start": str(period_start)},
+            )
+            db.commit()
+
+            # Insert new clusters and assign questions
+            for rec in cluster_records:
+                cluster_id = str(uuid.uuid4())
+                centroid_str = "[" + ",".join(str(x) for x in rec["centroid"]) + "]"
+                rep_q_sql = "{" + ",".join(
+                    '"' + q.replace('"', '\\"').replace("\\", "\\\\") + '"'
+                    for q in rec["rep_questions"]
+                ) + "}"
+
+                db.execute(
+                    text("""
+                        INSERT INTO question_clusters
+                            (id, cluster_label, representative_questions, centroid,
+                             question_count, period_start, period_end)
+                        VALUES
+                            (CAST(:id AS uuid), :label, :reps,
+                             CAST(:centroid AS vector),
+                             :count, :ps, :pe)
+                    """),
+                    {
+                        "id": cluster_id,
+                        "label": rec["label"],
+                        "reps": rep_q_sql,
+                        "centroid": centroid_str,
+                        "count": rec["count"],
+                        "ps": str(period_start),
+                        "pe": str(period_end),
+                    },
+                )
+
+                # Assign questions to this cluster
+                for qid in rec["member_question_ids"]:
+                    db.execute(
+                        text("""
+                            UPDATE questions SET cluster_id = CAST(:cid AS uuid)
+                            WHERE id = CAST(:qid AS uuid)
+                        """),
+                        {"cid": cluster_id, "qid": qid},
+                    )
+
+            db.commit()
+
+        logger.info(
+            "run_question_clustering_completed",
+            period_days=period_days,
+            best_k=best_k,
+            silhouette=round(best_score, 3),
+            total_questions=len(rows),
+        )
+        return {
+            "status": "success",
+            "clusters": best_k,
+            "silhouette": round(best_score, 3),
+            "total_questions": len(rows),
+        }
+
+    except SoftTimeLimitExceeded:
+        logger.error("run_question_clustering_timeout")
+        raise
+    except Exception as exc:
+        logger.error("run_question_clustering_failed", error=str(exc), exc_info=True)
+        return {"status": "failed", "error": str(exc)}
+
+
+# ---------------------------------------------------------------------------
 # Sprint 3 Pillar A: Knowledge graph persistence helper
 # ---------------------------------------------------------------------------
 
@@ -787,6 +1025,239 @@ def ingest_news(self, sources: list[str] | None = None) -> dict:  # noqa: ANN001
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+
+@shared_task(
+    bind=True,
+    soft_time_limit=300,
+    max_retries=1,
+    name="scraper.tasks.process_uploaded_pdf",
+)
+def process_uploaded_pdf(
+    self,  # noqa: ANN001
+    upload_id: str,
+    title: str = "",
+    doc_type: str = "OTHER",
+    admin_id: str | None = None,
+) -> dict:
+    """Process a manually uploaded PDF through the full pipeline.
+
+    Reads PDF bytes from Redis (stored by the backend upload endpoint),
+    then runs: text extraction → metadata → chunk → embed → classify →
+    save to DB → KG extraction → supersession → summary.
+
+    Unlike process_document, embeddings ARE wired into the chunk INSERT.
+    """
+    import redis as sync_redis
+
+    logger.info("process_uploaded_pdf_started", upload_id=upload_id)
+
+    settings = get_scraper_settings()
+
+    def _update_upload_status(
+        status: str,
+        document_id: str | None = None,
+        error_message: str | None = None,
+    ) -> None:
+        with get_db_session() as db:
+            params: dict = {"status": status, "uid": upload_id}
+            set_parts = ["status = :status"]
+            if document_id:
+                set_parts.append("document_id = CAST(:doc_id AS uuid)")
+                params["doc_id"] = document_id
+            if error_message:
+                set_parts.append("error_message = :err")
+                params["err"] = error_message[:2000]
+            if status in ("COMPLETED", "FAILED"):
+                set_parts.append("completed_at = now()")
+            db.execute(
+                text(f"UPDATE manual_uploads SET {', '.join(set_parts)} WHERE id = CAST(:uid AS uuid)"),  # noqa: S608
+                params,
+            )
+            db.commit()
+
+    try:
+        # Step 0: Fetch PDF bytes from Redis
+        r = sync_redis.from_url(settings.REDIS_URL.replace("/1", "/0"))
+        pdf_bytes = r.get(f"upload_pdf:{upload_id}")
+        r.close()
+
+        if not pdf_bytes:
+            _update_upload_status("FAILED", error_message="PDF bytes not found in Redis (expired?)")
+            return {"status": "failed", "upload_id": upload_id, "error": "bytes_not_found"}
+
+        _update_upload_status("PROCESSING")
+
+        # Step 1: Extract text from PDF bytes
+        pdf_extractor = PDFExtractor()
+        raw_text, page_count = pdf_extractor.extract_pdfplumber(pdf_bytes)
+
+        if not raw_text.strip():
+            # Try OCR fallback
+            try:
+                raw_text, page_count = pdf_extractor.extract_ocr(pdf_bytes)
+            except Exception:
+                _update_upload_status("FAILED", error_message="PDF text extraction failed (empty)")
+                return {"status": "failed", "upload_id": upload_id, "error": "empty_text"}
+
+        if not raw_text.strip():
+            _update_upload_status("FAILED", error_message="PDF text extraction returned empty text")
+            return {"status": "failed", "upload_id": upload_id, "error": "empty_text"}
+
+        # Step 2: Extract metadata
+        source_url = f"upload://{upload_id}"
+        metadata_extractor = MetadataExtractor()
+        metadata = metadata_extractor.extract(raw_text, source_url=source_url)
+
+        effective_title = title or metadata.circular_number or f"Uploaded PDF {upload_id[:8]}"
+
+        # Step 3: Chunk text
+        chunker = TextChunker()
+        chunks = chunker.chunk(raw_text)
+
+        if not chunks:
+            _update_upload_status("FAILED", error_message="No chunks produced from PDF")
+            return {"status": "failed", "upload_id": upload_id, "error": "no_chunks"}
+
+        # Step 4: Generate embeddings (wired into INSERT — fixes TD-08 for uploads)
+        embedder = Embedder()
+        chunk_texts = [c.text for c in chunks]
+        embeddings = embedder.embed_chunks(chunk_texts)
+
+        # Step 5: Classify impact level
+        summary_excerpt = raw_text[:500]
+        classifier = ImpactClassifier()
+        impact_level = classifier.classify(
+            title=effective_title,
+            summary=summary_excerpt,
+            department=metadata.department or "",
+        )
+
+        # Step 6: Save to database
+        doc_id = str(uuid.uuid4())
+        with get_db_session() as db:
+            db.execute(
+                text("""
+                    INSERT INTO circular_documents (
+                        id, circular_number, title, doc_type, department,
+                        issued_date, effective_date, rbi_url, status,
+                        impact_level, action_deadline, affected_teams, tags,
+                        pending_admin_review, scraper_run_id, upload_source
+                    ) VALUES (
+                        :id, :circular_number, :title, :doc_type, :department,
+                        :issued_date, :effective_date, :rbi_url, 'ACTIVE',
+                        :impact_level, :action_deadline, :affected_teams, :tags,
+                        TRUE, NULL, 'manual_upload'
+                    )
+                """),
+                {
+                    "id": doc_id,
+                    "circular_number": metadata.circular_number,
+                    "title": effective_title,
+                    "doc_type": doc_type,
+                    "department": metadata.department,
+                    "issued_date": metadata.issued_date,
+                    "effective_date": metadata.effective_date,
+                    "rbi_url": source_url,
+                    "impact_level": impact_level,
+                    "action_deadline": metadata.action_deadline,
+                    "affected_teams": json.dumps(metadata.affected_teams),
+                    "tags": json.dumps([]),
+                },
+            )
+
+            # Insert chunks WITH embeddings
+            for i, chunk in enumerate(chunks):
+                emb = embeddings[i] if i < len(embeddings) else None
+                emb_str = "[" + ",".join(str(x) for x in emb) + "]" if emb else None
+                db.execute(
+                    text("""
+                        INSERT INTO document_chunks (
+                            id, document_id, chunk_index, chunk_text, token_count, embedding
+                        ) VALUES (
+                            :id, :document_id, :chunk_index, :chunk_text, :token_count,
+                            CAST(:embedding AS vector)
+                        )
+                    """),
+                    {
+                        "id": str(uuid.uuid4()),
+                        "document_id": doc_id,
+                        "chunk_index": chunk.chunk_index,
+                        "chunk_text": chunk.text,
+                        "token_count": chunk.token_count,
+                        "embedding": emb_str,
+                    },
+                )
+
+            db.commit()
+
+        logger.info(
+            "process_uploaded_pdf_saved",
+            upload_id=upload_id,
+            doc_id=doc_id,
+            circular_number=metadata.circular_number,
+            impact_level=impact_level,
+            chunks=len(chunks),
+        )
+
+        # Step 7: Knowledge graph extraction
+        try:
+            extractor = EntityExtractor()
+            entities, triples = extractor.extract(
+                raw_text,
+                circular_number=metadata.circular_number,
+                title=effective_title,
+            )
+            if entities or triples:
+                with get_db_session() as db:
+                    persist_kg(
+                        db,
+                        entities=entities,
+                        triples=triples,
+                        source_document_id=doc_id,
+                    )
+                    db.commit()
+        except Exception:
+            logger.exception("kg_extraction_failed_for_upload", doc_id=doc_id)
+
+        # Step 8: Supersession resolution
+        if metadata.supersession_refs:
+            resolver = SupersessionResolver()
+            with get_db_session() as db:
+                resolved = resolver.resolve(db, doc_id, metadata.supersession_refs)
+                if resolved > 0:
+                    db.commit()
+
+        # Step 9: Enqueue summary generation
+        generate_summary.delay(document_id=doc_id)
+
+        # Step 10: Mark upload as completed
+        _update_upload_status("COMPLETED", document_id=doc_id)
+
+        # Clean up Redis key
+        r = sync_redis.from_url(settings.REDIS_URL.replace("/1", "/0"))
+        r.delete(f"upload_pdf:{upload_id}")
+        r.close()
+
+        return {
+            "status": "success",
+            "upload_id": upload_id,
+            "document_id": doc_id,
+            "circular_number": metadata.circular_number,
+            "impact_level": impact_level,
+            "chunks": len(chunks),
+        }
+
+    except SoftTimeLimitExceeded:
+        logger.error("process_uploaded_pdf_timeout", upload_id=upload_id)
+        _update_upload_status("FAILED", error_message="Processing timed out")
+        raise
+    except Exception as exc:
+        logger.error(
+            "process_uploaded_pdf_failed", upload_id=upload_id, error=str(exc), exc_info=True
+        )
+        _update_upload_status("FAILED", error_message=str(exc))
+        return {"status": "failed", "upload_id": upload_id, "error": str(exc)}
 
 
 def _mark_run_failed(run_id: str, error_msg: str) -> None:

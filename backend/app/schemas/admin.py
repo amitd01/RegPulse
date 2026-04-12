@@ -167,3 +167,56 @@ class DomainReviewResponse(BaseModel):
 
 class DomainReviewAction(BaseModel):
     approved: bool
+
+
+# --- Manual Uploads ---
+
+
+class ManualUploadResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    admin_id: uuid.UUID
+    filename: str
+    file_size_bytes: int
+    status: str
+    document_id: uuid.UUID | None = None
+    error_message: str | None = None
+    created_at: datetime
+    completed_at: datetime | None = None
+
+
+class ManualUploadListResponse(BaseModel):
+    success: bool = True
+    data: list[ManualUploadResponse]
+    total: int
+    page: int
+    page_size: int
+
+
+class ManualUploadInitResponse(BaseModel):
+    success: bool = True
+    upload_id: uuid.UUID
+    message: str
+
+
+# --- Clustering Heatmap ---
+
+
+class ClusterInfo(BaseModel):
+    id: uuid.UUID
+    label: str
+    question_count: int
+    representative_questions: list[str]
+
+
+class ClusterHeatmapResponse(BaseModel):
+    success: bool = True
+    clusters: list[ClusterInfo]
+    time_buckets: list[str]
+    matrix: list[list[int]]
+
+
+class ClusterTriggerResponse(BaseModel):
+    success: bool = True
+    message: str

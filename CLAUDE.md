@@ -50,12 +50,12 @@
 | Sprint 2 | Anti-Hallucination Guardrails, Golden Dataset Eval Pipeline, k6 Load Tests | ✅ Complete (`1858575`) |
 | Sprint 3 | Public Snippet Sharing, RSS/News Ingest, Knowledge Graph + RAG Expansion (flag-gated) | ✅ Complete (`5379c49`/`5d6dec3`/`52375b8`/`516acf9`) |
 | Sprint 4 | Premium UI Polish (Confidence Meter UI, Skeleton loaders, Dark mode, SSE jitter fix), A/B UX flag scaffolding + LLM SDK / fallback-model hardening | ✅ Complete (`f6c3a5a` + `fdc784c`) |
-| Sprint 5 | Admin Content (Manual PDF upload), Semantic Clustering Usage Heatmaps | ⏳ Planned |
+| Sprint 5 | Admin Manual PDF Upload, Semantic Clustering Heatmaps | ✅ Complete |
 | Post-Build | Real data migration, AWS deployment, Beta launch | ⏳ Planned |
 
 ## Localhost Demo
 
-Status: **Running** (updated 2026-04-11). All 6 containers operational via `docker compose up --build -d`.
+Status: **Running** (updated 2026-04-12). All 6 containers operational via `docker compose up --build -d`.
 
 - `DEMO_MODE=true` — fixed OTP `123456`, no email/payment, no cross-encoder
 - LLM uses Claude Sonnet with extended thinking (10k token budget)
@@ -69,6 +69,9 @@ Status: **Running** (updated 2026-04-11). All 6 containers operational via `dock
 - Sprint 4: Confidence Meter UI in `/ask` + `/history/[id]` + `/history` list, class-based dark mode (Tailwind `darkMode: "class"`) with system-pref bootstrap + WCAG-AA palette, skeleton loaders on library/history/updates, rAF-buffered SSE token rendering, PostHog `useFeatureFlag` hook + analytics events (`confidence_meter_viewed`, `dark_mode_toggled`, `share_snippet_dialog_opened`, `ask_question_submitted`)
 - Sprint 4 added two columns to `questions` (migration `003_sprint4_confidence.sql`): `confidence_score REAL NULL`, `consult_expert BOOLEAN NOT NULL DEFAULT FALSE`. Older questions render no meter (null is treated as "no signal")
 - KG-driven RAG expansion is still **off by default** — Sprint 4 shipped the UI, so the next safe step is to flip `RAG_KG_EXPANSION_ENABLED=true` and re-run the golden eval to verify no regression before going GA
+- Sprint 5: Admin manual PDF upload (`/admin/uploads`) — drag-drop PDF → Celery processing → full pipeline (extract, chunk, embed, classify, KG, summary). Uploaded circulars get `upload_source='manual_upload'` and embeddings wired at insert time (fixes TD-08 for uploads)
+- Sprint 5: Semantic clustering heatmap (`/admin/heatmap`) — daily Celery task runs k-means on question embeddings with PCA + silhouette-based k selection, labels clusters via Haiku. CSS-grid heatmap with period/bucket controls
+- Sprint 5 migration `004_sprint5.sql`: `manual_uploads` table, `circular_documents.upload_source`, `question_clusters` table, `questions.cluster_id`
 - See `PRODUCTION_PLAN.md` for AWS deployment roadmap
 
 ## File Reference

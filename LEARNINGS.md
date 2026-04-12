@@ -251,6 +251,28 @@
 
 ---
 
+## Sprint 5 — Admin PDF Upload, Semantic Clustering Heatmaps
+
+### L5.1 — Backend Redis client uses `decode_responses=True`, which breaks raw byte storage
+**What bit us:** The upload endpoint needed to store raw PDF bytes in Redis for the scraper Celery task to read. The shared `cache.py` Redis client has `decode_responses=True`, which mangles binary data.
+**Root cause:** The cache client was designed for string-based caching (JSON, text). Raw file bytes are a different use case.
+**Fix:** Created a separate bytes-mode Redis connection in the upload router (`decode_responses=False`) specifically for PDF byte storage. Used a `upload_pdf:{uuid}` key prefix with 5-minute TTL.
+**Prevention:** When adding a new Redis use case that involves binary data, never reuse a `decode_responses=True` client. Create a purpose-specific connection.
+
+### L5.2 — `/app/__init__.py` in the backend container breaks pytest module discovery
+**What bit us:** Running `pytest` inside the container failed with `ModuleNotFoundError: No module named 'app.cache'`. The `__init__.py` at `/app/` makes Python treat `/app` as a package, so `from app.cache import ...` requires the *parent* of `/app` to be in `sys.path` — but pytest doesn't set that up.
+**Root cause:** The Dockerfile's WORKDIR is `/app`, and there's an `__init__.py` at that level. `uvicorn app.main:app` works because uvicorn adds CWD to `sys.path`, but pytest doesn't.
+**Fix (workaround):** Temporarily rename `/app/__init__.py` before running pytest: `mv /app/__init__.py /app/__init__.py.bak`. Install `pytest-asyncio` and `aiosqlite` for async test support. Restore after.
+**Prevention:** TD-12 (split `requirements-dev.txt` and bake a dev image) remains the right fix. Additionally, consider removing the root `/app/__init__.py` if it's not needed — uvicorn doesn't require it.
+
+### L5.3 — Docker BuildKit cache corruption causes persistent `COPY` failures
+**What bit us:** Frontend Docker builds failed repeatedly with `cannot copy to non-directory: .../node_modules/@eslint/eslintrc` even after `docker builder prune -f` and `docker buildx prune -af`.
+**Root cause:** BuildKit's overlay filesystem cache got corrupted (stale symlink or directory/file type mismatch in the `node_modules` cache mount). This is a known Docker Desktop issue.
+**Fix:** Fell back to the legacy builder via `DOCKER_BUILDKIT=0 docker compose build --no-cache frontend`. The legacy builder doesn't use cache mounts and completed cleanly.
+**Prevention:** If BuildKit COPY fails after cache prune, try `DOCKER_BUILDKIT=0` before investigating further. Consider adding `DOCKER_BUILDKIT=0` as a comment in `docker-compose.yml` for future reference.
+
+---
+
 ## Cross-Sprint Patterns
 
 ### LX.1 — Memory drift between point-in-time notes and live state

@@ -57,6 +57,9 @@ class Question(Base):
     credit_deducted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     streaming_completed: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     latency_ms: Mapped[int | None] = mapped_column(Integer)
+    cluster_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("question_clusters.id", ondelete="SET NULL")
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default="now()"
     )

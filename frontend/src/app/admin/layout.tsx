@@ -11,6 +11,8 @@ const adminNav = [
   { name: "Users", href: "/admin/users" },
   { name: "Circulars", href: "/admin/circulars" },
   { name: "Scraper", href: "/admin/scraper" },
+  { name: "Uploads", href: "/admin/uploads" },
+  { name: "Heatmap", href: "/admin/heatmap" },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

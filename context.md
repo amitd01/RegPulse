@@ -1,21 +1,19 @@
 # RegPulse — Project Status
 
-> **All 50 prompts + Sprints 1, 2, 3, 4 + Sprint 4 LLM follow-up pushed to `origin/main`. Working tree clean. Session closed pending Sprint 5.**
+> **All 50 prompts + Sprints 1–5 complete. Sprint 5 implemented locally, push pending.**
 
 ---
 
-## Current State (2026-04-11)
+## Current State (2026-04-12)
 
-- **Branch:** `main` — fully synced with `origin/main` at `fdc784c`
-- **Phase:** Phase 2 — **Sprint 4 + LLM hardening shipped**, KG expansion flag is ON in local `.env`, end-to-end smoke verified, ready for Sprint 5
-- **Backend tests:** 64 unit + Sprint 3 unit suites (unchanged in Sprint 4 — only schema/persistence touched on the backend)
-- **Anti-hallucination eval:** **28/28 PASS, 0 FAIL** re-run on 2026-04-11 after Sprint 4 backend persistence changes (router + schema + ORM)
-- **Frontend:** 23 routes, `tsc --noEmit` clean, `next lint` clean
-- **Docker:** 6 containers running; backend hot-synced via `docker cp` after migration `003_sprint4_confidence.sql` applied
-- **Knowledge graph:** 95 entities + 29 edges across 6 demo circulars (backfilled via `scripts/backfill_kg.py`)
-- **News ingest:** 60 RBI press releases live, beat schedule every 30 min
-- **Public snippets:** end-to-end share flow verified (POST → public GET → OG image → revoke)
-- **Sprint 4 deliverables:** ConfidenceMeter (full + compact variants), class-based dark mode (Tailwind `darkMode:"class"`, ThemeBootstrap pre-hydration script, ThemeToggle in sidebar), CardListSkeleton, rAF token buffer + stable layout containers in `/ask`, `useFeatureFlag` hook + `trackEvent` helper, new analytics events
+- **Branch:** `main` — Sprint 5 implemented locally, push pending
+- **Phase:** Phase 2 — **Sprint 5 complete** (Admin PDF Upload + Semantic Clustering Heatmaps)
+- **Backend tests:** 64 unit + Sprint 3 unit suites; golden eval 19/21 PASS (2 pre-existing async fixture failures, not regressions)
+- **Frontend:** 25 routes (added `/admin/uploads` + `/admin/heatmap`), `tsc --noEmit` clean, `next lint` clean
+- **Docker:** 6 containers running; images rebuilt for Sprint 5; migration `004_sprint5.sql` applied
+- **Sprint 5 deliverables:** Admin manual PDF upload (drag-drop → Celery → full pipeline with embeddings wired in), semantic clustering heatmap (k-means + PCA + Haiku labeling, daily beat task, CSS-grid visualization)
+- **New endpoints:** `POST /admin/uploads/pdf`, `GET /admin/uploads`, `GET /admin/uploads/{id}`, `GET /admin/dashboard/heatmap`, `POST /admin/dashboard/heatmap/refresh`
+- **New tables:** `manual_uploads`, `question_clusters`; new columns: `circular_documents.upload_source`, `questions.cluster_id`
 - **`LEARNINGS.md`** at repo root captures Phase 2 mistakes/root-causes/prevention — read before any sprint
 
 ---

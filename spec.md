@@ -1,6 +1,6 @@
 # RegPulse — Technical Specification
 
-> **Living spec. Reflects actual implementation state — all 50 prompts + Sprints 1, 2, 3 pushed; Sprint 4 complete locally.**
+> **Living spec. Reflects actual implementation state — all 50 prompts + Sprints 1–5 complete.**
 > For architecture rules, see `MEMORY.md`. For build progress, see `CLAUDE.md`.
 
 ---
@@ -9,7 +9,7 @@
 
 RegPulse is a B2B SaaS platform delivering RAG-powered Q&A over RBI Circulars for Indian banking professionals. Two modules: a Celery scraper that indexes RBI documents into pgvector, and a FastAPI+Next.js web app that retrieves and answers questions with cited sources.
 
-**(Phase 2 — Sprints 1, 2, 3 pushed; Sprint 4 complete locally)**: HTTPOnly cookie security, PostHog analytics, OpenAI embedding pipeline, marketing landing page, anti-hallucination confidence scoring with "Consult an Expert" fallback, golden dataset evaluation pipeline, k6 load tests, public safe snippet sharing, RSS news ingest with embedding-based circular linking, knowledge graph extraction with optional flag-gated RAG expansion, **Confidence Meter UI** (now persisted on `questions.confidence_score`/`consult_expert` so the meter survives a refresh), class-based dark mode with WCAG-AA contrast, skeleton loaders, rAF-buffered SSE rendering, and PostHog feature-flag scaffolding.
+**(Phase 2 — Sprints 1–5 complete)**: HTTPOnly cookie security, PostHog analytics, OpenAI embedding pipeline, marketing landing page, anti-hallucination confidence scoring with "Consult an Expert" fallback, golden dataset evaluation pipeline, k6 load tests, public safe snippet sharing, RSS news ingest with embedding-based circular linking, knowledge graph extraction with optional flag-gated RAG expansion, Confidence Meter UI, class-based dark mode with WCAG-AA contrast, skeleton loaders, rAF-buffered SSE rendering, PostHog feature-flag scaffolding, **admin manual PDF upload** (multipart → Celery → full pipeline with embeddings), and **semantic clustering heatmaps** (k-means + PCA + Haiku labeling, daily beat schedule).
 
 ```
 rbi.org.in → Scraper (Celery/Redis) → PostgreSQL+pgvector
@@ -25,7 +25,7 @@ rbi.org.in → Scraper (Celery/Redis) → PostgreSQL+pgvector
 
 ## 2. Database Schema
 
-**17 tables.** Ground truth: `backend/migrations/001_initial_schema.sql` + `backend/migrations/002_sprint3_knowledge_graph.sql` + `backend/migrations/003_sprint4_confidence.sql`
+**19 tables.** Ground truth: `backend/migrations/001_initial_schema.sql` + `002_sprint3_knowledge_graph.sql` + `003_sprint4_confidence.sql` + `004_sprint5.sql`
 
 ### Users & Auth
 | Table | Columns | Notes |
@@ -67,6 +67,16 @@ rbi.org.in → Scraper (Celery/Redis) → PostgreSQL+pgvector
 | `kg_relationships` | id, source/target_entity_id FK, relation_type (enum: SUPERSEDES/REFERENCES/AMENDS/APPLIES_TO/MENTIONS/EFFECTIVE_FROM), source_document_id FK, confidence, created_at | Unique on (source, target, relation_type, source_document_id) |
 | `news_items` | id, source (enum: RBI_PRESS/BUSINESS_STANDARD/LIVEMINT/ET_BANKING), external_id, title, url, published_at, summary, raw_html_hash, linked_circular_id FK, linked_entity_ids JSONB, relevance_score, status (enum: NEW/REVIEWED/DISMISSED), created_at | Unique on (source, external_id) |
 | `public_snippets` | id, slug (unique 12 char), question_id FK, user_id FK, snippet_text, top_citation JSONB, consult_expert, view_count, revoked, expires_at, created_at | Owner-generated, redacted answer previews |
+
+### Sprint 5 Tables
+| Table | Columns | Notes |
+|-------|---------|-------|
+| `manual_uploads` | id, admin_id FK, filename, file_size_bytes, status (PENDING/PROCESSING/COMPLETED/FAILED), document_id FK, error_message, created_at, completed_at | Tracks admin PDF uploads through the processing pipeline |
+| `question_clusters` | id, cluster_label, representative_questions (TEXT[]), centroid (vector 3072), question_count, period_start, period_end, created_at | k-means clusters of user questions, regenerated daily |
+
+### Sprint 5 Column Additions
+- `circular_documents.upload_source` — VARCHAR(20) NOT NULL DEFAULT 'scraper'. Values: `scraper`, `manual_upload`
+- `questions.cluster_id` — UUID FK → question_clusters(id) ON DELETE SET NULL
 
 ### Key Indexes
 - **ivfflat** on `document_chunks.embedding` and `questions.question_embedding` (lists=100)
@@ -127,7 +137,7 @@ All endpoints at `/api/v1/`. Error format: `{"success": false, "error": "...", "
 | PATCH | /saved/{id} | Verified | Update name/tags |
 | DELETE | /saved/{id} | Verified | Delete |
 
-### 3.6 Admin (12 endpoints, all require `is_admin`)
+### 3.6 Admin (19 endpoints, all require `is_admin`)
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | /admin/dashboard | Aggregate stats (users, questions, circulars, pending reviews, avg feedback, credits 30d) |
@@ -144,6 +154,11 @@ All endpoints at `/api/v1/`. Error format: `{"success": false, "error": "...", "
 | POST | /admin/circulars/{id}/approve-summary | Approve AI summary |
 | GET | /admin/scraper/runs | Scraper run history |
 | POST | /admin/scraper/trigger | Trigger priority or full scrape |
+| POST | /admin/uploads/pdf | Upload PDF (multipart) → Redis → Celery task |
+| GET | /admin/uploads | List manual uploads (status filter, paginated) |
+| GET | /admin/uploads/{id} | Single upload status (polling) |
+| GET | /admin/dashboard/heatmap | Cluster × time-bucket matrix for heatmap |
+| POST | /admin/dashboard/heatmap/refresh | Manually trigger re-clustering |
 
 ### 3.7 Snippets (Sprint 3, 5 endpoints)
 | Method | Path | Auth | Description |
@@ -335,6 +350,8 @@ Schedule: daily_scrape at 02:00 IST, priority_scrape every 4h, **ingest_news eve
 | `/admin/users` | Users | Admin | Search table, activate/deactivate |
 | `/admin/circulars` | Circulars | Admin | Pending summaries with approve |
 | `/admin/scraper` | Scraper | Admin | Run history, trigger priority/full |
+| `/admin/uploads` | Uploads | Admin | Drag-drop PDF upload + status table (Sprint 5) |
+| `/admin/heatmap` | Heatmap | Admin | Semantic clustering heatmap with period/bucket controls (Sprint 5) |
 
 ### Component Library
 - `AppSidebar` — navigation (Library, Ask, History, Updates, Action Items, Saved) + theme toggle (Sprint 4)
@@ -346,6 +363,7 @@ Schedule: daily_scrape at 02:00 IST, priority_scrape every 4h, **ingest_news eve
 - `SearchInput` — debounced (300ms) with clear
 - `Select` — styled dropdown
 - `Spinner` — loading indicator
+- `Heatmap` (Sprint 5) — CSS-grid heatmap with color interpolation, hover tooltips, expandable cluster rows
 - `CircularCard` — list item with badges, supports search results
 - `FilterPanel` — doc type, status, impact level, sort
 

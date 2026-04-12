@@ -36,6 +36,10 @@ tenacity==9.0.0
 # RSS / news ingest (Sprint 3)
 feedparser==6.0.11
 
+# Clustering (Sprint 5)
+scikit-learn==1.6.1
+numpy==2.2.3
+
 # Config
 pydantic==2.10.4
 pydantic-settings==2.7.1

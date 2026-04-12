@@ -10,7 +10,7 @@ B2B SaaS for Indian banking professionals. RAG-powered Q&A over RBI Circulars wi
 
 > **Read `LEARNINGS.md` at the repo root before starting any sprint.** Phase 2 mistakes are catalogued there with root causes and prevention rules.
 
-**(Phase 2 — Sprints 1, 2, 3 pushed `origin/main` 2026-04-11; Sprint 4 complete locally same day, push pending)**:
+**(Phase 2 — Sprints 1–5 complete 2026-04-12; push pending)**:
 - Strict zero-hallucination constraint with multi-signal confidence scoring (0.0-1.0).
 - "Consult an Expert" fallback when confidence < 0.5 or zero valid citations.
 - PostHog adopted for event/journey analytics to prevent lock-in.
@@ -19,6 +19,7 @@ B2B SaaS for Indian banking professionals. RAG-powered Q&A over RBI Circulars wi
 - News items live alongside circulars in `/updates` but are **never** mixed into the RAG retrieval corpus.
 - Sprint 4: Confidence Meter UI in `/ask` + `/history/[id]` + history list (compact pill), class-based dark mode with WCAG-AA palette + system-pref bootstrap, skeleton loaders, rAF-buffered SSE rendering to fix mid-stream jitter, PostHog `useFeatureFlag` + new analytics events. New columns: `questions.confidence_score`, `questions.consult_expert`.
 - KG-driven RAG expansion is built but stays OFF — flip `RAG_KG_EXPANSION_ENABLED=true` and re-run evals after Sprint 4 lands on remote.
+- Sprint 5: Admin manual PDF upload (`/admin/uploads`) — drag-drop PDF → Celery → full pipeline with embeddings wired in. Semantic clustering heatmap (`/admin/heatmap`) — daily k-means + PCA + Haiku labels. Migration `004_sprint5.sql` adds `manual_uploads`, `question_clusters`, `circular_documents.upload_source`, `questions.cluster_id`.
 
 ---
 
@@ -34,9 +35,9 @@ B2B SaaS for Indian banking professionals. RAG-powered Q&A over RBI Circulars wi
 
 ---
 
-## Schema (17 tables)
+## Schema (19 tables)
 
-Ground truth: `backend/migrations/001_initial_schema.sql` + `002_sprint3_knowledge_graph.sql` + `003_sprint4_confidence.sql`
+Ground truth: `backend/migrations/001_initial_schema.sql` + `002_sprint3_knowledge_graph.sql` + `003_sprint4_confidence.sql` + `004_sprint5.sql`
 
 | Table | Model | Key columns |
 |-------|-------|-------------|
@@ -57,6 +58,8 @@ Ground truth: `backend/migrations/001_initial_schema.sql` + `002_sprint3_knowled
 | kg_relationships (Sprint 3) | `kg.py` | source/target_entity_id, relation_type, source_document_id |
 | news_items (Sprint 3) | `news.py` | source, external_id, title, url, linked_circular_id, relevance_score |
 | public_snippets (Sprint 3) | `snippet.py` | slug, question_id, snippet_text, top_citation, consult_expert |
+| manual_uploads (Sprint 5) | `admin.py` | admin_id, filename, status, document_id, error_message |
+| question_clusters (Sprint 5) | `admin.py` | cluster_label, representative_questions, centroid, period_start/end |
 
 Indexes: ivfflat on embeddings (lists=100), GIN on FTS + citations JSONB + tags JSONB, btree on FKs/status/timestamps.
 
