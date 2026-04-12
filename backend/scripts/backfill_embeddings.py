@@ -13,7 +13,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 async def main() -> None:
-    import json
 
     import openai
     import redis.asyncio as aioredis
@@ -50,7 +49,7 @@ async def main() -> None:
         embeddings = await emb_svc.generate(texts)
 
         async with engine.begin() as conn:
-            for chunk_id, emb in zip(ids, embeddings):
+            for chunk_id, emb in zip(ids, embeddings, strict=False):
                 vec_str = "[" + ",".join(str(x) for x in emb) + "]"
                 await conn.execute(
                     text("UPDATE document_chunks SET embedding = :emb WHERE id = :id"),

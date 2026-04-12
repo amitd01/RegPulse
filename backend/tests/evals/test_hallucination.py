@@ -421,7 +421,8 @@ if __name__ == "__main__":
         print()
 
         for detail in results["details"]:
-            status_icon = "✅" if detail["status"] == "PASS" else "❌" if detail["status"] == "FAIL" else "⏭️"
+            s = detail["status"]
+            status_icon = "✅" if s == "PASS" else "❌" if s == "FAIL" else "⏭️"
             print(f"  {status_icon} {detail['id']}: {detail.get('reason', 'OK')}")
 
         # Write report

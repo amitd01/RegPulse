@@ -26,6 +26,9 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "backend/tests/conftest.py" = ["E402"]
+"backend/scripts/*" = ["T201"]                   # print ok in CLI scripts
+"backend/tests/evals/*" = ["T201"]               # print ok in eval harness
+"backend/app/services/kg_service.py" = ["S608"]  # dynamic WHERE clauses from internal data
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]

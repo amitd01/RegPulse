@@ -141,7 +141,8 @@ def _compute_confidence(
         llm_confidence = 0.5  # neutral if not reported
 
     # Signal 2: Citation survival rate
-    total_citations = len(response.get("citations", [])) + response.get("_stripped_citation_count", 0)
+    stripped = response.get("_stripped_citation_count", 0)
+    total_citations = len(response.get("citations", [])) + stripped
     valid_citations = len(response.get("citations", []))
     if total_citations > 0:
         citation_survival = valid_citations / total_citations
