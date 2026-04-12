@@ -1,19 +1,21 @@
 # RegPulse — Project Status
 
-> **All 50 prompts + Sprints 1–5 complete. Sprint 5 implemented locally, push pending.**
+> **All 50 prompts + Sprints 1–5 complete and pushed to `origin/main`. CI green. Session closed.**
 
 ---
 
 ## Current State (2026-04-12)
 
-- **Branch:** `main` — Sprint 5 implemented locally, push pending
-- **Phase:** Phase 2 — **Sprint 5 complete** (Admin PDF Upload + Semantic Clustering Heatmaps)
-- **Backend tests:** 64 unit + Sprint 3 unit suites; golden eval 19/21 PASS (2 pre-existing async fixture failures, not regressions)
+- **Branch:** `main` — fully synced with `origin/main` at `33d9b8d`
+- **Phase:** Phase 2 — **Sprint 5 shipped** (Admin PDF Upload + Semantic Clustering Heatmaps)
+- **CI:** All 3 jobs green (backend-lint, backend-test, frontend-build)
+- **Golden eval:** 21/21 PASS (0 FAIL)
 - **Frontend:** 25 routes (added `/admin/uploads` + `/admin/heatmap`), `tsc --noEmit` clean, `next lint` clean
 - **Docker:** 6 containers running; images rebuilt for Sprint 5; migration `004_sprint5.sql` applied
 - **Sprint 5 deliverables:** Admin manual PDF upload (drag-drop → Celery → full pipeline with embeddings wired in), semantic clustering heatmap (k-means + PCA + Haiku labeling, daily beat task, CSS-grid visualization)
 - **New endpoints:** `POST /admin/uploads/pdf`, `GET /admin/uploads`, `GET /admin/uploads/{id}`, `GET /admin/dashboard/heatmap`, `POST /admin/dashboard/heatmap/refresh`
 - **New tables:** `manual_uploads`, `question_clusters`; new columns: `circular_documents.upload_source`, `questions.cluster_id`
+- **Ruff:** `ruff check backend/` passes with 0 errors — per-file-ignores for T201/S608 added to `pyproject.toml`
 - **`LEARNINGS.md`** at repo root captures Phase 2 mistakes/root-causes/prevention — read before any sprint
 
 ---
@@ -21,6 +23,11 @@
 ## Git History (main, all pushed to origin)
 
 ```
+33d9b8d  fix(ci): resolve all pre-existing ruff errors
+32e613a  fix(ci): auto-fix ruff W293 + I001 import ordering
+44ec357  fix(ci): S608 lint, schema re-exports, lockfile sync
+5a8a77b  feat(sprint-5): admin PDF upload + semantic clustering heatmaps
+d7f1b52  chore: gitignore hygiene + post-push doc sync
 fdc784c  fix(llm): bump anthropic SDK + assert OpenAI-compatible fallback model
 f6c3a5a  feat(sprint-4): Confidence Meter UI, dark mode, skeletons, SSE jitter fix
 ed1f433  docs: record Sprint 3 exit verification (eval pass, push, checklist)
@@ -30,11 +37,6 @@ c83fd1f  docs: add LEARNINGS.md capturing Phase 2 gotchas
 52375b8  feat(sprint-3): RSS / news ingest pipeline
 45f0f2c  feat(sprint-3): public safe snippet sharing
 5379c49  feat(sprint-3): schema + models for KG, news, snippets
-dad1fff  docs: Sprint 1+2 completion
-1858575  feat(sprint-2): anti-hallucination guardrails, golden dataset, load tests
-363b1ef  feat(sprint-1): security hardening, analytics, embedder, landing page
-8c79f8c  docs: final update — 50/50 prompts (#9)
-fc03e8e  fix: response_model=None for POST /questions (#8)
 ```
 
 ---

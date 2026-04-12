@@ -271,6 +271,12 @@
 **Fix:** Fell back to the legacy builder via `DOCKER_BUILDKIT=0 docker compose build --no-cache frontend`. The legacy builder doesn't use cache mounts and completed cleanly.
 **Prevention:** If BuildKit COPY fails after cache prune, try `DOCKER_BUILDKIT=0` before investigating further. Consider adding `DOCKER_BUILDKIT=0` as a comment in `docker-compose.yml` for future reference.
 
+### L5.4 — CI ruff config was missing per-file-ignores, so 21 pre-existing errors failed every push
+**What bit us:** Sprint 5 push triggered backend-lint CI failure. Investigation revealed 21 ruff errors — all pre-existing (T201 print in scripts, S608 dynamic SQL in kg_service, E501 line-length, B905 zip). The `pyproject.toml` had `select = ["T20", "S", ...]` enabled but no per-file-ignores for scripts and evals that legitimately use `print()`.
+**Root cause:** The ruff config was written aspirationally — it enabled strict rules but never tested against the full codebase. Previous pushes likely also failed CI lint, but nobody noticed because backend-test and frontend-build were the focus.
+**Fix:** Added `per-file-ignores` in `pyproject.toml` for scripts (`T201`), evals (`T201`), and `kg_service.py` (`S608`). Fixed the 3 code-level issues (E501, B905). `ruff check backend/` now passes with 0 errors.
+**Prevention:** After adding or changing ruff rules, always run `ruff check backend/` locally before pushing. Consider adding it to a pre-commit hook.
+
 ---
 
 ## Cross-Sprint Patterns
