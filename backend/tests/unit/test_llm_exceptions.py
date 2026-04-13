@@ -241,7 +241,10 @@ class TestStreamingExceptions:
         mock_event.delta = MagicMock()
         mock_event.delta.text = "This is not JSON at all"
 
-        mock_stream.__aiter__ = AsyncMock(return_value=iter([mock_event]))
+        async def _aiter_events():
+            yield mock_event
+
+        mock_stream.__aiter__ = _aiter_events
 
         stream_cm = MagicMock()
         stream_cm.__aenter__ = AsyncMock(return_value=mock_stream)
