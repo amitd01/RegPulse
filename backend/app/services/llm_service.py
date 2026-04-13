@@ -14,17 +14,14 @@ from __future__ import annotations
 
 import json
 from collections.abc import AsyncGenerator
-from typing import TYPE_CHECKING
 
+import anthropic
+import openai
 import structlog
 
 from app.config import get_settings
 from app.services.rag_service import RetrievedChunk
 from app.utils.injection_guard import check_injection, sanitise_for_llm
-
-if TYPE_CHECKING:
-    import anthropic
-    import openai
 
 logger = structlog.get_logger("regpulse.llm")
 
@@ -235,18 +232,29 @@ class LLMService:
         valid_circulars = {c.circular_number for c in chunks if c.circular_number}
         user_message = _build_user_message(question, chunks)
 
-        # Try Anthropic first
+        # Try Anthropic first — catch only API-level errors so that
+        # programming bugs (TypeError, AttributeError) propagate immediately.
+        _anthropic_errors = (
+            anthropic.APIError,
+            anthropic.APIConnectionError,
+            anthropic.APITimeoutError,
+        )
+        _openai_errors = (
+            openai.APIError,
+            openai.APIConnectionError,
+            openai.APITimeoutError,
+        )
         try:
             raw_response = await self._call_anthropic(user_message)
             model_used = self._settings.LLM_MODEL
             logger.info("llm_anthropic_success", model=model_used)
-        except Exception:
+        except _anthropic_errors:
             logger.warning("llm_anthropic_failed, trying fallback", exc_info=True)
             try:
                 raw_response = await self._call_openai(user_message)
                 model_used = self._settings.LLM_FALLBACK_MODEL
                 logger.info("llm_openai_fallback_success", model=model_used)
-            except Exception:
+            except _openai_errors:
                 logger.error("llm_both_failed", exc_info=True)
                 raise
 
@@ -330,7 +338,11 @@ class LLMService:
                             full_response += event.delta.text
                             yield "token", json.dumps({"token": event.delta.text})
 
-        except Exception:
+        except (
+            anthropic.APIError,
+            anthropic.APIConnectionError,
+            anthropic.APITimeoutError,
+        ):
             logger.warning("llm_stream_anthropic_failed", exc_info=True)
             model_used = self._settings.LLM_FALLBACK_MODEL
             full_response = await self._call_openai(user_message)
@@ -374,7 +386,7 @@ class LLMService:
                         "model_used": model_used,
                     }
                 )
-        except Exception:
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError):
             logger.error("llm_parse_failed", exc_info=True)
             yield "citations", json.dumps(
                 {

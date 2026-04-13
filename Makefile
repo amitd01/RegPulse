@@ -1,4 +1,4 @@
-.PHONY: help up down logs build lint test-backend test-frontend migrate seed clean
+.PHONY: help up down logs build lint test-backend test-frontend migrate seed clean eval
 
 help:
 	@echo "RegPulse Development Commands:"
@@ -47,6 +47,11 @@ test-frontend:
 	cd frontend && npx tsc --noEmit && npx next lint && npx next build
 
 test: test-backend test-frontend
+
+eval:
+	docker compose run --rm --build \
+		-e PYTHONPATH=/app \
+		backend bash -c "pip install -q pytest pytest-asyncio && pytest tests/evals/ -v"
 
 # ---------------------------------------------------------------------------
 # Database

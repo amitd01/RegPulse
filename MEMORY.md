@@ -10,16 +10,16 @@ B2B SaaS for Indian banking professionals. RAG-powered Q&A over RBI Circulars wi
 
 > **Read `LEARNINGS.md` at the repo root before starting any sprint.** Phase 2 mistakes are catalogued there with root causes and prevention rules.
 
-**(Phase 2 — Sprints 1–5 shipped to `origin/main` 2026-04-12, CI green)**:
+**(Phase 2 — Sprints 1–6 shipped, CI green)**:
 - Strict zero-hallucination constraint with multi-signal confidence scoring (0.0-1.0).
 - "Consult an Expert" fallback when confidence < 0.5 or zero valid citations.
 - PostHog adopted for event/journey analytics to prevent lock-in.
 - HTTPOnly cookie-based refresh tokens (XSS-resistant).
-- Sprint 3: public safe snippet sharing (`/s/[slug]`), RSS/news ingest with embedding-based circular linking, knowledge graph extraction with optional RAG expansion (flag-gated, default off).
+- Sprint 3: public safe snippet sharing (`/s/[slug]`), RSS/news ingest with embedding-based circular linking, knowledge graph extraction with RAG expansion.
 - News items live alongside circulars in `/updates` but are **never** mixed into the RAG retrieval corpus.
-- Sprint 4: Confidence Meter UI in `/ask` + `/history/[id]` + history list (compact pill), class-based dark mode with WCAG-AA palette + system-pref bootstrap, skeleton loaders, rAF-buffered SSE rendering to fix mid-stream jitter, PostHog `useFeatureFlag` + new analytics events. New columns: `questions.confidence_score`, `questions.consult_expert`.
-- KG-driven RAG expansion is built but stays OFF — flip `RAG_KG_EXPANSION_ENABLED=true` and re-run evals after Sprint 4 lands on remote.
-- Sprint 5: Admin manual PDF upload (`/admin/uploads`) — drag-drop PDF → Celery → full pipeline with embeddings wired in. Semantic clustering heatmap (`/admin/heatmap`) — daily k-means + PCA + Haiku labels. Migration `004_sprint5.sql` adds `manual_uploads`, `question_clusters`, `circular_documents.upload_source`, `questions.cluster_id`.
+- Sprint 4: Confidence Meter UI, class-based dark mode (WCAG-AA), skeleton loaders, rAF-buffered SSE rendering, PostHog feature flags.
+- Sprint 5: Admin manual PDF upload (`/admin/uploads`), semantic clustering heatmap (`/admin/heatmap`).
+- Sprint 6: Pre-launch hardening — SIGTERM graceful shutdown (backend + Celery), system user for audit log, scraper embeddings wired into `process_document` INSERT (TD-08 fully resolved), LLM exception handling tightened to typed API errors, retrieval-level integration eval, dev Dockerfile target, **KG-driven RAG expansion now ON by default** (`RAG_KG_EXPANSION_ENABLED=true`). Migration `005_sprint6_system_user.sql`.
 
 ---
 
@@ -37,7 +37,7 @@ B2B SaaS for Indian banking professionals. RAG-powered Q&A over RBI Circulars wi
 
 ## Schema (19 tables)
 
-Ground truth: `backend/migrations/001_initial_schema.sql` + `002_sprint3_knowledge_graph.sql` + `003_sprint4_confidence.sql` + `004_sprint5.sql`
+Ground truth: `backend/migrations/001_initial_schema.sql` + `002_sprint3_knowledge_graph.sql` + `003_sprint4_confidence.sql` + `004_sprint5.sql` + `005_sprint6_system_user.sql`
 
 | Table | Model | Key columns |
 |-------|-------|-------------|
@@ -156,8 +156,8 @@ See `.env.example`. Key required: `DATABASE_URL`, `REDIS_URL`, `JWT_*`, `OPENAI_
 cp .env.example .env   # fill in API keys, set DEMO_MODE=true
 docker compose up --build -d
 # Schema auto-applied via initdb.d mount
-# Trigger scraper: docker exec regpulse-scraper celery -A celery_app -b redis://redis:6379/1 call scraper.tasks.daily_scrape
-# Backfill embeddings: docker exec regpulse-backend python scripts/backfill_embeddings.py
+# Trigger scraper (embeddings generated on insert — no backfill needed):
+# docker exec regpulse-scraper celery -A celery_app -b redis://redis:6379/1 call scraper.tasks.daily_scrape
 # Frontend: http://localhost:3000  |  API docs: http://localhost:8000/api/v1/docs
 ```
 
@@ -173,14 +173,14 @@ docker compose up --build -d
 | ID | Issue | Plan |
 |---|---|---|
 | TD-01 | Scraper writes directly to backend DB | API isolation in v2 |
-| TD-02 | No graceful shutdown handlers | SIGTERM handlers post-launch |
 | TD-03 | Manual api.ts client | OpenAPI codegen in v1.1 |
-| TD-04 | admin_audit_log.actor_id NOT NULL — scraper can't log | Seed system user |
+| TD-09 | OG image URL uses `BACKEND_PUBLIC_URL` config which is unset in demo | Set when AWS deploy lands, falls back to localhost:8000 |
+| ~~TD-02~~ | ~~No graceful shutdown handlers~~ | ✅ Fixed (Sprint 6) — SIGTERM handler in `main.py` + Celery `worker_shutting_down` signal |
+| ~~TD-04~~ | ~~admin_audit_log.actor_id NOT NULL — scraper can't log~~ | ✅ Fixed (Sprint 6) — System user seeded via `005_sprint6_system_user.sql`, scraper `_audit_log()` helper |
 | ~~TD-05~~ | ~~Scraper embedder is a stub~~ | ✅ Fixed (Sprint 1) — Uses OpenAI `text-embedding-3-large` |
 | ~~TD-06~~ | ~~Landing page is bare placeholder~~ | ✅ Fixed (Sprint 1) — Full marketing landing page |
 | ~~TD-07~~ | ~~refresh_token cookie is not httpOnly~~ | ✅ Fixed (Sprint 1) — Backend `Set-Cookie: HttpOnly; Secure; SameSite=lax` |
-| TD-08 | `document_chunks.embedding` not populated by `process_document` (insert omits column) | Wire embedder output into Step 6 INSERT — currently only `backfill_embeddings.py` populates it |
-| TD-09 | OG image URL uses `BACKEND_PUBLIC_URL` config which is unset in demo | Set when AWS deploy lands, falls back to localhost:8000 |
-| TD-10 | `LLMService.generate` swallows `TypeError`/`AttributeError` via broad `except Exception`, masking developer bugs as API failures (see LEARNINGS L4.13) | Tighten to `(anthropic.APIError, APIConnectionError, APIStatusError)`; let programmer errors propagate |
-| TD-11 | Golden eval mocks the LLM and never reaches `RAGService.retrieve()`, so retrieval-side flags (KG expansion) are unverified by the eval (see LEARNINGS L4.11) | Add an integration eval against fixture postgres that exercises retrieval + KG expansion |
-| TD-12 | `pytest` isn't in the runtime backend image; eval runs need an ad-hoc `pip install` after every container recreate (see LEARNINGS L4.12) | Split `requirements-dev.txt` and bake a `regpulse-backend:dev` image for eval/CI runs |
+| ~~TD-08~~ | ~~`document_chunks.embedding` not populated by `process_document`~~ | ✅ Fixed (Sprint 6) — Embeddings wired into process_document INSERT |
+| ~~TD-10~~ | ~~Broad `except Exception` in LLM service~~ | ✅ Fixed (Sprint 6) — Typed Anthropic/OpenAI exception tuples |
+| ~~TD-11~~ | ~~Golden eval doesn't exercise retrieval~~ | ✅ Fixed (Sprint 6) — `test_retrieval.py` with real embeddings + Postgres |
+| ~~TD-12~~ | ~~pytest not in runtime image~~ | ✅ Fixed (Sprint 6) — `requirements-dev.txt` + Dockerfile `dev` target |

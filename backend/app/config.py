@@ -72,7 +72,7 @@ class Settings(BaseSettings):
 
     # --- Sprint 3: Knowledge Graph ---
     KG_EXTRACTION_ENABLED: bool = True
-    RAG_KG_EXPANSION_ENABLED: bool = False
+    RAG_KG_EXPANSION_ENABLED: bool = True
     RAG_KG_BOOST_WEIGHT: float = 0.1
 
     # --- Sprint 3: News ingest ---

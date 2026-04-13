@@ -173,11 +173,26 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         dims=settings.EMBEDDING_DIMS,
     )
 
+    # Register SIGTERM handler for graceful shutdown (ECS/Docker sends SIGTERM)
+    shutdown_event = asyncio.Event()
+    loop = asyncio.get_running_loop()
+
+    def _sigterm_handler() -> None:
+        logger.info("sigterm_received, starting graceful shutdown")
+        shutdown_event.set()
+
+    loop.add_signal_handler(__import__("signal").SIGTERM, _sigterm_handler)
+
     yield
 
-    # Shutdown
+    # Shutdown — drain in-flight requests (uvicorn handles this),
+    # then close DB pool and Redis connection.
+    log = logger.bind(event="shutdown")
+    log.info("shutdown_starting")
     await engine.dispose()
+    log.info("db_pool_closed")
     await redis_client.aclose()
+    log.info("redis_closed")
     logger.info("shutdown_complete")
 
 

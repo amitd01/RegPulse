@@ -30,6 +30,7 @@
 | Sprint 3 | Public Safe Snippet Sharing, RSS/News Ingest, Knowledge Graph + RAG Expansion (flag-gated) | ✅ Complete (`5379c49`/`5d6dec3`/`52375b8`/`516acf9`) |
 | Sprint 4 | Confidence Meter UI, Dark Mode (WCAG-AA), Skeleton loaders, SSE jitter fix, A/B feature-flag scaffolding | ✅ Complete (`f6c3a5a`) |
 | Sprint 5 | Admin Manual PDF Upload, Semantic Clustering Heatmaps | ✅ Complete |
+| Sprint 6 | Pre-Launch Hardening: SIGTERM shutdown, system user audit log, scraper embeddings on insert, LLM exception tightening, KG expansion GA, retrieval eval | ✅ Complete |
 | Post-Build | Real data migration, AWS deployment (PRODUCTION_PLAN.md), Beta launch | ⏳ Planned |
 
 ---
@@ -62,11 +63,8 @@ cp .env.example .env              # Fill in OPENAI_API_KEY and ANTHROPIC_API_KEY
                                   # Set DEMO_MODE=true, dummy Razorpay/SMTP keys
 docker compose up --build -d      # Start all 6 containers (schema auto-applied)
 
-# Trigger scraper to index RBI circulars:
+# Trigger scraper to index RBI circulars (embeddings generated on insert):
 docker exec regpulse-scraper celery -A celery_app -b redis://redis:6379/1 call scraper.tasks.daily_scrape
-
-# Backfill embeddings (required for Q&A to work):
-docker exec regpulse-backend python scripts/backfill_embeddings.py
 ```
 
 | Service | URL |
@@ -107,8 +105,7 @@ make test            # Both
 ### Anti-Hallucination Evaluation
 
 ```bash
-# Run inside backend container:
-python -m pytest tests/evals/test_hallucination.py -v
+make eval   # or: python -m pytest tests/evals/ -v
 ```
 
 30 synthetic test cases across 4 categories:
@@ -126,11 +123,20 @@ k6 run tests/load/k6_load_test.js   # Runs against local Docker Compose
 
 3 scenarios: smoke (1 VU), load (ramp to 20 VU), spike (burst to 50 VU).
 
+### Retrieval-Level Eval (Sprint 6)
+
+```bash
+# Requires running Postgres + real OPENAI_API_KEY:
+RAG_KG_EXPANSION_ENABLED=true pytest backend/tests/evals/test_retrieval.py -v
+```
+
+6 retrieval queries + out-of-scope check + embedding population verification.
+
 ### Sprint 3 Features
 
 - **Public snippet sharing**: any signed-in user can share a redacted preview of any of their answers via `/s/[slug]`. The full `detailed_interpretation` is enforced never to leave the snippet service. Open Graph image rendered server-side via Pillow.
 - **RSS news ingest**: Celery beat task `ingest_news` runs every 30 min, pulls from RBI Press, Business Standard, LiveMint, ET Banking via RSS only. Items are embedded and linked to active circulars by cosine similarity above `NEWS_RELEVANCE_THRESHOLD` (default 0.75). Surfaced in `/updates` under a "Market News" tab. Never mixed into the RAG corpus.
-- **Knowledge graph**: each circular indexed by the scraper runs a regex pre-pass (circular numbers, sections, amounts, dates) plus a Claude Haiku LLM pass for orgs/regulations/teams + relationship triples. Stored in `kg_entities` + `kg_relationships`. RAG expansion is built into `rag_service` but feature-flagged off via `RAG_KG_EXPANSION_ENABLED` until the Sprint 4 Confidence Meter UI ships.
+- **Knowledge graph**: each circular indexed by the scraper runs a regex pre-pass (circular numbers, sections, amounts, dates) plus a Claude Haiku LLM pass for orgs/regulations/teams + relationship triples. Stored in `kg_entities` + `kg_relationships`. KG-driven RAG expansion is now **enabled by default** (`RAG_KG_EXPANSION_ENABLED=true`) as of Sprint 6, validated via the retrieval eval.
 - **Backfill**: `python /scraper/backfill_kg.py` (run inside the scraper container) walks every active circular and populates the KG.
 
 ## Launch Check

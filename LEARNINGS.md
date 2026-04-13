@@ -1,6 +1,6 @@
 # LEARNINGS — RegPulse Phase 2
 
-> Mistakes, surprises, and gotchas that cost us time during Phase 2 (Sprints 1, 2, 3). Each entry is a guard against repeating the same loss in future iterations. Read this before starting any sprint.
+> Mistakes, surprises, and gotchas that cost us time during Phase 2 (Sprints 1–6). Each entry is a guard against repeating the same loss in future iterations. Read this before starting any sprint.
 >
 > Format per entry: **what bit us**, **root cause**, **fix or guard**, **how to prevent**.
 
@@ -309,6 +309,28 @@
 **Root cause:** Counts duplicated across multiple docs without a single source.
 **Fix:** Treat `golden_dataset.json`'s `test_cases` length as the authoritative count. Don't repeat the number in prose.
 **Prevention:** Any number that comes from data (test counts, table counts, route counts) should appear in at most one doc, and ideally be derivable from the data itself. When you can't avoid duplicating it, audit all copies in the same commit.
+
+---
+
+## Sprint 6 — Pre-Launch Hardening
+
+### L6.1 — Broad `except Exception` hides programming bugs in LLM code
+**What bit us:** TD-10 analysis revealed 4 `except Exception` blocks in `llm_service.py`. A `TypeError` from a wrong kwarg would silently fall through to the OpenAI fallback path (or be swallowed entirely on the streaming parse path), making bugs look like transient API failures.
+**Root cause:** Initial implementation prioritised "never crash" over debuggability. API errors and programming errors require different handling.
+**Fix:** Replaced with typed exception tuples: `(anthropic.APIError, anthropic.APIConnectionError, anthropic.APITimeoutError)` for the API paths, `(json.JSONDecodeError, KeyError, TypeError, ValueError)` for the parse path.
+**Prevention:** Never catch bare `Exception` in API wrapper code. Use the SDK's own exception hierarchy. Let `TypeError`/`AttributeError` propagate.
+
+### L6.2 — Docker migrations must be mounted explicitly
+**What bit us:** Only `001_initial_schema.sql` was mounted into the postgres `docker-entrypoint-initdb.d/`. Migrations 002–005 existed on disk but never ran on fresh `docker compose up -v`.
+**Root cause:** Each new migration was added to the file system but the `docker-compose.yml` volume mount list was never updated.
+**Fix:** Added all 5 migration files as explicit read-only volume mounts in docker-compose.yml.
+**Prevention:** Any new migration SQL file must have a corresponding volume mount added in the same commit.
+
+### L6.3 — Retrieval evals need real embeddings; mocks are worthless for recall
+**What bit us:** TD-11 — the existing `test_hallucination.py` eval never called `RAGService.retrieve()`. It mocked chunks, so it tested LLM output quality but not whether the retrieval pipeline actually finds the right chunks.
+**Root cause:** Unit-test mindset applied to an integration-level concern. Retrieval recall depends on embedding quality, pgvector index, and RRF fusion — none of which are exercisable under mocks.
+**Fix:** New `test_retrieval.py` seeds golden dataset circulars with real OpenAI embeddings into the compose Postgres, then calls `retrieve()` and asserts the correct circulars appear in top-K.
+**Prevention:** Any retrieval or ranking change must be validated against the retrieval eval, not just the hallucination eval. The hallucination eval tests the LLM; the retrieval eval tests the pipeline.
 
 ---
 

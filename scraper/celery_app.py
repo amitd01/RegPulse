@@ -39,6 +39,9 @@ app.conf.update(
     # Limits
     task_soft_time_limit=300,  # 5 minutes soft limit
     task_time_limit=360,  # 6 minutes hard limit
+    # Graceful shutdown — finish current task before exiting (TD-02)
+    worker_max_tasks_per_child=None,
+    worker_cancel_long_running_tasks_on_connection_loss=False,
     # Result expiry
     result_expires=3600,  # 1 hour
     # Task routes
@@ -87,3 +90,21 @@ app.conf.beat_schedule = {
 
 # Auto-discover tasks from scraper.tasks module
 app.autodiscover_tasks(["scraper"])
+
+# ---------------------------------------------------------------------------
+# Graceful shutdown signal (TD-02) — log when SIGTERM is received
+# ---------------------------------------------------------------------------
+from celery.signals import worker_shutting_down  # noqa: E402
+
+
+@worker_shutting_down.connect
+def _on_worker_shutting_down(sig, how, exitcode, **kwargs):  # type: ignore[no-untyped-def]  # noqa: ANN001, ANN003
+    import structlog
+
+    logger = structlog.get_logger("regpulse.celery")
+    logger.info(
+        "celery_worker_shutting_down",
+        signal=sig,
+        how=how,
+        exitcode=exitcode,
+    )

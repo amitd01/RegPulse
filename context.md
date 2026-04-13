@@ -1,19 +1,20 @@
 # RegPulse — Project Status
 
-> **All 50 prompts + Sprints 1–5 complete and pushed to `origin/main`. CI green.**
+> **All 50 prompts + Sprints 1–6 complete. CI green. Ready for AWS deploy.**
 
 ---
 
 ## Current State (2026-04-13)
 
-- **Branch:** `main` — synced with `origin/main` at `b0cb7d3`
-- **Phase:** Phase 2 complete (Sprints 1–5 shipped). Post-Build next.
+- **Branch:** `main` — Sprint 6 pre-launch hardening complete
+- **Phase:** Phase 2 complete (Sprints 1–6 shipped). Post-Build (AWS deploy) next.
 - **CI:** All 3 jobs green (backend-lint, backend-test, frontend-build)
 - **Golden eval:** 21/21 PASS
+- **Retrieval eval:** 8 tests (6 recall + 1 OOS + 1 embedding check)
 - **Ruff:** 0 errors — per-file-ignores configured in `pyproject.toml`
 - **Frontend:** 25 routes, `tsc --noEmit` clean, `next lint` clean
-- **Docker:** 6 containers running; all images rebuilt for Sprint 5
-- **`LEARNINGS.md`** at repo root — L1–L5 + cross-sprint patterns. Read before any work.
+- **Docker:** 6 containers running; all images rebuilt for Sprint 6
+- **`LEARNINGS.md`** at repo root — L1–L6 + cross-sprint patterns. Read before any work.
 
 ---
 
@@ -38,10 +39,11 @@ f6c3a5a  feat(sprint-4): Confidence Meter UI, dark mode, skeletons, SSE jitter f
 
 ## Inventory
 
-**Backend:** 11 services, 17 router files (~58 endpoints), 19 tables, 4 migrations
+**Backend:** 11 services, 17 router files (~58 endpoints), 19 tables, 5 migrations
 **Frontend:** 25 routes, 8 UI components, Tailwind dark mode, PostHog analytics
-**Scraper:** 8 Celery tasks (daily/priority scrape, process_document, process_uploaded_pdf, generate_summary, send_staleness_alerts, ingest_news, run_question_clustering), 3 beat schedules
-**Infra:** CI/CD (ci.yml + deploy.yml), Nginx config, Makefile, launch_check.sh, PRODUCTION_PLAN.md
+**Scraper:** 8 Celery tasks (daily/priority scrape, process_document, process_uploaded_pdf, generate_summary, send_staleness_alerts, ingest_news, run_question_clustering), 4 beat schedules
+**Infra:** CI/CD (ci.yml + deploy.yml), Nginx config, Makefile (+ `eval` target), launch_check.sh, PRODUCTION_PLAN.md
+**Evals:** `test_hallucination.py` (21 tests), `test_retrieval.py` (8 tests), `k6_load_test.js` (3 scenarios)
 
 ---
 
@@ -50,13 +52,7 @@ f6c3a5a  feat(sprint-4): Confidence Meter UI, dark mode, skeletons, SSE jitter f
 | ID | Issue | Plan |
 |---|---|---|
 | TD-01 | Scraper writes directly to backend DB | API isolation in v2 |
-| TD-02 | No graceful shutdown handlers | SIGTERM handlers post-launch |
 | TD-03 | Manual api.ts client | OpenAPI codegen in v1.1 |
-| TD-04 | admin_audit_log.actor_id NOT NULL — scraper can't log | Seed system user |
-| TD-08 | `process_document` discards embeddings (scraper path only — fixed for uploads) | Wire into Step 6 INSERT |
 | TD-09 | `BACKEND_PUBLIC_URL` unset in demo | Set when AWS deploy lands |
-| TD-10 | Broad `except Exception` in LLM service (L4.13) | Tighten to Anthropic exception family |
-| TD-11 | Golden eval doesn't exercise retrieval (L4.11) | Integration eval with fixture DB |
-| TD-12 | pytest not in runtime image (L4.12) | Split requirements-dev.txt |
 
-Resolved: ~~TD-05~~ (Sprint 1), ~~TD-06~~ (Sprint 1), ~~TD-07~~ (Sprint 1)
+Resolved: ~~TD-02~~ (Sprint 6 — SIGTERM handlers), ~~TD-04~~ (Sprint 6 — system user), ~~TD-05~~ (Sprint 1), ~~TD-06~~ (Sprint 1), ~~TD-07~~ (Sprint 1), ~~TD-08~~ (Sprint 6 — scraper embeddings on insert), ~~TD-10~~ (Sprint 6 — typed LLM exceptions), ~~TD-11~~ (Sprint 6 — retrieval eval), ~~TD-12~~ (Sprint 6 — dev requirements split)

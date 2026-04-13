@@ -43,6 +43,35 @@ logger: structlog.stdlib.BoundLogger = structlog.get_logger("regpulse.tasks")
 # ---------------------------------------------------------------------------
 
 
+_SYSTEM_USER_ID = "00000000-0000-0000-0000-000000000001"
+
+
+def _audit_log(
+    action: str,
+    target_table: str | None = None,
+    target_id: str | None = None,
+    new_value: dict | None = None,
+) -> None:
+    """Write an admin_audit_log entry attributed to the system user (TD-04)."""
+    with get_db_session() as db:
+        db.execute(
+            text("""
+                INSERT INTO admin_audit_log
+                    (id, actor_id, action, target_table, target_id, new_value)
+                VALUES (:id, :actor_id, :action, :target_table, :target_id, :new_value)
+            """),
+            {
+                "id": str(uuid.uuid4()),
+                "actor_id": _SYSTEM_USER_ID,
+                "action": action,
+                "target_table": target_table,
+                "target_id": target_id,
+                "new_value": json.dumps(new_value) if new_value else None,
+            },
+        )
+        db.commit()
+
+
 def _get_seen_urls() -> set[str]:
     """Fetch all rbi_url values already in circular_documents."""
     with get_db_session() as db:
@@ -79,9 +108,7 @@ def daily_scrape(self):  # noqa: ANN001, ANN201
     run_id = str(uuid.uuid4())
     with get_db_session() as db:
         db.execute(
-            text(
-                "INSERT INTO scraper_runs (id, status) VALUES (:id, 'RUNNING')"
-            ),
+            text("INSERT INTO scraper_runs (id, status) VALUES (:id, 'RUNNING')"),
             {"id": run_id},
         )
         db.commit()
@@ -113,6 +140,13 @@ def daily_scrape(self):  # noqa: ANN001, ANN201
 
         logger.info("daily_scrape_completed", new_documents=enqueued, run_id=run_id)
 
+        _audit_log(
+            action="daily_scrape_completed",
+            target_table="scraper_runs",
+            target_id=run_id,
+            new_value={"documents_enqueued": enqueued},
+        )
+
     except SoftTimeLimitExceeded:
         logger.error("daily_scrape_timeout", run_id=run_id)
         _mark_run_failed(run_id, "Soft time limit exceeded")
@@ -129,9 +163,7 @@ def priority_scrape(self):  # noqa: ANN001, ANN201
     logger.info("priority_scrape_started")
 
     priority_sections = {
-        k: v
-        for k, v in RBI_SECTIONS.items()
-        if k in ("Notifications", "Master Directions")
+        k: v for k, v in RBI_SECTIONS.items() if k in ("Notifications", "Master Directions")
     }
 
     run_id = str(uuid.uuid4())
@@ -238,10 +270,10 @@ def process_document(
             logger.warning("process_document_no_chunks", url=url)
             return {"status": "skipped", "reason": "no_chunks", "url": url}
 
-        # Step 4: Generate embeddings (stub — returns empty vectors)
+        # Step 4: Generate embeddings
         embedder = Embedder()
         chunk_texts = [c.text for c in chunks]
-        _embeddings = embedder.embed_chunks(chunk_texts)
+        embeddings = embedder.embed_chunks(chunk_texts)
 
         # Step 5: Classify impact level
         summary_excerpt = extracted.raw_text[:500]
@@ -287,14 +319,17 @@ def process_document(
                 },
             )
 
-            # Insert document_chunks rows
-            for chunk in chunks:
+            # Insert document_chunks rows with embeddings (TD-08)
+            for i, chunk in enumerate(chunks):
+                emb = embeddings[i] if i < len(embeddings) else None
+                emb_str = "[" + ",".join(str(x) for x in emb) + "]" if emb else None
                 db.execute(
                     text("""
                         INSERT INTO document_chunks (
-                            id, document_id, chunk_index, chunk_text, token_count
+                            id, document_id, chunk_index, chunk_text, token_count, embedding
                         ) VALUES (
-                            :id, :document_id, :chunk_index, :chunk_text, :token_count
+                            :id, :document_id, :chunk_index, :chunk_text, :token_count,
+                            CAST(:embedding AS vector)
                         )
                     """),
                     {
@@ -303,6 +338,7 @@ def process_document(
                         "chunk_index": chunk.chunk_index,
                         "chunk_text": chunk.text,
                         "token_count": chunk.token_count,
+                        "embedding": emb_str,
                     },
                 )
 
@@ -478,9 +514,7 @@ def send_staleness_alerts(self, circular_id: str) -> dict:  # noqa: ANN001
         # Get the superseded circular's number
         with get_db_session() as db:
             circ_row = db.execute(
-                text(
-                    "SELECT circular_number FROM circular_documents WHERE id = :cid"
-                ),
+                text("SELECT circular_number FROM circular_documents WHERE id = :cid"),
                 {"cid": circular_id},
             ).fetchone()
 
@@ -675,9 +709,7 @@ def run_question_clustering(
 
             # Pick up to 5 representative questions (closest to centroid)
             centroid = km.cluster_centers_[cluster_idx]
-            distances = [
-                np.linalg.norm(X_reduced[i] - centroid) for i in member_indices
-            ]
+            distances = [np.linalg.norm(X_reduced[i] - centroid) for i in member_indices]
             sorted_indices = sorted(range(len(member_indices)), key=lambda x: distances[x])
             rep_indices = sorted_indices[:5]
             rep_questions = [member_texts[i] for i in rep_indices]
@@ -695,9 +727,7 @@ def run_question_clustering(
                     messages=[
                         {
                             "role": "user",
-                            "content": "Questions:\n" + "\n".join(
-                                f"- {q}" for q in rep_questions
-                            ),
+                            "content": "Questions:\n" + "\n".join(f"- {q}" for q in rep_questions),
                         }
                     ],
                 )
@@ -709,14 +739,16 @@ def run_question_clustering(
             # Compute centroid in original embedding space for storage
             original_centroid = X[member_indices].mean(axis=0).tolist()
 
-            cluster_records.append({
-                "cluster_idx": cluster_idx,
-                "label": cluster_label,
-                "rep_questions": rep_questions[:5],
-                "centroid": original_centroid,
-                "count": len(member_indices),
-                "member_question_ids": [question_ids[i] for i in member_indices],
-            })
+            cluster_records.append(
+                {
+                    "cluster_idx": cluster_idx,
+                    "label": cluster_label,
+                    "rep_questions": rep_questions[:5],
+                    "centroid": original_centroid,
+                    "count": len(member_indices),
+                    "member_question_ids": [question_ids[i] for i in member_indices],
+                }
+            )
 
         # Step 6: Persist to database
         with get_db_session() as db:
@@ -745,10 +777,14 @@ def run_question_clustering(
             for rec in cluster_records:
                 cluster_id = str(uuid.uuid4())
                 centroid_str = "[" + ",".join(str(x) for x in rec["centroid"]) + "]"
-                rep_q_sql = "{" + ",".join(
-                    '"' + q.replace('"', '\\"').replace("\\", "\\\\") + '"'
-                    for q in rec["rep_questions"]
-                ) + "}"
+                rep_q_sql = (
+                    "{"
+                    + ",".join(
+                        '"' + q.replace('"', '\\"').replace("\\", "\\\\") + '"'
+                        for q in rec["rep_questions"]
+                    )
+                    + "}"
+                )
 
                 db.execute(
                     text("""
@@ -832,15 +868,13 @@ def persist_kg(
     for ent in entities:
         # Upsert: insert if missing, otherwise refresh last_seen_at and merge aliases
         row = db.execute(
-            text(
-                """
+            text("""
                 INSERT INTO kg_entities (entity_type, canonical_name, aliases, metadata)
                 VALUES (CAST(:etype AS kg_entity_type_enum), :name, CAST(:aliases AS jsonb), '{}'::jsonb)
                 ON CONFLICT (entity_type, canonical_name) DO UPDATE
                     SET last_seen_at = now()
                 RETURNING id
-                """
-            ),
+                """),
             {
                 "etype": ent.entity_type,
                 "name": ent.canonical_name,
@@ -859,8 +893,7 @@ def persist_kg(
             continue
         try:
             db.execute(
-                text(
-                    """
+                text("""
                     INSERT INTO kg_relationships
                         (source_entity_id, target_entity_id, relation_type,
                          source_document_id, confidence)
@@ -870,8 +903,7 @@ def persist_kg(
                          CAST(:doc AS uuid), 1.0)
                     ON CONFLICT (source_entity_id, target_entity_id, relation_type, source_document_id)
                         DO NOTHING
-                    """
-                ),
+                    """),
                 {
                     "s": subj_id,
                     "t": obj_id,
@@ -967,8 +999,7 @@ def ingest_news(self, sources: list[str] | None = None) -> dict:  # noqa: ANN001
                             score, linked_id = None, None
 
                     db.execute(
-                        text(
-                            """
+                        text("""
                             INSERT INTO news_items
                                 (id, source, external_id, title, url, published_at,
                                  summary, raw_html_hash, linked_circular_id,
@@ -980,8 +1011,7 @@ def ingest_news(self, sources: list[str] | None = None) -> dict:  # noqa: ANN001
                                  '[]'::jsonb, :relevance_score,
                                  'NEW'::news_status_enum, now())
                             ON CONFLICT (source, external_id) DO NOTHING
-                            """
-                        ),
+                            """),
                         {
                             "source": item.source,
                             "external_id": item.external_id,
@@ -1071,7 +1101,9 @@ def process_uploaded_pdf(
             if status in ("COMPLETED", "FAILED"):
                 set_parts.append("completed_at = now()")
             db.execute(
-                text(f"UPDATE manual_uploads SET {', '.join(set_parts)} WHERE id = CAST(:uid AS uuid)"),  # noqa: S608
+                text(
+                    f"UPDATE manual_uploads SET {', '.join(set_parts)} WHERE id = CAST(:uid AS uuid)"
+                ),  # noqa: S608
                 params,
             )
             db.commit()
