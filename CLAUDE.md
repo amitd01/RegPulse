@@ -114,4 +114,5 @@ Sprint 6 resolved TD-02, TD-04, TD-08, TD-10, TD-11, TD-12 and shipped KG expans
 | `spec.md` | Full technical spec — schema, API, RAG pipeline, security |
 | `README.md` | External docs — build progress, API ref, setup |
 | `LEARNINGS.md` | Phase 2 mistakes, root causes, and prevention rules — read before any sprint |
+| `TESTCASES.md` | Complete test inventory — functional, technical, eval, load, stress |
 | `PRODUCTION_PLAN.md` | AWS deployment roadmap and cost estimates |
