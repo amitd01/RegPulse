@@ -31,7 +31,7 @@
 | Sprint 4 | Confidence Meter UI, Dark Mode (WCAG-AA), Skeleton loaders, SSE jitter fix, A/B feature-flag scaffolding | ✅ Complete (`f6c3a5a`) |
 | Sprint 5 | Admin Manual PDF Upload, Semantic Clustering Heatmaps | ✅ Complete |
 | Sprint 6 | Pre-Launch Hardening: SIGTERM shutdown, system user audit log, scraper embeddings on insert, LLM exception tightening, KG expansion GA, retrieval eval | ✅ Complete |
-| Post-Build | Real data migration, AWS deployment (PRODUCTION_PLAN.md), Beta launch | ⏳ Planned |
+| Post-Build | Real data migration, GCP deployment (PRODUCTION_PLAN.md), Beta launch | ⏳ Planned |
 
 ---
 
@@ -51,7 +51,7 @@ rbi.org.in → Scraper (Celery) → PostgreSQL + pgvector ← FastAPI ← Next.j
 | Cache/Queue | Redis 7, Celery |
 | LLM | claude-sonnet-4-20250514 with extended thinking (primary), gpt-4o (fallback) |
 | Payments | Razorpay (INR) |
-| CI/CD | GitHub Actions → AWS ECR → ECS |
+| CI/CD | GitHub Actions → Artifact Registry → Cloud Run |
 | Reverse Proxy | Nginx with TLS 1.3, HSTS, CSP |
 
 ---
@@ -151,12 +151,12 @@ RAG_KG_EXPANSION_ENABLED=true pytest backend/tests/evals/test_retrieval.py -v
 
 ## Production Deployment
 
-See `PRODUCTION_PLAN.md` for the full AWS deployment roadmap including:
-- ECS Fargate (backend, frontend, scraper, celery-beat)
-- RDS PostgreSQL 16 + pgvector, ElastiCache Redis 7
-- ALB with ACM certificate, WAF
-- CI/CD via GitHub Actions (tag-triggered deploy)
-- Estimated cost: ~$205/month (ap-south-1)
+See `PRODUCTION_PLAN.md` for the full GCP deployment roadmap including:
+- Cloud Run (backend, frontend), GCE e2-small (celery worker + beat), Cloud Run Job (scraper)
+- Cloud SQL PostgreSQL 16 + pgvector, Memorystore Redis
+- Google-managed TLS, Cloud Armor (optional WAF)
+- CI/CD via GitHub Actions with Workload Identity Federation (tag-triggered deploy)
+- Estimated cost: ~$173/month (asia-south1)
 
 ---
 

@@ -174,7 +174,7 @@ docker compose up --build -d
 |---|---|---|
 | TD-01 | Scraper writes directly to backend DB | API isolation in v2 |
 | TD-03 | Manual api.ts client | OpenAPI codegen in v1.1 |
-| TD-09 | OG image URL uses `BACKEND_PUBLIC_URL` config which is unset in demo | Set when AWS deploy lands, falls back to localhost:8000 |
+| TD-09 | OG image URL uses `BACKEND_PUBLIC_URL` config which is unset in demo | Set when GCP deploy lands, falls back to localhost:8000 |
 | ~~TD-02~~ | ~~No graceful shutdown handlers~~ | ✅ Fixed (Sprint 6) — SIGTERM handler in `main.py` + Celery `worker_shutting_down` signal |
 | ~~TD-04~~ | ~~admin_audit_log.actor_id NOT NULL — scraper can't log~~ | ✅ Fixed (Sprint 6) — System user seeded via `005_sprint6_system_user.sql`, scraper `_audit_log()` helper |
 | ~~TD-05~~ | ~~Scraper embedder is a stub~~ | ✅ Fixed (Sprint 1) — Uses OpenAI `text-embedding-3-large` |

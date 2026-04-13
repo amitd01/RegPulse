@@ -1,13 +1,13 @@
 # RegPulse — Project Status
 
-> **All 50 prompts + Sprints 1–6 complete. CI green. Ready for AWS deploy.**
+> **All 50 prompts + Sprints 1–6 complete. CI green. Ready for GCP deploy.**
 
 ---
 
 ## Current State (2026-04-13)
 
 - **Branch:** `main` — Sprint 6 pre-launch hardening complete
-- **Phase:** Phase 2 complete (Sprints 1–6 shipped). Post-Build (AWS deploy) next.
+- **Phase:** Phase 2 complete (Sprints 1–6 shipped). Post-Build (GCP deploy) next.
 - **CI:** All 3 jobs green (backend-lint, backend-test, frontend-build)
 - **Golden eval:** 21/21 PASS
 - **Retrieval eval:** 8 tests (6 recall + 1 OOS + 1 embedding check)
@@ -53,6 +53,6 @@ f6c3a5a  feat(sprint-4): Confidence Meter UI, dark mode, skeletons, SSE jitter f
 |---|---|---|
 | TD-01 | Scraper writes directly to backend DB | API isolation in v2 |
 | TD-03 | Manual api.ts client | OpenAPI codegen in v1.1 |
-| TD-09 | `BACKEND_PUBLIC_URL` unset in demo | Set when AWS deploy lands |
+| TD-09 | `BACKEND_PUBLIC_URL` unset in demo | Set when GCP deploy lands |
 
 Resolved: ~~TD-02~~ (Sprint 6 — SIGTERM handlers), ~~TD-04~~ (Sprint 6 — system user), ~~TD-05~~ (Sprint 1), ~~TD-06~~ (Sprint 1), ~~TD-07~~ (Sprint 1), ~~TD-08~~ (Sprint 6 — scraper embeddings on insert), ~~TD-10~~ (Sprint 6 — typed LLM exceptions), ~~TD-11~~ (Sprint 6 — retrieval eval), ~~TD-12~~ (Sprint 6 — dev requirements split)

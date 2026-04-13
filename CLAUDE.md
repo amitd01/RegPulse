@@ -52,7 +52,7 @@
 | Sprint 4 | Premium UI Polish (Confidence Meter UI, Skeleton loaders, Dark mode, SSE jitter fix), A/B UX flag scaffolding + LLM SDK / fallback-model hardening | ✅ Complete (`f6c3a5a` + `fdc784c`) |
 | Sprint 5 | Admin Manual PDF Upload, Semantic Clustering Heatmaps | ✅ Complete (`5a8a77b` + CI fixes `33d9b8d`) |
 | Sprint 6 | Pre-Launch Hardening: SIGTERM shutdown, system user audit, scraper embeddings on insert, LLM exception tightening, KG expansion GA, retrieval eval, dev Dockerfile | ✅ Complete |
-| Post-Build | Real data migration, AWS deployment, Beta launch | ⏳ Planned |
+| Post-Build | Real data migration, GCP deployment, Beta launch | ⏳ Planned |
 
 ## Localhost Demo
 
@@ -75,17 +75,17 @@ Status: **Running** (updated 2026-04-13). All 6 containers operational via `dock
 - Sprint 5 migration `004_sprint5.sql`: `manual_uploads` table, `circular_documents.upload_source`, `question_clusters` table, `questions.cluster_id`
 - Sprint 6: Pre-launch hardening — SIGTERM graceful shutdown (backend + Celery), system user for audit log (`005_sprint6_system_user.sql`), scraper embeddings wired into `process_document` INSERT (TD-08 fully resolved), LLM exception handling tightened to typed API errors (TD-10), dev Dockerfile target + `requirements-dev.txt`, retrieval-level integration eval (`test_retrieval.py`), stale PR #4 closed
 - Sprint 6 migration `005_sprint6_system_user.sql`: seeds system user `00000000-0000-0000-0000-000000000001` (`system@regpulse.internal`)
-- See `PRODUCTION_PLAN.md` for AWS deployment roadmap
+- See `PRODUCTION_PLAN.md` for GCP deployment roadmap
 
 ## Next Steps (Post-Sprint 6)
 
-Sprint 6 resolved TD-02, TD-04, TD-08, TD-10, TD-11, TD-12 and shipped KG expansion GA. The next step is AWS deployment.
+Sprint 6 resolved TD-02, TD-04, TD-08, TD-10, TD-11, TD-12 and shipped KG expansion GA. The next step is GCP deployment.
 
 ### Track A: Production Deployment (see `PRODUCTION_PLAN.md`)
 | Phase | Work |
 |-------|------|
-| Infra | Terraform: VPC, ECS Fargate, RDS Postgres, ElastiCache Redis, ECR, ALB, Route53 |
-| CI/CD | GitHub Actions → ECR → ECS blue/green deploy |
+| Infra | Terraform: Cloud Run, Cloud SQL, Memorystore, Artifact Registry, Secret Manager, Cloud DNS |
+| CI/CD | GitHub Actions (WIF) → Artifact Registry → Cloud Run deploy |
 | Nginx | TLS 1.3, HSTS, CSP headers, rate limiting |
 | Data | Full scraper run against live rbi.org.in (replace 6-circular demo corpus) |
 | Secrets | Rotate demo keys, real Razorpay/SMTP credentials |
@@ -115,4 +115,4 @@ Sprint 6 resolved TD-02, TD-04, TD-08, TD-10, TD-11, TD-12 and shipped KG expans
 | `README.md` | External docs — build progress, API ref, setup |
 | `LEARNINGS.md` | Phase 2 mistakes, root causes, and prevention rules — read before any sprint |
 | `TESTCASES.md` | Complete test inventory — functional, technical, eval, load, stress |
-| `PRODUCTION_PLAN.md` | AWS deployment roadmap and cost estimates |
+| `PRODUCTION_PLAN.md` | GCP deployment roadmap and cost estimates |

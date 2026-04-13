@@ -9,41 +9,50 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: production
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-south-1
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker asia-south1-docker.pkg.dev
 
       - name: Build and push backend image
         env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
+          REGISTRY: asia-south1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/regpulse
         run: |
-          docker build -t $ECR_REGISTRY/regpulse-backend:$IMAGE_TAG backend/
-          docker push $ECR_REGISTRY/regpulse-backend:$IMAGE_TAG
+          docker build -t $REGISTRY/backend:$IMAGE_TAG backend/
+          docker push $REGISTRY/backend:$IMAGE_TAG
 
       - name: Build and push frontend image
         env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
+          REGISTRY: asia-south1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/regpulse
         run: |
-          docker build -t $ECR_REGISTRY/regpulse-frontend:$IMAGE_TAG frontend/
-          docker push $ECR_REGISTRY/regpulse-frontend:$IMAGE_TAG
+          docker build -t $REGISTRY/frontend:$IMAGE_TAG frontend/
+          docker push $REGISTRY/frontend:$IMAGE_TAG
 
-      - name: Deploy to ECS
-        env:
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          echo "Deploy to ECS with image tag: $IMAGE_TAG"
-          echo "TODO: Update ECS task definitions and force new deployment"
-          # aws ecs update-service --cluster regpulse --service backend --force-new-deployment
-          # aws ecs update-service --cluster regpulse --service frontend --force-new-deployment
+      - name: Deploy backend to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: regpulse-backend
+          region: asia-south1
+          image: asia-south1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/regpulse/backend:${{ github.sha }}
+
+      - name: Deploy frontend to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: regpulse-frontend
+          region: asia-south1
+          image: asia-south1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/regpulse/frontend:${{ github.sha }}

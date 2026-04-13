@@ -4,14 +4,13 @@
 
 | Area | Status |
 |------|--------|
-| **Codebase** | 50/50 prompts complete on remote `main` (local is behind at prompt 36) |
+| **Codebase** | 50/50 prompts complete, Sprints 1–6 shipped |
 | **CI** | GitHub Actions passing (lint + test + build) |
-| **Deploy pipeline** | Stub only — ECR push works, ECS deploy commented out |
-| **Nginx** | Missing from remote (no `nginx.conf` found) |
-| **Infra** | No AWS resources provisioned, no GitHub environments configured |
+| **Deploy pipeline** | Stub — Cloud Run deploy not yet wired |
+| **Infra** | No GCP resources provisioned, no GitHub environments configured |
 | **Branch protection** | Not possible (private repo, free GitHub plan) |
-| **Tests** | 75 unit tests, no integration/load tests against real services |
-| **Secrets management** | `.env` file only, no vault/SSM |
+| **Tests** | 75 unit tests, 21 eval tests, 8 retrieval tests, k6 load tests |
+| **Secrets management** | `.env` file only, no Secret Manager |
 
 ---
 
@@ -21,7 +20,6 @@
 ```
 git pull origin main
 ```
-This brings in prompts 37-50 (CI/CD, deploy workflow, final docs).
 
 ### 1.2 Close stale PR #4
 `sprint-3/authentication` — auth was merged via later PRs. Close it.
@@ -30,85 +28,87 @@ This brings in prompts 37-50 (CI/CD, deploy workflow, final docs).
 
 | ID | Issue | Action |
 |----|-------|--------|
-| TD-02 | No graceful shutdown | Add SIGTERM handlers to uvicorn + celery workers |
-| TD-04 | `admin_audit_log.actor_id` NOT NULL | Seed a `system` user for scraper operations |
+| TD-02 | No graceful shutdown | ✅ Fixed (Sprint 6) — SIGTERM handlers |
+| TD-04 | `admin_audit_log.actor_id` NOT NULL | ✅ Fixed (Sprint 6) — System user seeded |
 | TD-01 | Scraper writes directly to backend DB | Acceptable for v1, document as known risk |
 
 ---
 
-## Phase 2: Infrastructure Provisioning (AWS ap-south-1)
+## Phase 2: Infrastructure Provisioning (GCP asia-south1)
 
-### 2.1 Networking
-- VPC with 2 public + 2 private subnets (ap-south-1a, ap-south-1b)
-- NAT Gateway for private subnet egress
-- Security groups: ALB (80/443), backend (8000), frontend (3000), DB (5432), Redis (6379)
-
-### 2.2 Database
-- **RDS PostgreSQL 16** with `pgvector` extension
-  - Instance: `db.t3.medium` (2 vCPU, 4GB) — start small, scale on load
-  - Multi-AZ: **Yes** (financial/compliance data)
-  - Storage: 50GB gp3, auto-scaling enabled
+### 2.1 Database
+- **Cloud SQL for PostgreSQL 16** with `pgvector` extension
+  - Instance: `db-custom-2-4096` (2 vCPU, 4GB) — start small, scale on load
+  - High availability: **Yes** (financial/compliance data)
+  - Storage: 50GB SSD, auto-scaling enabled
   - Automated backups: 7-day retention, point-in-time recovery
   - Run initial migration: `alembic upgrade head`
   - Enable `pgvector` extension: `CREATE EXTENSION vector;`
 
-### 2.3 Cache
-- **ElastiCache Redis 7** (single node `cache.t3.micro` for testing)
-- Same VPC, private subnet
+### 2.2 Cache
+- **Memorystore for Redis** (Basic tier, 1GB)
+- Same VPC via VPC Serverless Access connector
 
-### 2.4 Container Registry
-- **ECR** — 2 repos: `regpulse-backend`, `regpulse-frontend`
-- Lifecycle policy: keep last 10 images
+### 2.3 Container Registry
+- **Artifact Registry** — 1 Docker repo: `asia-south1-docker.pkg.dev/$PROJECT/regpulse`
+  - Images: `backend`, `frontend`
+  - Cleanup policy: keep last 10 images per tag
 
-### 2.5 Compute (ECS Fargate)
-- **Cluster:** `regpulse`
-- **Services:**
+### 2.4 Compute (Cloud Run + GCE)
 
-| Service | Task CPU | Task Memory | Desired Count | Port |
-|---------|----------|-------------|---------------|------|
-| backend | 512 | 1024 MB | 2 | 8000 |
-| frontend | 256 | 512 MB | 2 | 3000 |
-| scraper-worker | 512 | 1024 MB | 1 | — |
-| celery-beat | 256 | 512 MB | 1 | — |
+| Service | Platform | CPU | Memory | Min/Max Instances | Port |
+|---------|----------|-----|--------|-------------------|------|
+| backend | Cloud Run | 1 vCPU | 1 GB | 1 / 10 | 8000 |
+| frontend | Cloud Run | 0.5 vCPU | 512 MB | 1 / 10 | 3000 |
+| celery worker + beat | GCE e2-small | 0.5 vCPU | 2 GB | 1 (always-on) | — |
+| scraper (daily crawl) | Cloud Run Job | 1 vCPU | 1 GB | 0 (triggered) | — |
 
-### 2.6 Load Balancer
-- **ALB** with two target groups (backend, frontend)
-- Listener rules:
-  - `/api/*` → backend target group
-  - `/*` → frontend target group
+**Why GCE for Celery?** Cloud Run is request-driven; Celery requires a long-running process to consume from the Redis broker. An `e2-small` instance runs the worker + beat scheduler persistently.
+
+**Why Cloud Run Job for scraper?** The daily crawl is a batch operation triggered by Cloud Scheduler — no persistent process needed.
+
+### 2.5 Networking
+- Cloud Run services get built-in HTTPS + load balancing (no separate ALB needed)
+- Cloud Run → Cloud SQL via **Cloud SQL Auth Proxy** (built-in Cloud Run connector)
+- Cloud Run → Memorystore via **VPC Serverless Access connector**
+- GCE instance in same VPC — direct access to Cloud SQL and Memorystore
 - Health checks: `/api/v1/health` (backend), `/` (frontend)
-- ACM certificate for `regpulse.in` (or your chosen domain)
 
-### 2.7 DNS
-- Route 53 hosted zone for domain
-- A record → ALB alias
+### 2.6 DNS
+- Cloud DNS (or external Cloudflare) for domain
+- Custom domain mapping on Cloud Run services
 
 ---
 
 ## Phase 3: Secrets & Configuration
 
-### 3.1 AWS Systems Manager Parameter Store (or Secrets Manager)
-Move all `.env` values to SSM SecureString parameters:
+### 3.1 Google Secret Manager
+Move all `.env` values to Secret Manager:
 
 ```
-/regpulse/prod/DATABASE_URL
-/regpulse/prod/REDIS_URL
-/regpulse/prod/JWT_PRIVATE_KEY
-/regpulse/prod/JWT_PUBLIC_KEY
-/regpulse/prod/OPENAI_API_KEY
-/regpulse/prod/ANTHROPIC_API_KEY
-/regpulse/prod/RAZORPAY_KEY_ID
-/regpulse/prod/RAZORPAY_KEY_SECRET
-/regpulse/prod/RAZORPAY_WEBHOOK_SECRET
-/regpulse/prod/SMTP_USER
-/regpulse/prod/SMTP_PASS
+projects/$PROJECT/secrets/REGPULSE_DATABASE_URL
+projects/$PROJECT/secrets/REGPULSE_REDIS_URL
+projects/$PROJECT/secrets/REGPULSE_JWT_PRIVATE_KEY
+projects/$PROJECT/secrets/REGPULSE_JWT_PUBLIC_KEY
+projects/$PROJECT/secrets/REGPULSE_OPENAI_API_KEY
+projects/$PROJECT/secrets/REGPULSE_ANTHROPIC_API_KEY
+projects/$PROJECT/secrets/REGPULSE_RAZORPAY_KEY_ID
+projects/$PROJECT/secrets/REGPULSE_RAZORPAY_KEY_SECRET
+projects/$PROJECT/secrets/REGPULSE_RAZORPAY_WEBHOOK_SECRET
+projects/$PROJECT/secrets/REGPULSE_SMTP_USER
+projects/$PROJECT/secrets/REGPULSE_SMTP_PASS
 ```
+
+Secrets are mounted as environment variables in Cloud Run revisions and via the GCE metadata/startup script.
 
 ### 3.2 GitHub Secrets (for deploy workflow)
 ```
-AWS_ACCESS_KEY_ID
-AWS_SECRET_ACCESS_KEY
+GCP_PROJECT_ID
+GCP_WORKLOAD_IDENTITY_PROVIDER
+GCP_SERVICE_ACCOUNT
 ```
+
+Uses **Workload Identity Federation** — no long-lived service account keys.
 
 ### 3.3 Generate production RSA keypair for JWT
 ```bash
@@ -130,15 +130,17 @@ FREE_CREDIT_GRANT=5
 ## Phase 4: CI/CD Hardening
 
 ### 4.1 Complete the deploy workflow
-Uncomment the ECS deploy commands in `.github/workflows/deploy.yml` and add:
-- ECS task definition updates (inject new image tag)
-- Wait for service stability (`aws ecs wait services-stable`)
-- Rollback on failure
+The deploy workflow (`.github/workflows/deploy.yml`) uses:
+- `google-github-actions/auth@v2` (Workload Identity Federation)
+- `google-github-actions/setup-gcloud@v2`
+- `google-github-actions/deploy-cloudrun@v2`
+
+Build + push images to Artifact Registry, deploy Cloud Run services on `v*` tags.
 
 ### 4.2 Add staging environment
-- Duplicate ECS services with `-staging` suffix
+- Separate Cloud Run services with `-staging` suffix
 - Deploy on push to `main` (auto), prod only on `v*` tags (manual)
-- Separate SSM parameter paths: `/regpulse/staging/*`
+- Separate Secret Manager secrets: `REGPULSE_STAGING_*`
 
 ### 4.3 Add integration test job to CI
 - Spin up docker-compose in GitHub Actions
@@ -155,13 +157,14 @@ Uncomment the ECS deploy commands in `.github/workflows/deploy.yml` and add:
 
 | Item | Action | Priority |
 |------|--------|----------|
-| HTTPS everywhere | ACM cert + ALB HTTPS listener, redirect HTTP→HTTPS | **Critical** |
+| HTTPS everywhere | Cloud Run provides built-in HTTPS with Google-managed TLS certificates | **Critical** |
+| Custom domain TLS | Google-managed SSL certificate via Cloud Run domain mapping | **Critical** |
 | CORS | Set `FRONTEND_URL=https://regpulse.in` (exact origin) | **Critical** |
-| Rate limiting | Confirm slowapi works behind ALB (use `X-Forwarded-For`) | **High** |
-| WAF | AWS WAF on ALB — block common attacks, geo-restrict if needed | **High** |
-| Razorpay webhook | Whitelist Razorpay IPs at security group level | **Medium** |
-| DB encryption | Enable RDS encryption at rest (default with gp3) | **Medium** |
-| Redis AUTH | Enable auth token on ElastiCache | **Medium** |
+| Rate limiting | Confirm slowapi works behind Cloud Run (use `X-Forwarded-For`) | **High** |
+| Cloud Armor | Attach via external HTTPS LB for WAF rules (defer if direct Cloud Run URLs acceptable for beta) | **High** |
+| Razorpay webhook | Restrict via Cloud Armor rules or application-level IP check | **Medium** |
+| DB encryption | Cloud SQL encryption at rest (enabled by default) | **Medium** |
+| Redis AUTH | Enable AUTH on Memorystore | **Medium** |
 | Dependency audit | `pip audit` + `pnpm audit` in CI | **Medium** |
 | CSP headers | Add `Content-Security-Policy` in Next.js config | **Medium** |
 
@@ -170,23 +173,23 @@ Uncomment the ECS deploy commands in `.github/workflows/deploy.yml` and add:
 ## Phase 6: Observability
 
 ### 6.1 Logging
-- Backend already uses `structlog` (JSON) — route container stdout to **CloudWatch Logs**
-- Create log groups: `/ecs/regpulse-backend`, `/ecs/regpulse-frontend`, `/ecs/regpulse-scraper`
+- Backend already uses `structlog` (JSON) — Cloud Run stdout auto-ingested into **Cloud Logging**
+- No log group configuration needed (zero-config; structlog JSON is auto-parsed)
 
 ### 6.2 Monitoring
-- **CloudWatch Alarms:**
-  - ECS CPU/Memory > 80%
-  - ALB 5xx rate > 1%
-  - RDS connections > 80% of max
-  - Healthy host count < desired count
-- **Custom metrics** (via CloudWatch embedded metrics or Prometheus):
+- **Cloud Monitoring alert policies:**
+  - Cloud Run CPU/Memory utilization > 80%
+  - Cloud Run 5xx rate > 1%
+  - Cloud SQL connections > 80% of max
+  - Cloud Run instance count < minimum
+- **Custom metrics** (via Cloud Monitoring or Prometheus):
   - LLM latency (p50, p95, p99)
   - RAG retrieval quality (empty results rate)
   - Credit deductions/hour
   - Scraper success/failure rate
 
 ### 6.3 Alerting
-- SNS topic → email/Slack for critical alarms
+- Cloud Monitoring notification channels → email/Slack for critical alerts
 - PagerDuty or Opsgenie for on-call (later)
 
 ---
@@ -195,7 +198,7 @@ Uncomment the ECS deploy commands in `.github/workflows/deploy.yml` and add:
 
 | Item | Action |
 |------|--------|
-| **Backups** | RDS automated backups (7-day), test restore procedure |
+| **Backups** | Cloud SQL automated backups (7-day retention), test restore procedure |
 | **Migration plan** | Script to seed initial circulars — run scraper against RBI once infra is up |
 | **DPDPA readiness** | Add consent tracking for email collection (Indian data protection law) |
 | **Data retention** | Define policy: how long to keep questions, analytics events, audit logs |
@@ -213,38 +216,64 @@ Uncomment the ECS deploy commands in `.github/workflows/deploy.yml` and add:
 - [ ] Rate limiting: verify 429 responses under load
 - [ ] LLM fallback: disable Anthropic key → verify GPT-4o fallback fires
 - [ ] Empty state: new user with no circulars indexed
-- [ ] Load test: 50 concurrent users (Locust or k6)
+- [ ] Load test: 50 concurrent users (k6)
 
 ---
 
 ## Recommended Deployment Order
 
 ```
-1. Provision AWS infra (VPC, RDS, Redis, ECR, ECS cluster, ALB)
-2. Store secrets in SSM Parameter Store
-3. Push Docker images to ECR (manual first deploy)
-4. Deploy ECS services (backend + frontend + scraper + beat)
-5. Run alembic migrations
-6. Run initial scraper crawl to seed circulars
-7. Smoke test all endpoints
-8. Point domain DNS to ALB
-9. Enable HTTPS (ACM cert)
-10. Complete deploy workflow, tag v0.1.0 for first automated deploy
+1. Create GCP project, enable APIs (Cloud Run, Cloud SQL, Memorystore, Artifact Registry, Secret Manager, Cloud Scheduler)
+2. Provision Cloud SQL instance, enable pgvector extension
+3. Provision Memorystore Redis instance
+4. Create Artifact Registry Docker repo
+5. Store secrets in Secret Manager
+6. Build and push Docker images to Artifact Registry (manual first deploy)
+7. Deploy Cloud Run services (backend + frontend)
+8. Provision GCE e2-small for celery worker + beat
+9. Create Cloud Run Job + Cloud Scheduler trigger for daily scraper crawl
+10. Run alembic migrations
+11. Run initial scraper crawl to seed circulars
+12. Smoke test all endpoints
+13. Map custom domain to Cloud Run services (Google-managed TLS)
+14. Set up Workload Identity Federation for GitHub Actions
+15. Complete deploy workflow, tag v0.1.0 for first automated deploy
 ```
 
 ---
 
-## Cost Estimate (Monthly, ap-south-1)
+## Terraform Modules (future)
+
+The following modules will be authored in a follow-up sprint:
+
+```
+terraform/
+  cloud-run.tf          # backend + frontend services
+  cloud-sql.tf          # PostgreSQL 16 + pgvector
+  memorystore.tf        # Redis
+  artifact-registry.tf  # Docker repo
+  secret-manager.tf     # All REGPULSE_* secrets
+  iam-wif.tf            # Workload Identity Federation for GitHub Actions
+  cloud-scheduler.tf    # Daily scraper trigger
+  compute-celery.tf     # GCE e2-small for celery worker + beat
+```
+
+---
+
+## Cost Estimate (Monthly, asia-south1)
 
 | Resource | Spec | ~Cost |
 |----------|------|-------|
-| RDS PostgreSQL | db.t3.medium, Multi-AZ, 50GB | $70 |
-| ElastiCache Redis | cache.t3.micro | $15 |
-| ECS Fargate (4 tasks) | ~1.5 vCPU, 3GB total | $45 |
-| ALB | 1 ALB + data transfer | $25 |
-| ECR | Storage + transfer | $5 |
-| NAT Gateway | 1 AZ | $35 |
-| CloudWatch | Logs + metrics | $10 |
-| **Total** | | **~$205/mo** |
+| Cloud SQL PostgreSQL | db-custom-2-4096, HA, 50GB SSD | $75 |
+| Memorystore Redis | Basic tier, 1GB | $35 |
+| Cloud Run backend | 1 vCPU / 1GB, min-instances=1 | $25 |
+| Cloud Run frontend | 0.5 vCPU / 512MB, min-instances=1 | $12 |
+| GCE e2-small (celery) | 0.5 vCPU / 2GB, always-on | $15 |
+| Artifact Registry | Storage + transfer | $3 |
+| Cloud Armor (if used) | 1 policy | $8 |
+| Cloud Logging/Monitoring | Within free tier | $0 |
+| **Total** | | **~$173/mo** |
+
+Note: `min-instances=1` is deliberate — scale-to-zero adds cold-start latency to `/api/v1/ask` SSE which the anti-hallucination/confidence UX depends on.
 
 Plus variable costs: OpenAI embeddings (~$0.13/1M tokens), Anthropic LLM calls (~$3/1M input tokens), SMTP (free tier for low volume).

@@ -112,12 +112,12 @@ After thorough analysis of all 50 prompts, the PRD, FSD, and MEMORY.md, I've ide
 ### F. Production Readiness (7 items)
 | # | Gap | Fix |
 |---|-----|-----|
-| F1 | No database backup strategy | Add pg_dump cron or RDS automated backups |
+| F1 | No database backup strategy | Add pg_dump cron or Cloud SQL automated backups |
 | F2 | No load testing | Add Locust/k6 prompt in Phase 8 |
-| F3 | No blue-green/canary deployment | Use ECS rolling updates + CodeDeploy |
+| F3 | No blue-green/canary deployment | Use Cloud Run revisions (traffic splitting for canary) |
 | F4 | No backward-compatible migration guidance | Add instructions for safe migrations |
 | F5 | No secrets rotation procedure | Document dual-key JWT rotation |
-| F6 | No CloudWatch log retention policy | Set 30d dev, 90d prod |
+| F6 | No Cloud Logging retention policy | Set 30d dev, 90d prod via Cloud Logging retention bucket |
 | F7 | No LLM API health check in launch script | Add lightweight API call to Prompt 48 |
 
 ### G. RAG Pipeline Improvements (8 items)

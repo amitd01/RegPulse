@@ -450,4 +450,4 @@ When `DEMO_MODE=true` and `ENVIRONMENT != prod`:
 
 **Anti-hallucination:** 3-layer protection: injection guard → insufficient context guard (< 2 chunks) → confidence scoring with "Consult Expert" fallback.
 
-See `PRODUCTION_PLAN.md` for AWS deployment roadmap.
+See `PRODUCTION_PLAN.md` for GCP deployment roadmap.
