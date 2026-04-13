@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import secrets
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import structlog
@@ -153,7 +153,7 @@ async def create_snippet(
 
     expires_at = None
     if settings.SNIPPET_EXPIRY_DAYS > 0:
-        expires_at = datetime.now(timezone.utc) + timedelta(days=settings.SNIPPET_EXPIRY_DAYS)
+        expires_at = datetime.now(UTC) + timedelta(days=settings.SNIPPET_EXPIRY_DAYS)
 
     last_error: Exception | None = None
     for attempt in range(MAX_SLUG_RETRIES):
@@ -208,7 +208,7 @@ async def get_snippet_by_slug(
     if not include_revoked and snippet.revoked:
         raise SnippetNotFoundError()
 
-    if snippet.expires_at is not None and snippet.expires_at < datetime.now(timezone.utc):
+    if snippet.expires_at is not None and snippet.expires_at < datetime.now(UTC):
         raise SnippetNotFoundError("Snippet has expired")
 
     return snippet
