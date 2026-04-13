@@ -169,9 +169,9 @@ class TestConfidenceComputation:
         chunks_many = [object()] * 5
         score_many = _compute_confidence(response2, chunks_many)
 
-        assert score_few < score_many, (
-            f"Fewer chunks should reduce confidence: {score_few} vs {score_many}"
-        )
+        assert (
+            score_few < score_many
+        ), f"Fewer chunks should reduce confidence: {score_few} vs {score_many}"
 
 
 class TestConsultExpertResponse:
@@ -310,9 +310,9 @@ class TestGoldenDatasetStructure:
     def test_all_oos_expect_consult_expert(self):
         for tc in DATASET["test_cases"]:
             if tc["category"] == "out_of_scope":
-                assert tc.get("expected_consult_expert") is True, (
-                    f"{tc['id']} should expect consult_expert"
-                )
+                assert (
+                    tc.get("expected_consult_expert") is True
+                ), f"{tc['id']} should expect consult_expert"
 
     def test_all_injection_expect_error(self):
         for tc in DATASET["test_cases"]:
@@ -322,14 +322,14 @@ class TestGoldenDatasetStructure:
     def test_all_multi_have_multiple_circulars(self):
         for tc in DATASET["test_cases"]:
             if tc["category"] == "multi_circular":
-                assert len(tc.get("expected_circulars", [])) >= 2, (
-                    f"{tc['id']} should reference multiple circulars"
-                )
+                assert (
+                    len(tc.get("expected_circulars", [])) >= 2
+                ), f"{tc['id']} should reference multiple circulars"
 
     def test_total_test_cases(self):
-        assert len(DATASET["test_cases"]) >= 25, (
-            f"Expected at least 25 test cases, got {len(DATASET['test_cases'])}"
-        )
+        assert (
+            len(DATASET["test_cases"]) >= 25
+        ), f"Expected at least 25 test cases, got {len(DATASET['test_cases'])}"
 
     def test_category_coverage(self):
         categories = {tc["category"] for tc in DATASET["test_cases"]}
@@ -364,17 +364,21 @@ if __name__ == "__main__":
                 try:
                     check_injection(tc["question"])
                     results["fail"] += 1
-                    results["details"].append({
-                        "id": test_id,
-                        "status": "FAIL",
-                        "reason": "Injection not detected",
-                    })
+                    results["details"].append(
+                        {
+                            "id": test_id,
+                            "status": "FAIL",
+                            "reason": "Injection not detected",
+                        }
+                    )
                 except PotentialInjectionError:
                     results["pass"] += 1
-                    results["details"].append({
-                        "id": test_id,
-                        "status": "PASS",
-                    })
+                    results["details"].append(
+                        {
+                            "id": test_id,
+                            "status": "PASS",
+                        }
+                    )
                 continue
 
             # Build chunks
@@ -385,36 +389,44 @@ if __name__ == "__main__":
 
                 if len(chunks) < 2:
                     results["pass"] += 1
-                    results["details"].append({
-                        "id": test_id,
-                        "status": "PASS",
-                        "reason": "Insufficient context → expert fallback",
-                    })
+                    results["details"].append(
+                        {
+                            "id": test_id,
+                            "status": "PASS",
+                            "reason": "Insufficient context → expert fallback",
+                        }
+                    )
                 else:
                     results["skip"] += 1
-                    results["details"].append({
-                        "id": test_id,
-                        "status": "SKIP",
-                        "reason": "Would need real LLM to evaluate",
-                    })
+                    results["details"].append(
+                        {
+                            "id": test_id,
+                            "status": "SKIP",
+                            "reason": "Would need real LLM to evaluate",
+                        }
+                    )
                 continue
 
             # Factual / multi-circular — check chunk availability
             if len(chunks) >= 2:
                 results["pass"] += 1
-                results["details"].append({
-                    "id": test_id,
-                    "status": "PASS",
-                    "reason": f"Sufficient context ({len(chunks)} chunks) for {category}",
-                    "chunks_found": len(chunks),
-                })
+                results["details"].append(
+                    {
+                        "id": test_id,
+                        "status": "PASS",
+                        "reason": f"Sufficient context ({len(chunks)} chunks) for {category}",
+                        "chunks_found": len(chunks),
+                    }
+                )
             else:
                 results["fail"] += 1
-                results["details"].append({
-                    "id": test_id,
-                    "status": "FAIL",
-                    "reason": f"Insufficient chunks ({len(chunks)}) for {category}",
-                })
+                results["details"].append(
+                    {
+                        "id": test_id,
+                        "status": "FAIL",
+                        "reason": f"Insufficient chunks ({len(chunks)}) for {category}",
+                    }
+                )
 
         print(f"\nResults: {results['pass']} PASS, {results['fail']} FAIL, {results['skip']} SKIP")
         print(f"Total: {len(DATASET['test_cases'])} test cases")

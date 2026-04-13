@@ -86,9 +86,7 @@ class QuestionCluster(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     cluster_label: Mapped[str] = mapped_column(String(200), nullable=False)
-    representative_questions: Mapped[list] = mapped_column(
-        ARRAY(Text), server_default="{}"
-    )
+    representative_questions: Mapped[list] = mapped_column(ARRAY(Text), server_default="{}")
     centroid = mapped_column(Vector(3072))
     question_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     period_start: Mapped[date] = mapped_column(Date, nullable=False)

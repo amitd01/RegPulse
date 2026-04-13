@@ -149,6 +149,7 @@ class Settings(BaseSettings):
             # the case where someone deliberately points the primary at
             # a non-Anthropic model. We just log so it's discoverable.
             import warnings
+
             warnings.warn(
                 f"LLM_MODEL='{self.LLM_MODEL}' does not start with 'claude-' — "
                 "the primary path uses the Anthropic SDK; ensure the model "

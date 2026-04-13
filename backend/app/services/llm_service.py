@@ -153,11 +153,7 @@ def _compute_confidence(
     retrieval_score = min(1.0, len(chunks) / 3.0)  # 3+ chunks = full score
 
     # Weighted combination — citations matter most for a compliance product
-    final = (
-        0.3 * llm_confidence
-        + 0.5 * citation_survival
-        + 0.2 * retrieval_score
-    )
+    final = 0.3 * llm_confidence + 0.5 * citation_survival + 0.2 * retrieval_score
 
     return round(final, 2)
 

@@ -135,8 +135,8 @@ async def list_uploads(
         count_base = count_base.where(ManualUpload.status == status.upper())
 
     total = (await db.execute(count_base)).scalar() or 0
-    stmt = base.order_by(desc(ManualUpload.created_at)).offset((page - 1) * page_size).limit(
-        page_size
+    stmt = (
+        base.order_by(desc(ManualUpload.created_at)).offset((page - 1) * page_size).limit(page_size)
     )
     result = await db.execute(stmt)
     uploads = list(result.scalars().all())

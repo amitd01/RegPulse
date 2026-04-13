@@ -406,9 +406,7 @@ class RAGService:
         if not seed_entities:
             return chunks
 
-        circular_numbers = await neighbor_circular_numbers(
-            self._db, seed_entities=seed_entities
-        )
+        circular_numbers = await neighbor_circular_numbers(self._db, seed_entities=seed_entities)
         # Drop circulars already represented in the result set
         already = {c.circular_number for c in chunks if c.circular_number}
         new_circulars = [n for n in circular_numbers if n not in already]
@@ -416,8 +414,7 @@ class RAGService:
             return chunks
 
         # Pull up to `max_per_doc` chunks per neighbour circular
-        stmt = text(
-            """
+        stmt = text("""
             SELECT
                 dc.id, dc.document_id, dc.chunk_index, dc.chunk_text,
                 dc.token_count, cd.circular_number, cd.title, cd.rbi_url
@@ -428,8 +425,7 @@ class RAGService:
               AND dc.embedding IS NOT NULL
             ORDER BY dc.chunk_index
             LIMIT :hard_limit
-            """
-        )
+            """)
         result = await self._db.execute(
             stmt,
             {

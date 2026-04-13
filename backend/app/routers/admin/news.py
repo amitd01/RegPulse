@@ -33,11 +33,7 @@ async def list_all_news(
     total_stmt = select(func.count()).select_from(base.subquery())
     total = (await db.execute(total_stmt)).scalar() or 0
 
-    stmt = (
-        base.order_by(desc(NewsItem.created_at))
-        .offset((page - 1) * page_size)
-        .limit(page_size)
-    )
+    stmt = base.order_by(desc(NewsItem.created_at)).offset((page - 1) * page_size).limit(page_size)
     result = await db.execute(stmt)
     items = list(result.scalars().all())
 

@@ -106,7 +106,5 @@ async def revoke_snippet(
     user: User = Depends(require_verified_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    await snippet_service.revoke_snippet(
-        db, slug=slug, user_id=user.id, is_admin=user.is_admin
-    )
+    await snippet_service.revoke_snippet(db, slug=slug, user_id=user.id, is_admin=user.is_admin)
     return {"success": True, "message": "Snippet revoked"}

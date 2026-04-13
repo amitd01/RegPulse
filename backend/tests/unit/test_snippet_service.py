@@ -29,15 +29,17 @@ def _question(
     return SimpleNamespace(
         quick_answer=quick_answer,
         answer_text=detailed_interpretation,
-        citations=citations
-        if citations is not None
-        else [
-            {
-                "circular_number": "RBI/2024-25/42",
-                "verbatim_quote": "Section 5.2: Periodic updation of KYC...",
-                "section_reference": "5.2",
-            }
-        ],
+        citations=(
+            citations
+            if citations is not None
+            else [
+                {
+                    "circular_number": "RBI/2024-25/42",
+                    "verbatim_quote": "Section 5.2: Periodic updation of KYC...",
+                    "section_reference": "5.2",
+                }
+            ]
+        ),
     )
 
 

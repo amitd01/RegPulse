@@ -123,8 +123,7 @@ async def get_neighbors(
     if depth not in (1, 2):
         raise ValueError("depth must be 1 or 2")
 
-    sql_d1 = text(
-        """
+    sql_d1 = text("""
         SELECT
             ke.id, ke.entity_type::text, ke.canonical_name, ke.aliases,
             r.relation_type::text, 'OUT' AS direction
@@ -139,15 +138,13 @@ async def get_neighbors(
         JOIN kg_entities ke ON ke.id = r.source_entity_id
         WHERE r.target_entity_id = CAST(:eid AS uuid)
         LIMIT :limit
-        """
-    )
+        """)
 
     if depth == 1:
         result = await db.execute(sql_d1, {"eid": str(entity_id), "limit": limit})
     else:
         # Depth-2: union the depth-1 result with neighbours-of-neighbours.
-        sql_d2 = text(
-            """
+        sql_d2 = text("""
             WITH first_hop AS (
                 SELECT target_entity_id AS id FROM kg_relationships
                 WHERE source_entity_id = CAST(:eid AS uuid)
@@ -163,8 +160,7 @@ async def get_neighbors(
             WHERE r.source_entity_id IN (SELECT id FROM first_hop)
               AND r.target_entity_id <> CAST(:eid AS uuid)
             LIMIT :limit
-            """
-        )
+            """)
         result = await db.execute(sql_d2, {"eid": str(entity_id), "limit": limit})
 
     rows = result.all()
@@ -200,8 +196,7 @@ async def neighbor_circular_numbers(
         return set()
 
     seed_ids = [str(e.id) for e in seed_entities]
-    sql = text(
-        """
+    sql = text("""
         SELECT DISTINCT ke.canonical_name
         FROM kg_relationships r
         JOIN kg_entities ke ON ke.id = r.source_entity_id OR ke.id = r.target_entity_id
@@ -211,8 +206,7 @@ async def neighbor_circular_numbers(
             OR r.target_entity_id = ANY(CAST(:ids AS uuid[]))
           )
         LIMIT :limit
-        """
-    )
+        """)
     result = await db.execute(
         sql,
         {"ids": seed_ids, "limit": limit_per_seed * max(len(seed_ids), 1)},

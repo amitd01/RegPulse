@@ -70,9 +70,7 @@ class CircularDocument(Base):
     affected_teams: Mapped[dict | None] = mapped_column(JSONB, server_default="'[]'::jsonb")
     tags: Mapped[dict | None] = mapped_column(JSONB, server_default="'[]'::jsonb")
     regulator: Mapped[str] = mapped_column(String(20), default="RBI", nullable=False)
-    upload_source: Mapped[str] = mapped_column(
-        String(20), nullable=False, server_default="scraper"
-    )
+    upload_source: Mapped[str] = mapped_column(String(20), nullable=False, server_default="scraper")
     scraper_run_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("scraper_runs.id", ondelete="SET NULL")
     )

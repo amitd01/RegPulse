@@ -60,6 +60,7 @@ router = APIRouter(tags=["auth"])
 # Dependency factories & Config overrides
 # ---------------------------------------------------------------------------
 
+
 def _set_refresh_cookie(response: Response, token: str, settings: Settings) -> None:
     response.set_cookie(
         key="refresh_token",
@@ -70,6 +71,7 @@ def _set_refresh_cookie(response: Response, token: str, settings: Settings) -> N
         max_age=30 * 24 * 3600,
         path="/",
     )
+
 
 def _clear_refresh_cookie(response: Response) -> None:
     response.delete_cookie(
