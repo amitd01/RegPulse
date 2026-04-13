@@ -277,6 +277,12 @@
 **Fix:** Added `per-file-ignores` in `pyproject.toml` for scripts (`T201`), evals (`T201`), and `kg_service.py` (`S608`). Fixed the 3 code-level issues (E501, B905). `ruff check backend/` now passes with 0 errors.
 **Prevention:** After adding or changing ruff rules, always run `ruff check backend/` locally before pushing. Consider adding it to a pre-commit hook.
 
+### L5.5 — `ruff check --fix` modifies files silently — must stage ALL changed files, not just the ones you intended
+**What bit us:** Ran `ruff check --fix backend/` to auto-fix lint errors. It fixed files in `snippet_service.py` (UP017: `timezone.utc` → `UTC`) alongside the files I was targeting. I staged only the 4 files I knew about and committed. `snippet_service.py` stayed as an unstaged local change. CI then failed on the very fix I thought I'd already applied.
+**Root cause:** `--fix` modifies files in-place across the entire target directory. If you cherry-pick which files to stage, you'll miss silently-fixed files. This cost 3 extra CI-fix commits.
+**Fix:** Committed the missed file.
+**Prevention:** After `ruff check --fix`, always run `git diff --name-only` to see ALL modified files before staging. Or use `git add -u` for lint-fix commits to catch everything. Better yet: run `ruff check` (without `--fix`) first to see the list, fix manually or with `--fix`, then verify with `git status`.
+
 ---
 
 ## Cross-Sprint Patterns
