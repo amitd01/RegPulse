@@ -31,7 +31,9 @@
 | Sprint 4 | Confidence Meter UI, Dark Mode (WCAG-AA), Skeleton loaders, SSE jitter fix, A/B feature-flag scaffolding | ✅ Complete (`f6c3a5a`) |
 | Sprint 5 | Admin Manual PDF Upload, Semantic Clustering Heatmaps | ✅ Complete |
 | Sprint 6 | Pre-Launch Hardening: SIGTERM shutdown, system user audit log, scraper embeddings on insert, LLM exception tightening, KG expansion GA, retrieval eval | ✅ Complete |
-| Post-Build | Real data migration, GCP deployment (PRODUCTION_PLAN.md), Beta launch | ⏳ Planned |
+| Sprint 7 | DPDP compliance (account deletion + data export), subscription auto-renewal, low-credit notifications | ⏳ Planned |
+| Sprint 8 | Updates feed tracking, action items stats/overdue, admin sandbox, question suggestions, PDF QR codes | ⏳ Planned |
+| Post-Build | GCP deploy (PRODUCTION_PLAN.md), real data migration, Beta launch | ⏳ Planned |
 
 ---
 

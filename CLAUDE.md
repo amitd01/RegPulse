@@ -79,31 +79,38 @@ Status: **Running** (updated 2026-04-13). All 6 containers operational via `dock
 
 ## Next Steps (Post-Sprint 6)
 
-Sprint 6 resolved TD-02, TD-04, TD-08, TD-10, TD-11, TD-12 and shipped KG expansion GA. The next step is GCP deployment.
+Sprint 6 resolved TD-02, TD-04, TD-08, TD-10, TD-11, TD-12 and shipped KG expansion GA. See `DEVELOPMENT_PLAN.md` for the unified implementation plan.
 
-### Track A: Production Deployment (see `PRODUCTION_PLAN.md`)
+### Pre-Launch (Sprints 7–8 + GCP Phases A–C)
 | Phase | Work |
 |-------|------|
-| Infra | Terraform: Cloud Run, Cloud SQL, Memorystore, Artifact Registry, Secret Manager, Cloud DNS |
-| CI/CD | GitHub Actions (WIF) → Artifact Registry → Cloud Run deploy |
-| Nginx | TLS 1.3, HSTS, CSP headers, rate limiting |
-| Data | Full scraper run against live rbi.org.in (replace 6-circular demo corpus) |
-| Secrets | Rotate demo keys, real Razorpay/SMTP credentials |
-| Staging | Branch protection, staging env, integration tests |
+| Sprint 7 | **DPDP compliance** (account deletion + data export), subscription auto-renewal, low-credit notifications |
+| Sprint 8 | Updates feed tracking, action items stats/overdue, admin Q&A sandbox, question suggestions, PDF QR codes |
+| Phase A | GCP infra provisioning: Cloud SQL, Memorystore, Artifact Registry, Secret Manager (parallel with Sprint 7) |
+| Phase B | CI/CD hardening: WIF, staging env, security baseline, integration tests |
+| Phase C | Data migration (full RBI scrape), observability, pre-launch testing, v1.0.0 launch |
 
-### Track B: Remaining Tech Debt
+### Post-Launch (Sprint 9+)
+| Phase | Work |
+|-------|------|
+| Sprint 9 | pybreaker circuit breaker, TD-01/TD-03/TD-09, mobile responsive polish |
+| Sprint 10–12 | Conversational Q&A, team seats, shared interpretations |
+| Sprint 13–15 | Multi-regulator (SEBI), cross-regulator RAG, email digests |
+| Sprint 16–18 | Enterprise API, batch export, circular version diff |
+
+### Remaining Tech Debt
 | Size | Items |
 |------|-------|
-| Medium | TD-01 (scraper DB isolation), TD-03 (OpenAPI codegen) |
+| Medium | TD-01 (scraper DB isolation), TD-03 (OpenAPI codegen), TD-09 (BACKEND_PUBLIC_URL) |
 
-### Track C: Feature Additions
-| Feature | Description |
-|---------|-------------|
-| Multi-regulator | SEBI/IRDAI support — new scraper sources, schema changes |
-| Team collaboration | Shared workspaces, role-based access |
-| Email digests | Weekly regulatory summary via Celery beat |
-| Mobile responsive | Tailwind breakpoints for full app |
-| Export improvements | Batch PDF, Excel for action items |
+### PRD v2.0 → v3.0 Gap Summary (12 gaps)
+| Priority | Gaps |
+|----------|------|
+| **Before Launch** | G-01 (DPDP deletion), G-02 (DPDP export) |
+| **Sprint 7** | G-04 (auto-renewal), G-05 (low-credit emails) |
+| **Sprint 8** | G-03 (updates tracking), G-06 (action stats), G-07 (admin sandbox), G-08 (suggestions), G-09 (PDF QR), G-12 (overdue) |
+| **Sprint 9** | G-10 (circuit breaker) |
+| **Deferred** | G-11 (query expansion — KG expansion serves same purpose) |
 
 ## File Reference
 
@@ -116,3 +123,7 @@ Sprint 6 resolved TD-02, TD-04, TD-08, TD-10, TD-11, TD-12 and shipped KG expans
 | `LEARNINGS.md` | Phase 2 mistakes, root causes, and prevention rules — read before any sprint |
 | `TESTCASES.md` | Complete test inventory — functional, technical, eval, load, stress |
 | `PRODUCTION_PLAN.md` | GCP deployment roadmap and cost estimates |
+| `DEVELOPMENT_PLAN.md` | Unified implementation plan — gap closure, infra, roadmap |
+| `RegPulse_PRD_v3.md` | Product requirements v3.0 with gap analysis |
+| `RegPulse_FSD_v3.md` | Functional specification v3.0 with gap analysis |
+| `TECHNICAL_DOCS.md` | Full technical documentation — architecture, DB, API, RAG, security, runbook |

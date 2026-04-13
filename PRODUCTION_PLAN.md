@@ -200,7 +200,7 @@ Build + push images to Artifact Registry, deploy Cloud Run services on `v*` tags
 |------|--------|
 | **Backups** | Cloud SQL automated backups (7-day retention), test restore procedure |
 | **Migration plan** | Script to seed initial circulars — run scraper against RBI once infra is up |
-| **DPDPA readiness** | Add consent tracking for email collection (Indian data protection law) |
+| **DPDP Act compliance** | **LAUNCH BLOCKER** — `PATCH /account/delete` and `GET /account/export` must be implemented before production (see `DEVELOPMENT_PLAN.md` Sprint 7, Gaps G-01 and G-02) |
 | **Data retention** | Define policy: how long to keep questions, analytics events, audit logs |
 | **Audit trail** | `admin_audit_log` already exists — verify it covers all admin mutations |
 
