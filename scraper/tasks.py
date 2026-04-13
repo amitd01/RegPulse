@@ -1306,3 +1306,187 @@ def _mark_run_failed(run_id: str, error_msg: str) -> None:
             db.commit()
     except Exception:
         logger.error("mark_run_failed_error", run_id=run_id, exc_info=True)
+
+
+# ---------------------------------------------------------------------------
+# Subscription renewal check (Gap G-04)
+# ---------------------------------------------------------------------------
+
+
+@shared_task(
+    bind=True,
+    soft_time_limit=300,
+    name="scraper.tasks.subscription_renewal_check",
+)
+def subscription_renewal_check(self) -> dict:  # noqa: ANN001, ARG001
+    """Check for expiring subscriptions and send renewal reminders.
+
+    Runs daily at 08:00 IST. For users with plan_auto_renew=TRUE and
+    plan_expires_at < now() + 3 days, send a renewal reminder email.
+    v1: reminder only — auto-charge requires Razorpay Subscriptions API.
+    """
+    log = logger.bind(task="subscription_renewal_check")
+    log.info("renewal_check_started")
+
+    try:
+        with get_db_session() as db:
+            rows = db.execute(
+                text(
+                    "SELECT id, email, plan, plan_expires_at "
+                    "FROM users "
+                    "WHERE plan != 'free' "
+                    "AND plan_auto_renew = TRUE "
+                    "AND is_active = TRUE "
+                    "AND plan_expires_at IS NOT NULL "
+                    "AND plan_expires_at < now() + interval '3 days' "
+                    "AND plan_expires_at > now()"
+                )
+            ).fetchall()
+
+        reminded = 0
+        for row in rows:
+            try:
+                _send_renewal_reminder(row.email, row.plan, row.plan_expires_at)
+                reminded += 1
+            except Exception:
+                log.error(
+                    "renewal_reminder_failed",
+                    user_id=str(row.id),
+                    exc_info=True,
+                )
+
+        log.info("renewal_check_completed", reminded=reminded, total_expiring=len(rows))
+        return {"status": "ok", "reminded": reminded}
+    except Exception as exc:
+        log.error("renewal_check_error", exc_info=True)
+        return {"status": "error", "error": str(exc)}
+
+
+def _send_renewal_reminder(email: str, plan: str, expires_at: object) -> None:
+    """Send a renewal reminder email via SMTP."""
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+
+    settings = get_scraper_settings()
+    subject = "RegPulse — Your subscription is expiring soon"
+    html = (
+        f"<p>Your <strong>{plan}</strong> plan is expiring on "
+        f"<strong>{expires_at}</strong>.</p>"
+        "<p>Log in to RegPulse to renew your subscription and continue "
+        "accessing regulatory intelligence.</p>"
+        '<p><a href="https://regpulse.in/account">Renew Now</a></p>'
+    )
+    plain = (
+        f"Your {plan} plan is expiring on {expires_at}. "
+        "Log in to RegPulse to renew: https://regpulse.in/account"
+    )
+
+    msg = MIMEMultipart("alternative")
+    msg["From"] = settings.SMTP_FROM
+    msg["To"] = email
+    msg["Subject"] = subject
+    msg.attach(MIMEText(plain, "plain", "utf-8"))
+    msg.attach(MIMEText(html, "html", "utf-8"))
+
+    with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+        server.starttls()
+        server.login(settings.SMTP_USER, settings.SMTP_PASS)
+        server.send_message(msg)
+
+    logger.info("renewal_reminder_sent", domain=email.rsplit("@", 1)[-1])
+
+
+# ---------------------------------------------------------------------------
+# Low-credit notification check (Gap G-05)
+# ---------------------------------------------------------------------------
+
+
+@shared_task(
+    bind=True,
+    soft_time_limit=300,
+    name="scraper.tasks.credit_notifications",
+)
+def credit_notifications(self) -> dict:  # noqa: ANN001, ARG001
+    """Check for users with low credit balance and send notification emails.
+
+    Runs daily at 09:00 IST. For free-plan users with credits <= 10
+    who haven't been alerted in 7 days, send a low-credit email.
+    """
+    log = logger.bind(task="credit_notifications")
+    log.info("credit_notifications_started")
+
+    try:
+        with get_db_session() as db:
+            rows = db.execute(
+                text(
+                    "SELECT id, email, credit_balance "
+                    "FROM users "
+                    "WHERE credit_balance <= 10 "
+                    "AND is_active = TRUE "
+                    "AND (last_credit_alert_sent IS NULL "
+                    "     OR last_credit_alert_sent < now() - interval '7 days')"
+                )
+            ).fetchall()
+
+        notified = 0
+        for row in rows:
+            try:
+                _send_low_credit_email(row.email, row.credit_balance)
+                # Update last_credit_alert_sent
+                with get_db_session() as db:
+                    db.execute(
+                        text(
+                            "UPDATE users SET last_credit_alert_sent = now() "
+                            "WHERE id = :id"
+                        ),
+                        {"id": str(row.id)},
+                    )
+                    db.commit()
+                notified += 1
+            except Exception:
+                log.error(
+                    "credit_notification_failed",
+                    user_id=str(row.id),
+                    exc_info=True,
+                )
+
+        log.info("credit_notifications_completed", notified=notified, total_low=len(rows))
+        return {"status": "ok", "notified": notified}
+    except Exception as exc:
+        log.error("credit_notifications_error", exc_info=True)
+        return {"status": "error", "error": str(exc)}
+
+
+def _send_low_credit_email(email: str, remaining_credits: int) -> None:
+    """Send a low-credit warning email via SMTP."""
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+
+    settings = get_scraper_settings()
+    subject = "RegPulse — Low credit balance"
+    html = (
+        f"<p>You have <strong>{remaining_credits}</strong> credit(s) remaining "
+        "on RegPulse.</p>"
+        "<p>Upgrade your plan to continue asking regulatory questions.</p>"
+        '<p><a href="https://regpulse.in/upgrade">Upgrade Now</a></p>'
+    )
+    plain = (
+        f"You have {remaining_credits} credit(s) remaining on RegPulse. "
+        "Upgrade to continue: https://regpulse.in/upgrade"
+    )
+
+    msg = MIMEMultipart("alternative")
+    msg["From"] = settings.SMTP_FROM
+    msg["To"] = email
+    msg["Subject"] = subject
+    msg.attach(MIMEText(plain, "plain", "utf-8"))
+    msg.attach(MIMEText(html, "html", "utf-8"))
+
+    with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+        server.starttls()
+        server.login(settings.SMTP_USER, settings.SMTP_PASS)
+        server.send_message(msg)
+
+    logger.info("low_credit_email_sent", domain=email.rsplit("@", 1)[-1])

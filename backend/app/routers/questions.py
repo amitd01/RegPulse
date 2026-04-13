@@ -31,6 +31,7 @@ from app.schemas.questions import (
     QuestionResponse,
     QuestionSummary,
 )
+from app.services.email_service import EmailService
 from app.services.llm_service import LLMService
 from app.services.rag_service import RAGService
 from app.utils.credit_utils import deduct_credit
@@ -174,6 +175,14 @@ async def ask_question(
     await db.commit()
     await db.refresh(question)
 
+    # 5b. Low-credit notification at thresholds 5 or 2
+    if new_balance in (5, 2):
+        try:
+            email_svc = EmailService()
+            await email_svc.send_low_credits_email(user.email, new_balance)
+        except Exception:
+            logger.warning("low_credit_email_failed", user_id=str(user.id))
+
     # 6. Cache the answer
     await rag.cache_answer(
         question_text,
@@ -252,6 +261,14 @@ async def _stream_response(
         db.add(question)
         new_balance = await deduct_credit(db, user.id)
         await db.commit()
+
+        # Low-credit notification at thresholds 5 or 2
+        if new_balance in (5, 2):
+            try:
+                email_svc = EmailService()
+                await email_svc.send_low_credits_email(user.email, new_balance)
+            except Exception:
+                logger.warning("low_credit_email_failed", user_id=str(user.id))
 
         done_data = json.dumps(
             {

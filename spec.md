@@ -1,6 +1,6 @@
 # RegPulse — Technical Specification
 
-> **Living spec. Reflects actual implementation state — all 50 prompts + Sprints 1–6 complete.**
+> **Living spec. Reflects actual implementation state — all 50 prompts + Sprints 1–7 complete.**
 > For architecture rules, see `MEMORY.md`. For build progress, see `CLAUDE.md`.
 
 ---
@@ -9,7 +9,7 @@
 
 RegPulse is a B2B SaaS platform delivering RAG-powered Q&A over RBI Circulars for Indian banking professionals. Two modules: a Celery scraper that indexes RBI documents into pgvector, and a FastAPI+Next.js web app that retrieves and answers questions with cited sources.
 
-**(Phase 2 — Sprints 1–6 complete)**: HTTPOnly cookie security, PostHog analytics, OpenAI embedding pipeline, marketing landing page, anti-hallucination confidence scoring with "Consult an Expert" fallback, golden dataset evaluation pipeline, k6 load tests, public safe snippet sharing, RSS news ingest with embedding-based circular linking, knowledge graph extraction with **RAG expansion now enabled by default**, Confidence Meter UI, class-based dark mode with WCAG-AA contrast, skeleton loaders, rAF-buffered SSE rendering, PostHog feature-flag scaffolding, admin manual PDF upload, semantic clustering heatmaps. Sprint 6: SIGTERM graceful shutdown, system user audit log, scraper embeddings on insert, typed LLM exceptions, retrieval-level integration eval, dev Dockerfile.
+**(Phase 2 — Sprints 1–7 complete)**: HTTPOnly cookie security, PostHog analytics, OpenAI embedding pipeline, marketing landing page, anti-hallucination confidence scoring with "Consult an Expert" fallback, golden dataset evaluation pipeline, k6 load tests, public safe snippet sharing, RSS news ingest with embedding-based circular linking, knowledge graph extraction with **RAG expansion now enabled by default**, Confidence Meter UI, class-based dark mode with WCAG-AA contrast, skeleton loaders, rAF-buffered SSE rendering, PostHog feature-flag scaffolding, admin manual PDF upload, semantic clustering heatmaps. Sprint 6: SIGTERM graceful shutdown, system user audit log, scraper embeddings on insert, typed LLM exceptions, retrieval-level integration eval, dev Dockerfile. Sprint 7: DPDP compliance (account deletion + data export), subscription auto-renewal toggle, low-credit notification tasks.
 
 ```
 rbi.org.in → Scraper (Celery/Redis) → PostgreSQL+pgvector

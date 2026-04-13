@@ -31,6 +31,7 @@ from app.exceptions import (
     regpulse_exception_handler,
 )
 from app.rate_limit import limiter
+from app.routers.account import router as account_router
 from app.routers.action_items import router as action_items_router
 from app.routers.admin import router as admin_router
 from app.routers.auth import router as auth_router
@@ -274,6 +275,7 @@ async def request_id_middleware(request: Request, call_next) -> Response:  # typ
 # ---------------------------------------------------------------------------
 # Routers — all at /api/v1/
 # ---------------------------------------------------------------------------
+app.include_router(account_router, prefix="/api/v1/account")
 app.include_router(auth_router, prefix="/api/v1/auth")
 app.include_router(circulars_router, prefix="/api/v1/circulars")
 app.include_router(questions_router, prefix="/api/v1/questions")

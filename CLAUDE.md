@@ -42,7 +42,7 @@
 | 37–42 | Dashboard, updates, admin UI, analytics, summary services | Done |
 | 43–50 | PDF export, CI/CD, Nginx, Makefile, launch checks | Done |
 
-## Phase 2 Roadmap (Sprint 1-6)
+## Phase 2 Roadmap (Sprint 1-7)
 
 | Sprint | Description | Status |
 |--------|-------------|--------|
@@ -52,6 +52,7 @@
 | Sprint 4 | Premium UI Polish (Confidence Meter UI, Skeleton loaders, Dark mode, SSE jitter fix), A/B UX flag scaffolding + LLM SDK / fallback-model hardening | ✅ Complete (`f6c3a5a` + `fdc784c`) |
 | Sprint 5 | Admin Manual PDF Upload, Semantic Clustering Heatmaps | ✅ Complete (`5a8a77b` + CI fixes `33d9b8d`) |
 | Sprint 6 | Pre-Launch Hardening: SIGTERM shutdown, system user audit, scraper embeddings on insert, LLM exception tightening, KG expansion GA, retrieval eval, dev Dockerfile | ✅ Complete |
+| Sprint 7 | DPDP Compliance (account deletion + data export), subscription auto-renewal, low-credit notifications | ✅ Complete |
 | Post-Build | Real data migration, GCP deployment, Beta launch | ⏳ Planned |
 
 ## Localhost Demo
@@ -76,15 +77,16 @@ Status: **Running** (updated 2026-04-13). All 6 containers operational via `dock
 - Sprint 6: Pre-launch hardening — SIGTERM graceful shutdown (backend + Celery), system user for audit log (`005_sprint6_system_user.sql`), scraper embeddings wired into `process_document` INSERT (TD-08 fully resolved), LLM exception handling tightened to typed API errors (TD-10), dev Dockerfile target + `requirements-dev.txt`, retrieval-level integration eval (`test_retrieval.py`), stale PR #4 closed
 - Sprint 6 migration `005_sprint6_system_user.sql`: seeds system user `00000000-0000-0000-0000-000000000001` (`system@regpulse.internal`)
 - See `PRODUCTION_PLAN.md` for GCP deployment roadmap
+- Sprint 7: DPDP compliance — account deletion (`PATCH /api/v1/account/delete`) with OTP verification, PII anonymisation, session revocation; data export (`GET /api/v1/account/export`) as downloadable JSON; auto-renew toggle (`PATCH /api/v1/subscriptions/auto-renew`); Celery tasks for renewal reminders (daily 08:00 IST) and low-credit notifications (daily 09:00 IST); in-request low-credit email trigger at balance 5 or 2
+- Sprint 7 adds account router at `/api/v1/account` (3 endpoints), auto-renew endpoint in subscriptions, 2 Celery beat tasks, 6 unit tests
 
-## Next Steps (Post-Sprint 6)
+## Next Steps (Post-Sprint 7)
 
-Sprint 6 resolved TD-02, TD-04, TD-08, TD-10, TD-11, TD-12 and shipped KG expansion GA. See `DEVELOPMENT_PLAN.md` for the unified implementation plan.
+Sprint 7 resolved G-01 (DPDP deletion), G-02 (DPDP export), G-04 (auto-renewal), G-05 (low-credit notifications). See `DEVELOPMENT_PLAN.md` for the unified implementation plan.
 
-### Pre-Launch (Sprints 7–8 + GCP Phases A–C)
+### Pre-Launch (Sprint 8 + GCP Phases A–C)
 | Phase | Work |
 |-------|------|
-| Sprint 7 | **DPDP compliance** (account deletion + data export), subscription auto-renewal, low-credit notifications |
 | Sprint 8 | Updates feed tracking, action items stats/overdue, admin Q&A sandbox, question suggestions, PDF QR codes |
 | Phase A | GCP infra provisioning: Cloud SQL, Memorystore, Artifact Registry, Secret Manager (parallel with Sprint 7) |
 | Phase B | CI/CD hardening: WIF, staging env, security baseline, integration tests |
@@ -106,8 +108,8 @@ Sprint 6 resolved TD-02, TD-04, TD-08, TD-10, TD-11, TD-12 and shipped KG expans
 ### PRD v2.0 → v3.0 Gap Summary (12 gaps)
 | Priority | Gaps |
 |----------|------|
-| **Before Launch** | G-01 (DPDP deletion), G-02 (DPDP export) |
-| **Sprint 7** | G-04 (auto-renewal), G-05 (low-credit emails) |
+| ~~**Before Launch**~~ | ~~G-01 (DPDP deletion), G-02 (DPDP export)~~ — ✅ Sprint 7 |
+| ~~**Sprint 7**~~ | ~~G-04 (auto-renewal), G-05 (low-credit emails)~~ — ✅ Sprint 7 |
 | **Sprint 8** | G-03 (updates tracking), G-06 (action stats), G-07 (admin sandbox), G-08 (suggestions), G-09 (PDF QR), G-12 (overdue) |
 | **Sprint 9** | G-10 (circuit breaker) |
 | **Deferred** | G-11 (query expansion — KG expansion serves same purpose) |

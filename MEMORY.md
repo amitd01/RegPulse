@@ -10,7 +10,7 @@ B2B SaaS for Indian banking professionals. RAG-powered Q&A over RBI Circulars wi
 
 > **Read `LEARNINGS.md` at the repo root before starting any sprint.** Phase 2 mistakes are catalogued there with root causes and prevention rules.
 
-**(Phase 2 — Sprints 1–6 shipped, CI green)**:
+**(Phase 2 — Sprints 1–7 shipped, CI green)**:
 - Strict zero-hallucination constraint with multi-signal confidence scoring (0.0-1.0).
 - "Consult an Expert" fallback when confidence < 0.5 or zero valid citations.
 - PostHog adopted for event/journey analytics to prevent lock-in.
@@ -20,6 +20,7 @@ B2B SaaS for Indian banking professionals. RAG-powered Q&A over RBI Circulars wi
 - Sprint 4: Confidence Meter UI, class-based dark mode (WCAG-AA), skeleton loaders, rAF-buffered SSE rendering, PostHog feature flags.
 - Sprint 5: Admin manual PDF upload (`/admin/uploads`), semantic clustering heatmap (`/admin/heatmap`).
 - Sprint 6: Pre-launch hardening — SIGTERM graceful shutdown (backend + Celery), system user for audit log, scraper embeddings wired into `process_document` INSERT (TD-08 fully resolved), LLM exception handling tightened to typed API errors, retrieval-level integration eval, dev Dockerfile target, **KG-driven RAG expansion now ON by default** (`RAG_KG_EXPANSION_ENABLED=true`). Migration `005_sprint6_system_user.sql`.
+- Sprint 7: DPDP compliance — account deletion (OTP-verified, PII anonymisation, cascade delete), data export (JSON download), subscription auto-renewal toggle + Celery reminder task, low-credit notification Celery task + in-request trigger at balance 5/2. New router: `/api/v1/account` (3 endpoints). Gaps resolved: G-01, G-02, G-04, G-05.
 
 ---
 
@@ -27,7 +28,7 @@ B2B SaaS for Indian banking professionals. RAG-powered Q&A over RBI Circulars wi
 
 **Scraper** (`/scraper`): Celery + Python. Crawls rbi.org.in daily → PDF extract → chunk → embed → pgvector. Supersession detection + impact classification.
 
-**Backend** (`/backend`): FastAPI, SQLAlchemy 2.0 async, Pydantic v2. All at `/api/v1/`. ~58 endpoints, 11 services.
+**Backend** (`/backend`): FastAPI, SQLAlchemy 2.0 async, Pydantic v2. All at `/api/v1/`. ~62 endpoints, 11 services.
 
 **Frontend** (`/frontend`): Next.js 14, TypeScript strict, Tailwind, TanStack Query, Zustand. 25 routes.
 

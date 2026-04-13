@@ -1,6 +1,6 @@
 # LEARNINGS — RegPulse Phase 2
 
-> Mistakes, surprises, and gotchas that cost us time during Phase 2 (Sprints 1–6). Each entry is a guard against repeating the same loss in future iterations. Read this before starting any sprint.
+> Mistakes, surprises, and gotchas that cost us time during Phase 2 (Sprints 1–7). Each entry is a guard against repeating the same loss in future iterations. Read this before starting any sprint.
 >
 > Format per entry: **what bit us**, **root cause**, **fix or guard**, **how to prevent**.
 
@@ -350,3 +350,25 @@
 **What bit us:** First attempt to type-check the frontend failed because `frontend/node_modules` didn't exist locally. Had to install everything before I could verify a 5-line change.
 **Fix:** Run `pnpm install` once at the start of any session that will touch the frontend.
 **Prevention:** Frontend session warmup: `cd frontend && pnpm install` before any TypeScript edits. Shouldn't be necessary for backend-only work.
+
+---
+
+## Sprint 7 — DPDP Compliance, Auto-Renewal, Low-Credit Notifications
+
+### L7.1 — ORM user object detached from test session causes silent no-op updates
+**What bit us:** Account deletion test passed the `user` object via dependency override, but `user` was created in a different SQLAlchemy session than the request handler's `db`. Direct attribute mutation (`user.email = "..."`) followed by `db.commit()` silently did nothing because the object wasn't tracked by `db`.
+**Root cause:** Test fixtures create users in their own session, but the FastAPI `Depends(get_db)` injects a different session. The user object is detached, so changes aren't flushed.
+**Fix:** Use explicit `UPDATE` statements (via `sqlalchemy.update()`) instead of ORM attribute mutation when the entity may come from a different session — which is always the case in test environments and any endpoint where the auth dependency and the DB dependency use separate sessions.
+**Prevention:** In routers that modify user state, prefer `UPDATE ... WHERE` over mutating the injected `user` object. This is more robust than relying on the user being attached to the same session. Also catches cases where the user was loaded with `expire_on_commit=False` in middleware.
+
+### L7.2 — SQLite test engine needs type overrides for Vector, JSONB, and Enum columns
+**What bit us:** The conftest only created `users` and `sessions` tables (marked as `_AUTH_TABLES`) with SQLite-compatible type overrides. The account router queries `questions`, `saved_interpretations`, and `action_items` which have `Vector(3072)`, `JSONB`, and `Enum` columns — all unsupported in SQLite.
+**Root cause:** The original conftest was designed for auth-only tests and intentionally limited scope to avoid JSONB/pgvector compatibility issues.
+**Fix:** Created a separate `account_engine` fixture that applies broader type overrides: UUID→String, Vector→String, JSONB→String, Enum→String, and removes `server_default` for `now()` and `'[]'::jsonb`. This fixture creates all 5 tables needed for account tests.
+**Prevention:** When adding tests for new routers that touch multiple models, check whether the conftest's `_AUTH_TABLES` includes all required tables. If not, create a route-specific engine fixture with the necessary type overrides.
+
+### L7.3 — `.env` file pollutes test environment via pydantic-settings auto-loading
+**What bit us:** Running `pytest` from the project root caused `pydantic-settings` to auto-load `.env` which contained extra vars (`POSTGRES_USER`, `JIRA_*`) not in the `Settings` model. Since `Settings` uses `extra="forbid"` (the default), this caused `ValidationError` at import time.
+**Root cause:** `model_config = {"env_file": ".env"}` in `Settings` means any `.env` in the working directory is loaded. The project `.env` has Docker Compose vars and Jira integration vars that aren't in the model.
+**Fix:** Run tests from `/tmp` (or any directory without `.env`) so pydantic-settings doesn't find the file. CI already does this implicitly since it checks out a fresh repo without `.env`.
+**Prevention:** When running tests locally, always use `cd /tmp && PYTHONPATH=backend pytest ...` or set up a dedicated test runner script that clears the `.env` path.

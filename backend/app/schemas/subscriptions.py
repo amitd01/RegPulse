@@ -18,6 +18,10 @@ class VerifyPaymentRequest(BaseModel):
     razorpay_signature: str
 
 
+class AutoRenewRequest(BaseModel):
+    auto_renew: bool
+
+
 # --- Responses ---
 
 

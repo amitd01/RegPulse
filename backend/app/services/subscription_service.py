@@ -261,6 +261,20 @@ class SubscriptionService:
         result = await self._db.execute(stmt)
         return list(result.scalars().all())
 
+    async def set_auto_renew(self, user: User, auto_renew: bool) -> None:
+        """Toggle the user's auto-renewal preference."""
+        from sqlalchemy import update
+
+        await self._db.execute(
+            update(User).where(User.id == user.id).values(plan_auto_renew=auto_renew)
+        )
+        await self._db.commit()
+        logger.info(
+            "auto_renew_toggled",
+            user_id=str(user.id),
+            auto_renew=auto_renew,
+        )
+
     # ------------------------------------------------------------------
     # Internal
     # ------------------------------------------------------------------

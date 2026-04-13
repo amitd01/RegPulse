@@ -450,11 +450,11 @@ Sprint 8 (UX gaps) ── can start ──────────┤
 
 | Gap | Description | Sprint | Status |
 |---|---|---|---|
-| G-01 | DPDP Account Deletion | Sprint 7 | Planned |
-| G-02 | DPDP Data Export | Sprint 7 | Planned |
+| G-01 | DPDP Account Deletion | Sprint 7 | ✅ Complete |
+| G-02 | DPDP Data Export | Sprint 7 | ✅ Complete |
 | G-03 | Updates Feed unread tracking | Sprint 8 | Planned |
-| G-04 | Subscription auto-renewal | Sprint 7 | Planned |
-| G-05 | Low-credit notifications | Sprint 7 | Planned |
+| G-04 | Subscription auto-renewal | Sprint 7 | ✅ Complete |
+| G-05 | Low-credit notifications | Sprint 7 | ✅ Complete |
 | G-06 | Action items /stats | Sprint 8 | Planned |
 | G-07 | Admin Q&A sandbox | Sprint 8 | Planned |
 | G-08 | Question suggestions | Sprint 8 | Planned |

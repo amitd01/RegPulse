@@ -1,13 +1,13 @@
 # RegPulse — Project Status
 
-> **All 50 prompts + Sprints 1–6 complete. CI green. 12 PRD gaps identified → Sprints 7–8 planned. GCP deploy next.**
+> **All 50 prompts + Sprints 1–7 complete. CI green. 8 PRD gaps remaining → Sprint 8 planned. GCP deploy next.**
 
 ---
 
 ## Current State (2026-04-13)
 
-- **Branch:** `main` — Sprint 6 pre-launch hardening complete
-- **Phase:** Phase 2 complete (Sprints 1–6 shipped). PRD/FSD v3.0 gap analysis done (12 gaps). Sprints 7–8 + GCP deploy next.
+- **Branch:** `main` — Sprint 7 DPDP compliance complete
+- **Phase:** Phase 2 ongoing (Sprints 1–7 shipped). PRD/FSD v3.0 gap analysis: 4 gaps resolved in Sprint 7 (G-01, G-02, G-04, G-05), 8 remaining. Sprint 8 + GCP deploy next.
 - **CI:** All 3 jobs green (backend-lint, backend-test, frontend-build)
 - **Golden eval:** 21/21 PASS
 - **Retrieval eval:** 8 tests (6 recall + 1 OOS + 1 embedding check)

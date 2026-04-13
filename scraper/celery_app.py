@@ -54,6 +54,8 @@ app.conf.update(
         "scraper.tasks.ingest_news": {"queue": "scraper"},
         "scraper.tasks.process_uploaded_pdf": {"queue": "scraper"},
         "scraper.tasks.run_question_clustering": {"queue": "scraper"},
+        "scraper.tasks.subscription_renewal_check": {"queue": "scraper"},
+        "scraper.tasks.credit_notifications": {"queue": "scraper"},
     },
 )
 
@@ -85,6 +87,18 @@ app.conf.beat_schedule = {
         "task": "scraper.tasks.run_question_clustering",
         "schedule": crontab(hour=3, minute=0),
         "args": (30,),
+    },
+    # Sprint 7: Subscription renewal check daily at 08:00 IST (02:30 UTC)
+    "subscription-renewal-0800-ist": {
+        "task": "scraper.tasks.subscription_renewal_check",
+        "schedule": crontab(hour=2, minute=30),
+        "args": (),
+    },
+    # Sprint 7: Low-credit notifications daily at 09:00 IST (03:30 UTC)
+    "credit-notifications-0900-ist": {
+        "task": "scraper.tasks.credit_notifications",
+        "schedule": crontab(hour=3, minute=30),
+        "args": (),
     },
 }
 

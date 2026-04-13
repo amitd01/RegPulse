@@ -27,7 +27,8 @@
 | Eval — Retrieval | `backend/tests/evals/test_retrieval.py` | 8 | Integration/Eval | No |
 | Load — k6 | `tests/load/k6_load_test.js` | 3 scenarios | Load | No |
 | Smoke — Launch | `scripts/launch_check.sh` | 10 checks | Smoke | No |
-| **Total** | | **~164+** | | |
+| Unit — Account (DPDP) | `backend/tests/unit/test_account.py` | 6 | Unit | Yes |
+| **Total** | | **~170+** | | |
 
 ---
 

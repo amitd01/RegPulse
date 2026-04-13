@@ -1,11 +1,12 @@
 """Subscriptions router — create order, verify payment, webhook, plan info.
 
-POST /subscriptions/order — create Razorpay order
-POST /subscriptions/verify — verify payment signature + activate plan
-POST /subscriptions/webhook — Razorpay webhook (no CORS, no auth)
-GET  /subscriptions/plan — current plan info
-GET  /subscriptions/history — payment history
-GET  /subscriptions/plans — available plans
+POST  /subscriptions/order — create Razorpay order
+POST  /subscriptions/verify — verify payment signature + activate plan
+POST  /subscriptions/webhook — Razorpay webhook (no CORS, no auth)
+GET   /subscriptions/plan — current plan info
+GET   /subscriptions/history — payment history
+GET   /subscriptions/plans — available plans
+PATCH /subscriptions/auto-renew — toggle auto-renewal
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ from app.db import get_db
 from app.dependencies.auth import require_verified_user
 from app.models.user import User
 from app.schemas.subscriptions import (
+    AutoRenewRequest,
     CreateOrderRequest,
     OrderResponse,
     PaymentHistoryResponse,
@@ -198,3 +200,23 @@ async def get_payment_history(
     return PaymentHistoryResponse(
         data=[SubscriptionEventResponse.model_validate(e) for e in events]
     )
+
+
+# ---------------------------------------------------------------------------
+# PATCH /subscriptions/auto-renew — toggle auto-renewal
+# ---------------------------------------------------------------------------
+
+
+@router.patch("/auto-renew")
+async def toggle_auto_renew(
+    body: AutoRenewRequest,
+    user: User = Depends(require_verified_user),
+    svc: SubscriptionService = Depends(_get_svc),
+) -> dict:
+    """Toggle subscription auto-renewal preference."""
+    await svc.set_auto_renew(user, body.auto_renew)
+    return {
+        "success": True,
+        "message": f"Auto-renewal {'enabled' if body.auto_renew else 'disabled'}",
+        "auto_renew": body.auto_renew,
+    }
