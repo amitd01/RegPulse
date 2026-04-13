@@ -209,6 +209,7 @@ class CircularLibraryService:
             select(CircularDocument)
             .where(
                 CircularDocument.status == CircularStatus.ACTIVE,
+                CircularDocument.pending_admin_review.is_(False),
                 func.concat(
                     CircularDocument.title,
                     " ",
@@ -243,7 +244,10 @@ class CircularLibraryService:
         """Return distinct department values."""
         stmt = (
             select(CircularDocument.department)
-            .where(CircularDocument.department.is_not(None))
+            .where(
+                CircularDocument.department.is_not(None),
+                CircularDocument.pending_admin_review.is_(False),
+            )
             .distinct()
             .order_by(CircularDocument.department)
         )
@@ -257,6 +261,7 @@ class CircularLibraryService:
             "SELECT DISTINCT jsonb_array_elements_text(tags) AS tag "
             "FROM circular_documents "
             "WHERE tags IS NOT NULL AND jsonb_array_length(tags) > 0 "
+            "AND pending_admin_review = FALSE "
             "ORDER BY tag"
         )
         result = await self._db.execute(stmt)
@@ -264,7 +269,12 @@ class CircularLibraryService:
 
     async def get_doc_types(self) -> list[str]:
         """Return distinct doc_type values."""
-        stmt = select(CircularDocument.doc_type).distinct().order_by(CircularDocument.doc_type)
+        stmt = (
+            select(CircularDocument.doc_type)
+            .where(CircularDocument.pending_admin_review.is_(False))
+            .distinct()
+            .order_by(CircularDocument.doc_type)
+        )
         result = await self._db.execute(stmt)
         return [row[0] for row in result.all()]
 
@@ -560,7 +570,7 @@ class CircularLibraryService:
         date_to: str | None = None,
     ):
         """Build a list of SQLAlchemy filter conditions."""
-        conditions = []
+        conditions = [CircularDocument.pending_admin_review.is_(False)]
         if doc_type:
             conditions.append(CircularDocument.doc_type == doc_type)
         if status:
