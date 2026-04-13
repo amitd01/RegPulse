@@ -10,7 +10,7 @@ B2B SaaS for Indian banking professionals. RAG-powered Q&A over RBI Circulars wi
 
 > **Read `LEARNINGS.md` at the repo root before starting any sprint.** Phase 2 mistakes are catalogued there with root causes and prevention rules.
 
-**(Phase 2 — Sprints 1–5 complete 2026-04-12; push pending)**:
+**(Phase 2 — Sprints 1–5 shipped to `origin/main` 2026-04-12, CI green)**:
 - Strict zero-hallucination constraint with multi-signal confidence scoring (0.0-1.0).
 - "Consult an Expert" fallback when confidence < 0.5 or zero valid citations.
 - PostHog adopted for event/journey analytics to prevent lock-in.
@@ -27,9 +27,9 @@ B2B SaaS for Indian banking professionals. RAG-powered Q&A over RBI Circulars wi
 
 **Scraper** (`/scraper`): Celery + Python. Crawls rbi.org.in daily → PDF extract → chunk → embed → pgvector. Supersession detection + impact classification.
 
-**Backend** (`/backend`): FastAPI, SQLAlchemy 2.0 async, Pydantic v2. All at `/api/v1/`. 48 endpoints, 8 services.
+**Backend** (`/backend`): FastAPI, SQLAlchemy 2.0 async, Pydantic v2. All at `/api/v1/`. ~58 endpoints, 11 services.
 
-**Frontend** (`/frontend`): Next.js 14, TypeScript strict, Tailwind, TanStack Query, Zustand. 22 routes.
+**Frontend** (`/frontend`): Next.js 14, TypeScript strict, Tailwind, TanStack Query, Zustand. 25 routes.
 
 **LLM:** claude-sonnet-4-20250514 with extended thinking (10k budget) primary, gpt-4o fallback. Embeddings: text-embedding-3-large (3072-dim). Reranker: ms-marco-MiniLM-L-6-v2 (skipped in DEMO_MODE).
 

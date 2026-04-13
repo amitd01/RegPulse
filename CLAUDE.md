@@ -74,6 +74,36 @@ Status: **Running** (updated 2026-04-12). All 6 containers operational via `dock
 - Sprint 5 migration `004_sprint5.sql`: `manual_uploads` table, `circular_documents.upload_source`, `question_clusters` table, `questions.cluster_id`
 - See `PRODUCTION_PLAN.md` for AWS deployment roadmap
 
+## Next Steps (Post-Sprint 5)
+
+Three tracks — can be mixed. Recommended: Track A + small TD items from Track B.
+
+### Track A: Production Deployment (see `PRODUCTION_PLAN.md`)
+| Phase | Work |
+|-------|------|
+| Infra | Terraform: VPC, ECS Fargate, RDS Postgres, ElastiCache Redis, ECR, ALB, Route53 |
+| CI/CD | GitHub Actions → ECR → ECS blue/green deploy |
+| Nginx | TLS 1.3, HSTS, CSP headers, rate limiting |
+| Data | Full scraper run against live rbi.org.in (replace 6-circular demo corpus) |
+| Secrets | Rotate demo keys, real Razorpay/SMTP credentials |
+| Staging | Branch protection, staging env, integration tests |
+
+### Track B: Tech Debt (see `MEMORY.md` § Technical Debt)
+| Size | Items |
+|------|-------|
+| Small | TD-02 (SIGTERM), TD-04 (audit actor_id), TD-08 (scraper embeddings), TD-10 (broad except), TD-12 (pytest image) |
+| Medium | TD-01 (scraper DB isolation), TD-03 (OpenAPI codegen), TD-11 (retrieval eval) |
+
+### Track C: Feature Additions
+| Feature | Description |
+|---------|-------------|
+| KG expansion GA | Flip `RAG_KG_EXPANSION_ENABLED=true`, write retrieval-level eval, verify, ship |
+| Multi-regulator | SEBI/IRDAI support — new scraper sources, schema changes |
+| Team collaboration | Shared workspaces, role-based access |
+| Email digests | Weekly regulatory summary via Celery beat |
+| Mobile responsive | Tailwind breakpoints for full app |
+| Export improvements | Batch PDF, Excel for action items |
+
 ## File Reference
 
 | File | Purpose |
