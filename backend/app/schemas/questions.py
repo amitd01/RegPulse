@@ -74,6 +74,17 @@ class QuestionListResponse(BaseModel):
     page_size: int
 
 
+class QuestionSuggestionItem(BaseModel):
+    id: uuid.UUID
+    question_text: str
+    quick_answer_preview: str | None = None
+
+
+class QuestionSuggestionListResponse(BaseModel):
+    success: bool = True
+    data: list[QuestionSuggestionItem]
+
+
 # --- Action Item Requests ---
 
 
@@ -113,6 +124,8 @@ class ActionItemResponse(BaseModel):
     source_circular_id: uuid.UUID | None = None
     created_at: datetime
     updated_at: datetime
+    # Computed in the router — True when due_date is past and status != COMPLETED.
+    is_overdue: bool = False
 
 
 class ActionItemListResponse(BaseModel):
@@ -121,6 +134,16 @@ class ActionItemListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class ActionItemStatsResponse(BaseModel):
+    """Aggregate counts for the current user's action items."""
+
+    success: bool = True
+    pending: int = 0
+    in_progress: int = 0
+    completed: int = 0
+    overdue: int = 0
 
 
 # --- Saved Interpretation Requests ---

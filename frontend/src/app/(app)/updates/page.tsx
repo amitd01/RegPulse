@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { listNews, sourceLabel, type NewsListResponse } from "@/lib/api/news";
 import { Badge, impactVariant, statusVariant } from "@/components/ui/Badge";
@@ -11,18 +11,34 @@ import { CardListSkeleton } from "@/components/ui/Skeleton";
 import type { CircularListItem, PaginatedResponse } from "@/types";
 
 type Tab = "circulars" | "news";
+type UpdatesFilter = "all" | "week" | "high";
 
-function useRecentCirculars(page: number, enabled: boolean) {
-  return useQuery<PaginatedResponse<CircularListItem>>({
-    queryKey: ["circulars", "updates", page],
+interface UpdatesFeedResponse extends PaginatedResponse<CircularListItem> {
+  unread_count: number;
+}
+
+function useUpdatesFeed(page: number, filter: UpdatesFilter, enabled: boolean) {
+  return useQuery<UpdatesFeedResponse>({
+    queryKey: ["circulars", "updates", page, filter],
     queryFn: async () => {
-      const { data } = await api.get("/circulars", {
-        params: { page, page_size: 20, sort_by: "indexed_at", sort_order: "desc" },
-      });
+      const params: Record<string, string | number> = { page, page_size: 20 };
+      params.days = filter === "week" ? 7 : 30;
+      if (filter === "high") params.impact_level = "HIGH";
+      const { data } = await api.get("/circulars/updates", { params });
       return data;
     },
     staleTime: 60_000,
     enabled,
+  });
+}
+
+function useMarkUpdatesSeen() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      await api.post("/circulars/updates/mark-seen");
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["circulars", "updates-badge"] }),
   });
 }
 
@@ -42,14 +58,23 @@ function stripHtml(input: string | null): string {
 
 export default function UpdatesPage() {
   const [tab, setTab] = useState<Tab>("circulars");
+  const [filter, setFilter] = useState<UpdatesFilter>("all");
   const [circPage, setCircPage] = useState(1);
   const [newsPage, setNewsPage] = useState(1);
 
-  const { data: circData, isLoading: circLoading } = useRecentCirculars(
+  const { data: circData, isLoading: circLoading } = useUpdatesFeed(
     circPage,
+    filter,
     tab === "circulars",
   );
   const { data: newsData, isLoading: newsLoading } = useNews(newsPage, tab === "news");
+  const markSeen = useMarkUpdatesSeen();
+
+  // Fire mark-seen once on first mount of the page.
+  useEffect(() => {
+    markSeen.mutate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="px-6 py-6 lg:px-8">
@@ -89,6 +114,32 @@ export default function UpdatesPage() {
       {/* Circulars tab */}
       {tab === "circulars" && (
         <>
+          {/* Filter chips */}
+          <div className="mb-4 flex flex-wrap gap-2">
+            {(
+              [
+                { key: "all", label: "All" },
+                { key: "week", label: "This Week" },
+                { key: "high", label: "High Impact" },
+              ] as { key: UpdatesFilter; label: string }[]
+            ).map((f) => (
+              <button
+                key={f.key}
+                onClick={() => {
+                  setFilter(f.key);
+                  setCircPage(1);
+                }}
+                className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                  filter === f.key
+                    ? "border-navy-600 bg-navy-50 text-navy-700 dark:border-navy-300 dark:bg-navy-900/40 dark:text-navy-200"
+                    : "border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:text-gray-300"
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+
           {circLoading && <CardListSkeleton rows={6} />}
 
           {circData && circData.data.length === 0 && (

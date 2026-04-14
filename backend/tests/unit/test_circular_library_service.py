@@ -94,11 +94,13 @@ class TestFilterBuilding:
 
     def test_no_filters(self) -> None:
         conditions = CircularLibraryService._build_filter_conditions()
-        assert conditions == []
+        # The filter builder always includes pending_admin_review = False so
+        # unreviewed circulars are hidden from the public library.
+        assert len(conditions) == 1
 
     def test_single_filter(self) -> None:
         conditions = CircularLibraryService._build_filter_conditions(doc_type="CIRCULAR")
-        assert len(conditions) == 1
+        assert len(conditions) == 2  # pending_admin_review + doc_type
 
     def test_multiple_filters(self) -> None:
         conditions = CircularLibraryService._build_filter_conditions(
@@ -107,20 +109,20 @@ class TestFilterBuilding:
             impact_level="HIGH",
             department="Regulation",
         )
-        assert len(conditions) == 4
+        assert len(conditions) == 5  # pending_admin_review + 4 filters
 
     def test_date_filters(self) -> None:
         conditions = CircularLibraryService._build_filter_conditions(
             date_from="2024-01-01",
             date_to="2024-12-31",
         )
-        assert len(conditions) == 2
+        assert len(conditions) == 3  # pending_admin_review + date_from + date_to
 
     def test_tags_filter(self) -> None:
         conditions = CircularLibraryService._build_filter_conditions(
             tags=["KYC", "AML"],
         )
-        assert len(conditions) == 2  # One condition per tag
+        assert len(conditions) == 3  # pending_admin_review + one condition per tag
 
 
 class TestSortColumnMapping:

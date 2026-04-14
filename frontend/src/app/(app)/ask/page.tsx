@@ -1,13 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { Badge, impactVariant } from "@/components/ui/Badge";
 import { ConfidenceMeter } from "@/components/ui/ConfidenceMeter";
 import { Spinner } from "@/components/ui/Spinner";
 import { useAuthStore } from "@/stores/authStore";
 import { trackEvent } from "@/lib/analytics";
+import api from "@/lib/api";
 import type { CitationItem, RecommendedAction } from "@/types";
+
+interface Suggestion {
+  id: string;
+  question_text: string;
+  quick_answer_preview: string | null;
+}
 
 interface StreamState {
   status: "idle" | "streaming" | "done" | "error";
@@ -42,7 +49,38 @@ const initialState: StreamState = {
 export default function AskPage() {
   const [question, setQuestion] = useState("");
   const [state, setState] = useState<StreamState>(initialState);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const suggestionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounced suggestions lookup — fires 300ms after the user stops typing.
+  useEffect(() => {
+    if (suggestionTimer.current) clearTimeout(suggestionTimer.current);
+    const trimmed = question.trim();
+    if (trimmed.length < 5) {
+      setSuggestions([]);
+      return;
+    }
+    suggestionTimer.current = setTimeout(async () => {
+      try {
+        const { data } = await api.get("/questions/suggestions", {
+          params: { q: trimmed, limit: 5 },
+        });
+        setSuggestions(data.data || []);
+      } catch {
+        setSuggestions([]);
+      }
+    }, 300);
+    return () => {
+      if (suggestionTimer.current) clearTimeout(suggestionTimer.current);
+    };
+  }, [question]);
+
+  const suggestionList = useMemo(
+    () => (showSuggestions ? suggestions : []),
+    [showSuggestions, suggestions],
+  );
   // SSE jitter fix: buffer incoming tokens and flush once per animation
   // frame so React doesn't re-render on every chunk delta. The text and
   // citations panels live in stable containers below so the layout never
@@ -249,29 +287,61 @@ export default function AskPage() {
       </div>
 
       {/* Question input */}
-      <div className="mb-6 flex gap-3">
-        <textarea
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="e.g., What are the latest KYC requirements for banks under SBR framework?"
-          rows={2}
-          maxLength={500}
-          className="flex-1 resize-none rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 focus:border-navy-500 focus:outline-none focus:ring-1 focus:ring-navy-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500"
-        />
-        <button
-          onClick={handleAsk}
-          disabled={
-            state.status === "streaming" || question.trim().length < 5
-          }
-          className="rounded-lg bg-navy-700 px-6 py-3 text-sm font-medium text-white hover:bg-navy-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-navy-500 dark:hover:bg-navy-400"
-        >
-          {state.status === "streaming" ? (
-            <Spinner size="sm" className="text-white" />
-          ) : (
-            "Ask"
-          )}
-        </button>
+      <div className="mb-6">
+        <div className="flex gap-3">
+          <div className="relative flex-1">
+            <textarea
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+              placeholder="e.g., What are the latest KYC requirements for banks under SBR framework?"
+              rows={2}
+              maxLength={500}
+              className="w-full resize-none rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 focus:border-navy-500 focus:outline-none focus:ring-1 focus:ring-navy-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500"
+            />
+            {suggestionList.length > 0 && (
+              <ul className="absolute left-0 right-0 top-full z-10 mt-1 max-h-64 overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900">
+                {suggestionList.map((s) => (
+                  <li key={s.id}>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setQuestion(s.question_text);
+                        setShowSuggestions(false);
+                      }}
+                      className="block w-full px-4 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-800"
+                    >
+                      <div className="text-sm text-gray-800 dark:text-gray-100 line-clamp-1">
+                        {s.question_text}
+                      </div>
+                      {s.quick_answer_preview && (
+                        <div className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">
+                          {s.quick_answer_preview}
+                        </div>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <button
+            onClick={handleAsk}
+            disabled={
+              state.status === "streaming" || question.trim().length < 5
+            }
+            className="rounded-lg bg-navy-700 px-6 py-3 text-sm font-medium text-white hover:bg-navy-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-navy-500 dark:hover:bg-navy-400"
+          >
+            {state.status === "streaming" ? (
+              <Spinner size="sm" className="text-white" />
+            ) : (
+              "Ask"
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Error */}

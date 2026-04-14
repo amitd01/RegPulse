@@ -8,14 +8,16 @@ from __future__ import annotations
 
 import math
 import uuid
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query, Request
+from sqlalchemy import and_, desc, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
 from app.dependencies.auth import require_verified_user
 from app.exceptions import CircularNotFoundError
+from app.models.circular import CircularDocument
 from app.models.user import User
 from app.schemas.circulars import (
     AutocompleteItem,
@@ -28,6 +30,7 @@ from app.schemas.circulars import (
     CircularSearchResultItem,
     DepartmentListResponse,
     TagListResponse,
+    UpdatesFeedResponse,
 )
 from app.services.circular_library_service import CircularLibraryService
 
@@ -229,6 +232,81 @@ async def list_doc_types(
     """Return distinct document type values."""
     doc_types = await svc.get_doc_types()
     return TagListResponse(data=doc_types)
+
+
+# ---------------------------------------------------------------------------
+# GET /circulars/updates — recent circulars feed with unread tracking
+# ---------------------------------------------------------------------------
+
+
+@router.get("/updates", response_model=UpdatesFeedResponse)
+async def list_updates(
+    days: int = Query(default=7, ge=1, le=90, description="Window in days"),
+    impact_level: str | None = Query(default=None, description="HIGH/MEDIUM/LOW"),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    user: User = Depends(require_verified_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),
+) -> UpdatesFeedResponse:
+    """Recent circulars (by indexed_at) plus unread count since last visit.
+
+    ``unread_count`` is the number of circulars indexed after the current
+    user's ``last_seen_updates`` timestamp (or all, if never visited).
+    """
+    cutoff = datetime.now(UTC) - timedelta(days=days)
+
+    conditions = [CircularDocument.indexed_at >= cutoff]
+    if impact_level:
+        conditions.append(CircularDocument.impact_level == impact_level)
+
+    base = select(CircularDocument).where(and_(*conditions))
+    count_stmt = select(func.count(CircularDocument.id)).where(and_(*conditions))
+
+    total = int((await db.execute(count_stmt)).scalar() or 0)
+
+    list_stmt = (
+        base.order_by(desc(CircularDocument.indexed_at))
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
+    circulars = list((await db.execute(list_stmt)).scalars().all())
+
+    # Unread count: indexed after user.last_seen_updates (no cutoff limit).
+    unread_conditions: list = []
+    if user.last_seen_updates is not None:
+        unread_conditions.append(CircularDocument.indexed_at > user.last_seen_updates)
+    unread_stmt = select(func.count(CircularDocument.id))
+    if unread_conditions:
+        unread_stmt = unread_stmt.where(and_(*unread_conditions))
+    unread_count = int((await db.execute(unread_stmt)).scalar() or 0)
+
+    total_pages = max(1, math.ceil(total / page_size))
+
+    return UpdatesFeedResponse(
+        data=[CircularListItem.model_validate(c) for c in circulars],
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+        unread_count=unread_count,
+    )
+
+
+@router.post("/updates/mark-seen")
+async def mark_updates_seen(
+    user: User = Depends(require_verified_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Set ``users.last_seen_updates = now()`` for the current user.
+
+    Uses a direct UPDATE so the write lands regardless of whether the
+    ``user`` object is attached to ``db``'s session.
+    """
+    now = datetime.now(UTC)
+    await db.execute(update(User).where(User.id == user.id).values(last_seen_updates=now))
+    await db.commit()
+    user.last_seen_updates = now
+    return {"success": True, "message": "Updates marked as seen"}
 
 
 # ---------------------------------------------------------------------------

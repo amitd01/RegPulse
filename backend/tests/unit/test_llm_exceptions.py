@@ -244,7 +244,10 @@ class TestStreamingExceptions:
         async def _aiter_events():
             yield mock_event
 
-        mock_stream.__aiter__ = _aiter_events
+        # ``__aiter__`` on a MagicMock is invoked with ``self`` as the first
+        # positional arg; wrap the generator in a lambda so the extra arg is
+        # absorbed.
+        mock_stream.__aiter__ = lambda _self: _aiter_events()
 
         stream_cm = MagicMock()
         stream_cm.__aenter__ = AsyncMock(return_value=mock_stream)
