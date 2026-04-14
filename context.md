@@ -1,49 +1,32 @@
 # RegPulse — Project Status
 
-> **All 50 prompts + Sprints 1–7 complete. CI green. 8 PRD gaps remaining → Sprint 8 planned. GCP deploy next.**
+> **All 50 prompts + Sprints 1–7 complete. CI green. UAT 81/81 passed. 8 PRD gaps remain → Sprint 8 next. GCP deploy parallel.**
 
 ---
 
-## Current State (2026-04-13)
+## Current State (2026-04-14)
 
-- **Branch:** `main` — Sprint 7 DPDP compliance complete
-- **Phase:** Phase 2 ongoing (Sprints 1–7 shipped). PRD/FSD v3.0 gap analysis: 4 gaps resolved in Sprint 7 (G-01, G-02, G-04, G-05), 8 remaining. Sprint 8 + GCP deploy next.
+- **Branch:** `main` (`8c9f34b`) — Sprint 7 DPDP compliance complete, UAT passed
+- **Phase:** Phase 2 ongoing (Sprints 1–7 shipped). 4/12 PRD gaps resolved in Sprint 7 (G-01/02/04/05). Sprint 8 + GCP deploy next.
 - **CI:** All 3 jobs green (backend-lint, backend-test, frontend-build)
-- **Golden eval:** 21/21 PASS
-- **Retrieval eval:** 8 tests (6 recall + 1 OOS + 1 embedding check)
-- **Ruff:** 0 errors — per-file-ignores configured in `pyproject.toml`
-- **Frontend:** 25 routes, `tsc --noEmit` clean, `next lint` clean
-- **Docker:** 6 containers running; all images rebuilt for Sprint 6
-- **`LEARNINGS.md`** at repo root — L1–L6 + cross-sprint patterns. Read before any work.
-
----
-
-## Git History (main, all pushed)
-
-```
-b0cb7d3  docs: Sprint 5 exit — update context, LEARNINGS L5.4, CLAUDE.md
-33d9b8d  fix(ci): resolve all pre-existing ruff errors
-5a8a77b  feat(sprint-5): admin PDF upload + semantic clustering heatmaps
-d7f1b52  chore: gitignore hygiene + post-push doc sync
-fdc784c  fix(llm): bump anthropic SDK + assert OpenAI-compatible fallback model
-f6c3a5a  feat(sprint-4): Confidence Meter UI, dark mode, skeletons, SSE jitter fix
-516acf9  feat(sprint-3): knowledge graph extraction and RAG expansion
-52375b8  feat(sprint-3): RSS / news ingest pipeline
-45f0f2c  feat(sprint-3): public safe snippet sharing
-5379c49  feat(sprint-3): schema + models for KG, news, snippets
-1858575  feat(sprint-2): anti-hallucination guardrails, golden dataset, load tests
-363b1ef  feat(sprint-1): security hardening, analytics, embedder, landing page
-```
+- **UAT:** 81/81 automated tests passed (14 categories). See `UAT_RESULTS.md`.
+- **Golden eval:** 21/21 PASS | **Retrieval eval:** 8/8 PASS
+- **Ruff:** 0 errors | **Black:** 0 reformats | **tsc --noEmit:** clean | **ESLint:** clean
+- **Unit tests:** 90/96 (6 pre-existing failures in circular_library_service + llm_exceptions mock)
+- **Frontend:** 25 routes | **Backend:** ~62 endpoints, 11 services, 19 tables
+- **Docker:** 6 containers running; images rebuilt for Sprint 7
+- **`LEARNINGS.md`** at repo root — L1–L7 + cross-sprint patterns
 
 ---
 
 ## Inventory
 
-**Backend:** 11 services, 17 router files (~58 endpoints), 19 tables, 5 migrations
+**Backend:** 11 services, 18 router files (~62 endpoints), 19 tables, 5 migrations
 **Frontend:** 25 routes, 8 UI components, Tailwind dark mode, PostHog analytics
-**Scraper:** 8 Celery tasks (daily/priority scrape, process_document, process_uploaded_pdf, generate_summary, send_staleness_alerts, ingest_news, run_question_clustering), 4 beat schedules
-**Infra:** CI/CD (ci.yml + deploy.yml), Nginx config, Makefile (+ `eval` target), launch_check.sh, PRODUCTION_PLAN.md
-**Evals:** `test_hallucination.py` (21 tests), `test_retrieval.py` (8 tests), `k6_load_test.js` (3 scenarios)
+**Scraper:** 10 Celery tasks, 6 beat schedules (Sprint 7 added subscription_renewal_check + credit_notifications)
+**Infra:** CI/CD (ci.yml + deploy.yml), Nginx config, Makefile, launch_check.sh, PRODUCTION_PLAN.md
+**Evals:** `test_hallucination.py` (21), `test_retrieval.py` (8), `k6_load_test.js` (3 scenarios)
+**Tests:** `test_account.py` (6 — Sprint 7), plus 84 existing unit/integration tests
 
 ---
 
@@ -55,4 +38,15 @@ f6c3a5a  feat(sprint-4): Confidence Meter UI, dark mode, skeletons, SSE jitter f
 | TD-03 | Manual api.ts client | OpenAPI codegen in v1.1 |
 | TD-09 | `BACKEND_PUBLIC_URL` unset in demo | Set when GCP deploy lands |
 
-Resolved: ~~TD-02~~ (Sprint 6 — SIGTERM handlers), ~~TD-04~~ (Sprint 6 — system user), ~~TD-05~~ (Sprint 1), ~~TD-06~~ (Sprint 1), ~~TD-07~~ (Sprint 1), ~~TD-08~~ (Sprint 6 — scraper embeddings on insert), ~~TD-10~~ (Sprint 6 — typed LLM exceptions), ~~TD-11~~ (Sprint 6 — retrieval eval), ~~TD-12~~ (Sprint 6 — dev requirements split)
+Resolved: ~~TD-02/04/05/06/07/08/10/11/12~~ (Sprints 1–6)
+
+---
+
+## PRD Gap Status (4/12 resolved)
+
+| Status | Gaps |
+|--------|------|
+| ✅ Sprint 7 | G-01 (DPDP deletion), G-02 (DPDP export), G-04 (auto-renewal), G-05 (low-credit) |
+| Sprint 8 | G-03, G-06, G-07, G-08, G-09, G-12 |
+| Sprint 9 | G-10 (circuit breaker) |
+| Deferred | G-11 (KG expansion serves same purpose) |

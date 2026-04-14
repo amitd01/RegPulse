@@ -3,7 +3,7 @@
 > Living inventory of all test scenarios — functional, technical, AI eval, load, and stress.
 > Status key: **A** = automated, **M** = manual/UAT, **P** = planned (not yet implemented).
 >
-> Updated: 2026-04-13 (Sprint 6)
+> Updated: 2026-04-14 (Sprint 7). See also `UAT_PLAN.md` (208 scenarios) and `UAT_RESULTS.md` (81/81 automated UAT).
 
 ---
 

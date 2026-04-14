@@ -57,28 +57,17 @@
 
 ## Localhost Demo
 
-Status: **Running** (updated 2026-04-13). All 6 containers operational via `docker compose up --build -d`.
+Status: **Running + UAT passed** (2026-04-14). All 6 containers via `docker compose up --build -d`. UAT: 81/81 tests passed.
 
 - `DEMO_MODE=true` — fixed OTP `123456`, no email/payment, no cross-encoder
-- LLM uses Claude Sonnet with extended thinking (10k token budget)
-- Refresh tokens are `HttpOnly` backend cookies — frontend never touches `document.cookie`
-- Scraper embedder uses OpenAI `text-embedding-3-large` (no longer a stub)
-- Landing page (`/`) is a full marketing page — entry via `/` or `/register` or `/login`
-- Anti-hallucination guardrails active: confidence scoring + "Consult Expert" fallback
-- Golden dataset eval: `tests/evals/test_hallucination.py` (30 test cases)
-- k6 load test: `tests/load/k6_load_test.js` (smoke/load/spike scenarios)
-- Sprint 3: public snippet sharing (`/s/[slug]`), RSS news ingest (60 RBI press items live), knowledge graph (95 entities, 29 edges across 6 demo circulars)
-- Sprint 4: Confidence Meter UI in `/ask` + `/history/[id]` + `/history` list, class-based dark mode (Tailwind `darkMode: "class"`) with system-pref bootstrap + WCAG-AA palette, skeleton loaders on library/history/updates, rAF-buffered SSE token rendering, PostHog `useFeatureFlag` hook + analytics events (`confidence_meter_viewed`, `dark_mode_toggled`, `share_snippet_dialog_opened`, `ask_question_submitted`)
-- Sprint 4 added two columns to `questions` (migration `003_sprint4_confidence.sql`): `confidence_score REAL NULL`, `consult_expert BOOLEAN NOT NULL DEFAULT FALSE`. Older questions render no meter (null is treated as "no signal")
-- KG-driven RAG expansion is now **ON by default** (`RAG_KG_EXPANSION_ENABLED=true`) — validated via retrieval eval in Sprint 6
-- Sprint 5: Admin manual PDF upload (`/admin/uploads`) — drag-drop PDF → Celery processing → full pipeline (extract, chunk, embed, classify, KG, summary). Uploaded circulars get `upload_source='manual_upload'` and embeddings wired at insert time (fixes TD-08 for uploads)
-- Sprint 5: Semantic clustering heatmap (`/admin/heatmap`) — daily Celery task runs k-means on question embeddings with PCA + silhouette-based k selection, labels clusters via Haiku. CSS-grid heatmap with period/bucket controls
-- Sprint 5 migration `004_sprint5.sql`: `manual_uploads` table, `circular_documents.upload_source`, `question_clusters` table, `questions.cluster_id`
-- Sprint 6: Pre-launch hardening — SIGTERM graceful shutdown (backend + Celery), system user for audit log (`005_sprint6_system_user.sql`), scraper embeddings wired into `process_document` INSERT (TD-08 fully resolved), LLM exception handling tightened to typed API errors (TD-10), dev Dockerfile target + `requirements-dev.txt`, retrieval-level integration eval (`test_retrieval.py`), stale PR #4 closed
-- Sprint 6 migration `005_sprint6_system_user.sql`: seeds system user `00000000-0000-0000-0000-000000000001` (`system@regpulse.internal`)
-- See `PRODUCTION_PLAN.md` for GCP deployment roadmap
-- Sprint 7: DPDP compliance — account deletion (`PATCH /api/v1/account/delete`) with OTP verification, PII anonymisation, session revocation; data export (`GET /api/v1/account/export`) as downloadable JSON; auto-renew toggle (`PATCH /api/v1/subscriptions/auto-renew`); Celery tasks for renewal reminders (daily 08:00 IST) and low-credit notifications (daily 09:00 IST); in-request low-credit email trigger at balance 5 or 2
-- Sprint 7 adds account router at `/api/v1/account` (3 endpoints), auto-renew endpoint in subscriptions, 2 Celery beat tasks, 6 unit tests
+- LLM: Claude Sonnet + extended thinking (10k budget) primary, GPT-4o fallback
+- Auth: HttpOnly cookie refresh tokens, RS256 JWT, jti blacklist
+- RAG: vector+BM25 RRF fusion, cross-encoder rerank (skipped in demo), KG expansion ON by default
+- Anti-hallucination: confidence scoring (0-1.0), "Consult Expert" fallback at < 0.5
+- Migrations: `001`–`005` (initial → Sprint 6 system user)
+- Evals: golden dataset 21/21, retrieval 8/8, k6 load tests (smoke/load/spike)
+- Key Sprint features: snippet sharing (`/s/[slug]`), RSS news (69 items), KG (95 entities), Confidence Meter UI, dark mode (WCAG-AA), skeleton loaders, admin PDF upload, semantic heatmaps, DPDP compliance, auto-renewal, low-credit alerts
+- See `UAT_RESULTS.md` for full test results, `PRODUCTION_PLAN.md` for GCP deploy
 
 ## Next Steps (Post-Sprint 7)
 
@@ -129,3 +118,6 @@ Sprint 7 resolved G-01 (DPDP deletion), G-02 (DPDP export), G-04 (auto-renewal),
 | `RegPulse_PRD_v3.md` | Product requirements v3.0 with gap analysis |
 | `RegPulse_FSD_v3.md` | Functional specification v3.0 with gap analysis |
 | `TECHNICAL_DOCS.md` | Full technical documentation — architecture, DB, API, RAG, security, runbook |
+| `UAT_PLAN.md` | 208 manual UAT test scenarios across 28 categories |
+| `UAT_RESULTS.md` | Automated UAT results — 81/81 passed (2026-04-14) |
+| `HANDOVER.md` | Session handover — what was done, what's next, environment state |
