@@ -32,8 +32,11 @@
 | Sprint 5 | Admin Manual PDF Upload, Semantic Clustering Heatmaps | ✅ Complete |
 | Sprint 6 | Pre-Launch Hardening: SIGTERM shutdown, system user audit log, scraper embeddings on insert, LLM exception tightening, KG expansion GA, retrieval eval | ✅ Complete |
 | Sprint 7 | DPDP compliance (account deletion + data export), subscription auto-renewal, low-credit notifications | ✅ Complete |
-| Sprint 8 | Updates feed tracking, action items stats/overdue, admin sandbox, question suggestions, PDF QR codes | ⏳ Planned |
-| Post-Build | GCP deploy (PRODUCTION_PLAN.md), real data migration, Beta launch | ⏳ Planned |
+| Sprint 8 | Updates feed tracking, action items stats/overdue, admin Q&A sandbox, question suggestions, real PDF + QR codes | ✅ Complete (`56d628f`) |
+| Phase A | GCP infra provisioning (Cloud SQL, Memorystore, Artifact Registry, Secret Manager) | ⏳ Next |
+| Phase B | CI/CD hardening (WIF, staging env, security baseline, integration tests) | ⏳ Planned |
+| Phase C | Data migration + observability + v1.0.0 launch | ⏳ Planned |
+| Sprint 9 | Circuit breaker (G-10), TD-01/03/09, mobile responsive polish | ⏳ Post-launch |
 
 ---
 
@@ -79,19 +82,20 @@ docker exec regpulse-scraper celery -A celery_app -b redis://redis:6379/1 call s
 
 ---
 
-## API (~58 endpoints at /api/v1/)
+## API (~65 endpoints at /api/v1/)
 
 | Group | Endpoints |
 |-------|-----------|
 | Auth | register, login, verify-otp, refresh, logout |
-| Circulars | list, search, autocomplete, detail, departments, tags, doc-types |
-| Questions | ask (SSE+JSON), history, detail, export, feedback |
-| Subscriptions | plans, order, verify, webhook, plan info, history |
-| Action Items | list, create, update, delete |
+| Account (Sprint 7) | delete (DPDP anonymise), export (DPDP JSON download), me |
+| Circulars | list, search, autocomplete, detail, departments, tags, doc-types, **updates** (Sprint 8), **updates/mark-seen** (Sprint 8) |
+| Questions | ask (SSE+JSON), history, detail, export (**PDF + QR codes**, Sprint 8), feedback, **suggestions** (Sprint 8) |
+| Subscriptions | plans, order, verify, webhook, plan info, history, **auto-renew toggle** (Sprint 7) |
+| Action Items | list (with `is_overdue`), create, update, delete, **stats** (Sprint 8) |
 | Saved | list, create, detail, update, delete |
 | Snippets (Sprint 3) | create, list, public get, og image, revoke |
 | News (Sprint 3) | list, detail |
-| Admin | dashboard, review (3), prompts (3), users (2), circulars (3), scraper (2), news (2) |
+| Admin | dashboard, review (3), prompts (3 + **test-question sandbox** Sprint 8), users (2), circulars (3), scraper (2), news (2), uploads (3), heatmap (2) |
 | Health | liveness, readiness |
 
 ---
@@ -153,12 +157,21 @@ RAG_KG_EXPANSION_ENABLED=true pytest backend/tests/evals/test_retrieval.py -v
 
 ## Production Deployment
 
-See `PRODUCTION_PLAN.md` for the full GCP deployment roadmap including:
+**All pre-launch code work is complete.** Remaining path to v1.0.0:
+
+1. **Phase A (~1 week) — GCP infra**: Cloud SQL + pgvector, Memorystore Redis, Artifact Registry, Secret Manager, VPC connectors.
+2. **Phase B (~1 week) — CI/CD hardening**: Workload Identity Federation, staging env, custom domain + TLS, `pip audit` / `pnpm audit` in CI.
+3. **Phase C (~1 week) — Data migration + launch**: Full RBI scrape, `scripts/backfill_question_embeddings.py`, Cloud Monitoring alerts, pre-launch smoke tests, tag `v1.0.0`.
+
+See `PRODUCTION_PLAN.md` for the full GCP deployment roadmap, `TEAM_HANDOVER.md` for the one-page index, and `DEVELOPMENT_PLAN.md` for the multi-sprint roadmap.
+
 - Cloud Run (backend, frontend), GCE e2-small (celery worker + beat), Cloud Run Job (scraper)
 - Cloud SQL PostgreSQL 16 + pgvector, Memorystore Redis
 - Google-managed TLS, Cloud Armor (optional WAF)
 - CI/CD via GitHub Actions with Workload Identity Federation (tag-triggered deploy)
 - Estimated cost: ~$173/month (asia-south1)
+
+**Post-deploy action:** run `python scripts/backfill_question_embeddings.py` once in production so pre-Sprint 8 questions become ANN-searchable for `/questions/suggestions`.
 
 ---
 

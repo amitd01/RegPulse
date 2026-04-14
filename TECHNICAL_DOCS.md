@@ -1,6 +1,6 @@
 # RegPulse --- Technical Documentation
 
-> Version 3.0 | 2026-04-13 | Covers 50 build prompts + Sprints 1--6
+> Version 3.0 | 2026-04-14 | Covers 50 build prompts + Sprints 1--8 (all pre-launch code complete)
 
 ---
 
@@ -92,7 +92,7 @@ RegPulse/
 │   │   │   ├── subscription_service.py # Razorpay integration
 │   │   │   ├── snippet_service.py    # Safe snippet creation (truncation + safety invariant)
 │   │   │   ├── kg_service.py         # Knowledge graph queries for RAG expansion
-│   │   │   ├── pdf_export_service.py # PDF compliance brief generation
+│   │   │   ├── pdf_export_service.py # PDF compliance brief (reportlab) + per-citation QR codes (qrcode[pil]) — Sprint 8
 │   │   │   ├── otp_service.py        # OTP generation + verification via Redis
 │   │   │   ├── email_validator.py    # Domain blocklist + MX check
 │   │   │   └── summary_service.py    # AI summary generation via Haiku
@@ -263,7 +263,7 @@ Routers
          ├── SubscriptionService ──▶ Razorpay API
          ├── SnippetService ──▶ PostgreSQL + Pillow (OG images)
          ├── KGService ──▶ PostgreSQL (kg_entities, kg_relationships)
-         ├── PDFExportService ──▶ ReportLab
+         ├── PDFExportService ──▶ reportlab + qrcode[pil] (Sprint 8)
          └── SummaryService ──▶ Anthropic API (Haiku)
 ```
 
@@ -315,25 +315,29 @@ Routers
 
 ### 5.2 Router Organisation
 
-All routes prefixed `/api/v1/`. ~58 endpoints across 15 router files.
+All routes prefixed `/api/v1/`. ~65 endpoints across 19 router files.
 
 | Router | Prefix | Endpoints |
 |---|---|---|
 | auth.py | /auth | register, login, verify-otp, refresh, logout |
-| circulars.py | /circulars | list, search, autocomplete, detail, departments, tags, doc-types |
-| questions.py | /questions | ask (SSE+JSON), history, detail, export, feedback |
-| subscriptions.py | /subscriptions | plans, order, verify, webhook, plan, history |
-| action_items.py | /action-items | list, create, update, delete |
+| account.py (Sprint 7) | /account | request-deletion-otp, delete (DPDP), export (DPDP) |
+| circulars.py | /circulars | list, search, autocomplete, detail, departments, tags, doc-types, **updates** (Sprint 8), **updates/mark-seen** (Sprint 8) |
+| questions.py | /questions | ask (SSE+JSON), history, detail, export (**PDF + QR**, Sprint 8), feedback, **suggestions** (Sprint 8) |
+| subscriptions.py | /subscriptions | plans, order, verify, webhook, plan, history, **auto-renew** (Sprint 7) |
+| action_items.py | /action-items | list (**w/ is_overdue**), **stats** (Sprint 8), create, update, delete |
 | saved.py | /saved | list, create, detail, update, delete |
 | snippets.py | /snippets | create, list, public get, og image, revoke |
 | news.py | /news | list, detail |
 | admin/dashboard.py | /admin | dashboard stats, heatmap, heatmap refresh |
 | admin/review.py | /admin/questions | review queue, override |
-| admin/prompts.py | /admin/prompts | list, create, activate |
+| admin/prompts.py | /admin/prompts | list, create, activate, **test-question** (Sprint 8) |
 | admin/users.py | /admin/users | list, update, add-credits |
 | admin/circulars.py | /admin/circulars | pending-summaries, approve, edit metadata |
 | admin/scraper.py | /admin/scraper | run history, manual trigger |
 | admin/uploads.py | /admin/pdf | manual PDF upload |
+| admin/news.py | /admin/news | list with dismissed, update status |
+
+**Shared helpers:** `app/dependencies/rag.py` exposes `build_rag_service(request, db, redis)` and `build_llm_service(request)`. Used by `routers/questions.py` (Q&A + suggestions) and `routers/admin/prompts.py` (sandbox). Never inline these in new routers.
 
 ### 5.3 Error Response Format
 
@@ -467,6 +471,26 @@ When enabled, the RAG service:
 2. Queries `kg_relationships` for related entities.
 3. Fetches document_chunks linked to related circulars.
 4. Adds these chunks to the candidate pool with `RAG_KG_BOOST_WEIGHT` applied to their RRF scores.
+
+### 8.4 Question Embeddings (Sprint 8)
+
+After the LLM produces an answer, `routers/questions.py::_maybe_embed_question()` calls `EmbeddingService.generate_single(question_text)` and assigns the result to `questions.question_embedding` before INSERT. The same string was embedded by `RAGService.retrieve()` earlier in the request, so EmbeddingService's Redis cache (keyed by SHA256) turns this into a cache hit — no duplicate OpenAI API call.
+
+`GET /questions/suggestions` embeds the partial query and issues:
+
+```sql
+SELECT id, question_text, quick_answer
+FROM questions
+WHERE user_id = :user_id
+  AND question_embedding IS NOT NULL
+  AND streaming_completed = TRUE
+ORDER BY question_embedding <=> CAST(:vec AS vector)
+LIMIT :limit
+```
+
+Constraints: scope to the current user (avoids leaking other users' queries), short-circuit for `len(q) < 5`, fall through to empty list when `db.bind.dialect.name != 'postgresql'` (SQLite unit tests don't support `vector`).
+
+Legacy rows: `scripts/backfill_question_embeddings.py` batches NULL rows through EmbeddingService. Idempotent, safe to re-run. **Operational note:** run once per environment after Phase C deploy.
 
 This improves recall for cross-circular questions (e.g., "NBFC lending norms" retrieves circulars linked via the NBFC entity graph).
 

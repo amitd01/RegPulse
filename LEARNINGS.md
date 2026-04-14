@@ -372,3 +372,48 @@
 **Root cause:** `model_config = {"env_file": ".env"}` in `Settings` means any `.env` in the working directory is loaded. The project `.env` has Docker Compose vars and Jira integration vars that aren't in the model.
 **Fix:** Run tests from `/tmp` (or any directory without `.env`) so pydantic-settings doesn't find the file. CI already does this implicitly since it checks out a fresh repo without `.env`.
 **Prevention:** When running tests locally, always use `cd /tmp && PYTHONPATH=backend pytest ...` or set up a dedicated test runner script that clears the `.env` path.
+
+---
+
+## Sprint 8 — UX Gaps, Admin Tooling, Real PDFs
+
+### L8.1 — FastAPI route ordering: static paths must precede `/{id}` params
+**What bit us:** `GET /action-items/stats` returned 422 because `GET /{item_id}` matched first and tried to parse `"stats"` as a UUID. Same hazard: `GET /questions/suggestions` vs `GET /questions/{id}`, and `GET /circulars/updates` vs `GET /circulars/{id}`.
+**Root cause:** FastAPI matches routes in registration order. A catch-all path-param route declared before a static sibling captures it.
+**Fix:** Register static-path routes BEFORE any `/{id}` route in the same prefix. Checked during implementation; none of Sprint 8's new routes collide.
+**Prevention:** When adding an endpoint under an existing prefix, grep the router for `{[a-z_]+}` routes and ensure the new endpoint is registered above them. Add a short comment where the boundary lives: "-- all static /foo/* endpoints above here --".
+
+### L8.2 — pgvector SQL is Postgres-only; SQLite tests must short-circuit
+**What bit us:** `GET /questions/suggestions` uses `ORDER BY question_embedding <=> CAST(:vec AS vector)`. SQLite has no `vector` type; unit tests blew up on dialect parse.
+**Root cause:** Most unit tests run against `sqlite+aiosqlite://`. pgvector operators and `CAST(... AS vector)` don't exist there.
+**Fix:** Check `db.bind.dialect.name == 'postgresql'` at the top of the endpoint and return an empty list otherwise. Keeps the endpoint functional in production without breaking the SQLite-based test harness.
+**Prevention:** Any new endpoint using pgvector SQL must include a dialect guard. If the endpoint is core (not optional UX), add a postgres-backed integration test instead of relying on SQLite unit tests.
+
+### L8.3 — MagicMock `__aiter__` is called with `self`; bare async generators break
+**What bit us:** `test_stream_parse_failure_emits_safe_fallback` failed with `TypeError: _aiter_events() takes 0 positional arguments but 1 was given` because the code set `mock_stream.__aiter__ = _aiter_events` where `_aiter_events` is a zero-arg async generator.
+**Root cause:** Python's magic method protocol calls `__aiter__` with `self`. Assigning a bare function to `mock.__aiter__` means that function is invoked with the mock instance as the first positional arg.
+**Fix:** Wrap in a lambda that absorbs the self arg: `mock_stream.__aiter__ = lambda _self: _aiter_events()`.
+**Prevention:** When mocking async iterators, always wrap the generator with a one-arg lambda. This applies to `__iter__`, `__enter__`, `__exit__`, etc. too.
+
+### L8.4 — reportlab `Paragraph` treats `& < >` as markup — always escape
+**What bit us:** Citation quotes containing `&` characters made `reportlab.platypus.Paragraph` raise XML parse errors mid-PDF generation.
+**Root cause:** `Paragraph` uses an XML-lite mini-parser (`<b>`, `<i>`, `<br/>`) so any unescaped ampersand or angle bracket in source text breaks it.
+**Fix:** Added `pdf_export_service._escape()` that replaces `&`, `<`, `>` with their HTML entities. Every user-facing string passes through it before being wrapped in a `Paragraph`.
+**Prevention:** Any time a string reaches `Paragraph(text, style)` it must have gone through `_escape()`. Keep the helper next to the PDF service so it's hard to miss.
+
+### L8.5 — Pre-existing test failures block new PRs when CI runs the full suite
+**What bit us:** The Sprint 7 handover flagged 6 pre-existing unit test failures as "low-impact" known issues. They were tolerated locally but the CI workflow (`ci.yml`) runs `pytest backend/tests/unit/` without filtering, so they failed `backend-test` on Sprint 8's PR.
+**Root cause:** "Known failing tests" were never cleaned up; the handover's "CI green" claim was stale vs. what CI actually ran.
+**Fix:** Fixed all 6 in the Sprint 8 PR (`65b6872`). Five were `test_circular_library_service` filter counts that needed +1 to account for the always-on `pending_admin_review = False` clause in `_build_filter_conditions`. One was the `__aiter__` mock fix in L8.3.
+**Prevention:** Never ship a handover that says "CI green" if any test is red. Known failures create drag — either fix them immediately or mark them `@pytest.mark.skip(reason="...")` with a follow-up issue so CI stays honest.
+
+### L8.6 — EmbeddingService's SHA256 Redis cache means double-embedding is cheap
+**What bit us:** Worried that persisting `question_embedding` in the POST /questions handler would add a second OpenAI call on top of the one `RAGService.retrieve()` already made.
+**Root cause / observation:** EmbeddingService caches each `generate_single(text)` call in Redis keyed by SHA256(text). The retrieval path and the persistence path both embed the same `question_text` — the second call hits the cache.
+**Fix:** No mitigation needed. Just documented in `routers/questions.py::_maybe_embed_question()` so future readers don't "optimise" by plumbing the vector through `RAGService.retrieve()`'s return value.
+**Prevention:** When reusing an embedding in the same request, just call `EmbeddingService.generate_single()` again. The cache handles it. Only plumb the vector through if EmbeddingService is bypassed (e.g. raw OpenAI call).
+
+### L8.7 — Backfill scripts should be idempotent and shipped with the PR that needs them
+**What bit us:** Sprint 8 started writing `question_embedding` on new rows, but every existing row has NULL — so `GET /questions/suggestions` returns empty for users who asked questions before the deploy.
+**Fix:** Shipped `scripts/backfill_question_embeddings.py` in the same PR. Batches 50 rows at a time, skips rows where the column is already set (idempotent), reuses EmbeddingService so Redis caching helps on repeat runs.
+**Prevention:** Whenever a schema column goes from "optionally populated" to "always populated", include a backfill script in the same PR and document it in the handover as an operational step. Don't leave the backfill as a follow-up ticket.

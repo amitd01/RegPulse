@@ -107,6 +107,7 @@ Sprint 7 resolved G-01 (DPDP deletion), G-02 (DPDP export), G-04 (auto-renewal),
 
 | File | Purpose |
 |------|---------|
+| `TEAM_HANDOVER.md` | **Start here** if you're new — one-page orientation + reading order |
 | `MEMORY.md` | Architecture, schema, business rules, patterns |
 | `context.md` | Project state — inventory, verification results |
 | `spec.md` | Full technical spec — schema, API, RAG pipeline, security |
