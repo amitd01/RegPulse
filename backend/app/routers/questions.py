@@ -15,12 +15,13 @@ import uuid
 import structlog
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import StreamingResponse
-from sqlalchemy import desc, func, select
+from sqlalchemy import desc, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.cache import get_redis
 from app.db import get_db
 from app.dependencies.auth import require_credits, require_verified_user
+from app.dependencies.rag import build_llm_service, build_rag_service
 from app.models.question import Question
 from app.models.user import User
 from app.schemas.questions import (
@@ -29,6 +30,8 @@ from app.schemas.questions import (
     QuestionListResponse,
     QuestionRequest,
     QuestionResponse,
+    QuestionSuggestionItem,
+    QuestionSuggestionListResponse,
     QuestionSummary,
 )
 from app.services.email_service import EmailService
@@ -40,31 +43,22 @@ router = APIRouter(tags=["questions"])
 logger = structlog.get_logger("regpulse.questions")
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+async def _maybe_embed_question(request: Request, text: str) -> list[float] | None:
+    """Embed ``text`` via app.state.embedding_service; return None on failure.
 
-
-def _build_rag_service(
-    request: Request,
-    db: AsyncSession,
-    redis: object,
-) -> RAGService:
-    embedding_svc = getattr(request.app.state, "embedding_service", None)
-    cross_encoder = getattr(request.app.state, "cross_encoder", None)
-    return RAGService(
-        db=db,
-        embedding_service=embedding_svc,
-        redis=redis,
-        cross_encoder=cross_encoder,
-    )
-
-
-def _build_llm_service(request: Request) -> LLMService:
-    return LLMService(
-        anthropic_client=request.app.state.anthropic_client,
-        openai_client=request.app.state.openai_client,
-    )
+    Suggestions depend on ``questions.question_embedding`` being populated,
+    but an embedding failure must never block a Q&A response. EmbeddingService
+    is Redis-cached by SHA256 — this usually hits the cache already warmed by
+    ``RAGService.retrieve()`` earlier in the request.
+    """
+    svc = getattr(request.app.state, "embedding_service", None)
+    if svc is None:
+        return None
+    try:
+        return await svc.generate_single(text)
+    except Exception:
+        logger.warning("question_embedding_failed", exc_info=True)
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -87,8 +81,8 @@ async def ask_question(
     """
     start_time = time.perf_counter()
 
-    rag = _build_rag_service(request, db, redis)
-    llm = _build_llm_service(request)
+    rag = build_rag_service(request, db, redis)
+    llm = build_llm_service(request)
 
     question_text = body.question.strip()
 
@@ -131,6 +125,7 @@ async def ask_question(
     if "text/event-stream" in accept:
         return StreamingResponse(
             _stream_response(
+                request=request,
                 question_text=question_text,
                 chunks=chunks,
                 llm=llm,
@@ -151,11 +146,17 @@ async def ask_question(
     llm_response, model_used = await llm.generate(question_text, chunks)
     latency_ms = int((time.perf_counter() - start_time) * 1000)
 
+    # 4b. Embed the question so /questions/suggestions can ANN-search it.
+    # EmbeddingService is Redis-cached on SHA256 — this is a cache hit after
+    # RAG.retrieve() embedded the same string a moment ago.
+    question_embedding = await _maybe_embed_question(request, question_text)
+
     # 5. Create question record + deduct credit atomically
     question = Question(
         id=uuid.uuid4(),
         user_id=user.id,
         question_text=question_text,
+        question_embedding=question_embedding,
         answer_text=llm_response.get("detailed_interpretation"),
         quick_answer=llm_response.get("quick_answer"),
         risk_level=llm_response.get("risk_level"),
@@ -214,6 +215,7 @@ async def ask_question(
 
 async def _stream_response(
     *,
+    request: Request,
     question_text: str,
     chunks: list,
     llm: LLMService,
@@ -240,10 +242,12 @@ async def _stream_response(
 
         # Save question + deduct credit
         latency_ms = int((time.perf_counter() - start_time) * 1000)
+        question_embedding = await _maybe_embed_question(request, question_text)
         question = Question(
             id=uuid.uuid4(),
             user_id=user.id,
             question_text=question_text,
+            question_embedding=question_embedding,
             answer_text=full_text,
             quick_answer=metadata.get("quick_answer"),
             risk_level=metadata.get("risk_level"),
@@ -343,6 +347,67 @@ async def list_questions(
 
 
 # ---------------------------------------------------------------------------
+# GET /questions/suggestions — similar past questions for autocomplete
+# ---------------------------------------------------------------------------
+
+
+@router.get("/suggestions", response_model=QuestionSuggestionListResponse)
+async def question_suggestions(
+    request: Request,
+    q: str = Query(..., min_length=1, max_length=500),
+    limit: int = Query(default=5, ge=1, le=20),
+    user: User = Depends(require_verified_user),
+    db: AsyncSession = Depends(get_db),
+) -> QuestionSuggestionListResponse:
+    """Return up to ``limit`` of the current user's past questions most
+    similar to ``q`` by cosine distance on ``question_embedding``.
+
+    Returns an empty list when the partial query is shorter than 5 chars
+    (noise floor) or when embeddings aren't available.
+    """
+    if len(q.strip()) < 5:
+        return QuestionSuggestionListResponse(data=[])
+
+    embedding = await _maybe_embed_question(request, q.strip())
+    if embedding is None:
+        return QuestionSuggestionListResponse(data=[])
+
+    # pgvector cosine distance operator: <=>.
+    # This query is Postgres/pgvector-only — callers in SQLite-based unit tests
+    # should mock the endpoint rather than hit this path.
+    dialect = db.bind.dialect.name if db.bind is not None else ""
+    if dialect != "postgresql":
+        return QuestionSuggestionListResponse(data=[])
+
+    embedding_str = "[" + ",".join(str(v) for v in embedding) + "]"
+    sql = text("""
+        SELECT id, question_text, quick_answer
+        FROM questions
+        WHERE user_id = :user_id
+          AND question_embedding IS NOT NULL
+          AND streaming_completed = TRUE
+        ORDER BY question_embedding <=> CAST(:vec AS vector)
+        LIMIT :limit
+        """)
+    rows = (
+        await db.execute(
+            sql,
+            {"user_id": user.id, "vec": embedding_str, "limit": limit},
+        )
+    ).all()
+
+    items = [
+        QuestionSuggestionItem(
+            id=row[0],
+            question_text=row[1],
+            quick_answer_preview=(row[2] or "")[:120] if row[2] else None,
+        )
+        for row in rows
+    ]
+    return QuestionSuggestionListResponse(data=items)
+
+
+# ---------------------------------------------------------------------------
 # GET /questions/{id} — detail
 # ---------------------------------------------------------------------------
 
@@ -387,7 +452,11 @@ async def export_question(
     user: User = Depends(require_verified_user),
     db: AsyncSession = Depends(get_db),
 ) -> StreamingResponse:
-    """Export question as a downloadable compliance brief."""
+    """Export a question as a downloadable PDF compliance brief.
+
+    Citations in the PDF include a QR code pointing to the underlying
+    RBI circular URL (Sprint 8, G-09).
+    """
     stmt = select(Question).where(
         Question.id == question_id,
         Question.user_id == user.id,
@@ -404,24 +473,41 @@ async def export_question(
 
         raise QuestionNotFoundError("Question not found")
 
+    from app.models.circular import CircularDocument
     from app.services.pdf_export_service import PDFExportService
 
-    brief = PDFExportService.generate_brief(
+    # Resolve rbi_url for each cited circular_number (a single IN query).
+    raw_citations = list(question.citations or [])
+    nums = [c.get("circular_number") for c in raw_citations if c.get("circular_number")]
+    url_map: dict[str, str] = {}
+    if nums:
+        url_rows = await db.execute(
+            select(CircularDocument.circular_number, CircularDocument.rbi_url).where(
+                CircularDocument.circular_number.in_(nums)
+            )
+        )
+        url_map = {row[0]: row[1] for row in url_rows.all() if row[0]}
+
+    citations_with_urls = [
+        {**c, "rbi_url": url_map.get(c.get("circular_number") or "")} for c in raw_citations
+    ]
+
+    pdf_bytes = PDFExportService.generate_pdf_brief(
         question_text=question.question_text,
         answer_text=question.answer_text,
         quick_answer=question.quick_answer,
         risk_level=question.risk_level,
         affected_teams=question.affected_teams,
-        citations=question.citations,
+        citations=citations_with_urls,
         recommended_actions=question.recommended_actions,
         created_at=question.created_at.isoformat() if question.created_at else None,
     )
 
     return StreamingResponse(
-        iter([brief]),
-        media_type="text/plain",
+        iter([pdf_bytes]),
+        media_type="application/pdf",
         headers={
-            "Content-Disposition": f'attachment; filename="regpulse_brief_{question_id}.txt"',
+            "Content-Disposition": (f'attachment; filename="regpulse_brief_{question_id}.pdf"'),
         },
     )
 

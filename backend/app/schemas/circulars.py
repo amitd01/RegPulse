@@ -117,6 +117,12 @@ class CircularListResponse(BaseModel):
     total_pages: int
 
 
+class UpdatesFeedResponse(CircularListResponse):
+    """Recent circulars feed with unread-since-last-visit count."""
+
+    unread_count: int = 0
+
+
 class CircularSearchResponse(BaseModel):
     success: bool = True
     data: list[CircularSearchResultItem]

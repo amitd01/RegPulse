@@ -7,9 +7,10 @@ or manually created by users.
 from __future__ import annotations
 
 import uuid
+from datetime import date
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import desc, func, select
+from sqlalchemy import and_, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
@@ -20,10 +21,22 @@ from app.schemas.questions import (
     ActionItemCreateRequest,
     ActionItemListResponse,
     ActionItemResponse,
+    ActionItemStatsResponse,
     ActionItemUpdateRequest,
 )
 
 router = APIRouter(tags=["action-items"])
+
+
+def _with_overdue(item: ActionItem) -> ActionItemResponse:
+    """Serialise an ActionItem, computing ``is_overdue`` on the fly."""
+    data = ActionItemResponse.model_validate(item)
+    data.is_overdue = bool(
+        item.due_date is not None
+        and item.due_date < date.today()
+        and str(item.status) != "COMPLETED"
+    )
+    return data
 
 
 @router.get("", response_model=ActionItemListResponse)
@@ -58,10 +71,45 @@ async def list_action_items(
     items = list(result.scalars().all())
 
     return ActionItemListResponse(
-        data=[ActionItemResponse.model_validate(i) for i in items],
+        data=[_with_overdue(i) for i in items],
         total=total,
         page=page,
         page_size=page_size,
+    )
+
+
+@router.get("/stats", response_model=ActionItemStatsResponse)
+async def action_item_stats(
+    user: User = Depends(require_verified_user),
+    db: AsyncSession = Depends(get_db),
+) -> ActionItemStatsResponse:
+    """Aggregate counts by status for the current user, plus overdue."""
+    # Status counts — one row per distinct status.
+    status_stmt = (
+        select(ActionItem.status, func.count(ActionItem.id))
+        .where(ActionItem.user_id == user.id)
+        .group_by(ActionItem.status)
+    )
+    counts: dict[str, int] = {}
+    for status_value, n in (await db.execute(status_stmt)).all():
+        counts[str(status_value)] = int(n)
+
+    # Overdue = due_date in the past AND status != COMPLETED.
+    overdue_stmt = select(func.count(ActionItem.id)).where(
+        and_(
+            ActionItem.user_id == user.id,
+            ActionItem.due_date.is_not(None),
+            ActionItem.due_date < date.today(),
+            ActionItem.status != "COMPLETED",
+        )
+    )
+    overdue = int((await db.execute(overdue_stmt)).scalar() or 0)
+
+    return ActionItemStatsResponse(
+        pending=counts.get("PENDING", 0),
+        in_progress=counts.get("IN_PROGRESS", 0),
+        completed=counts.get("COMPLETED", 0),
+        overdue=overdue,
     )
 
 
@@ -86,7 +134,7 @@ async def create_action_item(
     db.add(item)
     await db.commit()
     await db.refresh(item)
-    return ActionItemResponse.model_validate(item)
+    return _with_overdue(item)
 
 
 @router.patch("/{item_id}", response_model=ActionItemResponse)
@@ -110,7 +158,7 @@ async def update_action_item(
 
     await db.commit()
     await db.refresh(item)
-    return ActionItemResponse.model_validate(item)
+    return _with_overdue(item)
 
 
 @router.delete("/{item_id}")

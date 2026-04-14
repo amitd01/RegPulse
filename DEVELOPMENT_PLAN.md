@@ -3,7 +3,7 @@
 > Master plan covering code gap closure, GCP deployment, tech debt, and feature roadmap.
 > Informed by PRD v3.0 / FSD v3.0 gap analysis (12 gaps identified) and PRODUCTION_PLAN.md.
 >
-> **Last updated:** 2026-04-13
+> **Last updated:** 2026-04-14 (Sprint 8 landed)
 
 ---
 
@@ -452,16 +452,16 @@ Sprint 8 (UX gaps) ── can start ──────────┤
 |---|---|---|---|
 | G-01 | DPDP Account Deletion | Sprint 7 | ✅ Complete |
 | G-02 | DPDP Data Export | Sprint 7 | ✅ Complete |
-| G-03 | Updates Feed unread tracking | Sprint 8 | Planned |
+| G-03 | Updates Feed unread tracking | Sprint 8 | ✅ Complete |
 | G-04 | Subscription auto-renewal | Sprint 7 | ✅ Complete |
 | G-05 | Low-credit notifications | Sprint 7 | ✅ Complete |
-| G-06 | Action items /stats | Sprint 8 | Planned |
-| G-07 | Admin Q&A sandbox | Sprint 8 | Planned |
-| G-08 | Question suggestions | Sprint 8 | Planned |
-| G-09 | PDF QR codes | Sprint 8 | Planned |
+| G-06 | Action items /stats | Sprint 8 | ✅ Complete |
+| G-07 | Admin Q&A sandbox | Sprint 8 | ✅ Complete |
+| G-08 | Question suggestions | Sprint 8 | ✅ Complete |
+| G-09 | PDF QR codes | Sprint 8 | ✅ Complete |
 | G-10 | pybreaker circuit breaker | Sprint 9 | Planned |
 | G-11 | Query expansion | Deferred | KG expansion serves same purpose |
-| G-12 | Action items overdue | Sprint 8 | Planned |
+| G-12 | Action items overdue | Sprint 8 | ✅ Complete |
 
 ---
 
