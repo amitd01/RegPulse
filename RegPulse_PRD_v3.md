@@ -4,18 +4,18 @@
 
 ### PRODUCT REQUIREMENTS DOCUMENT (PRD) --- v3.0
 
-Supersedes PRD v2.0 | Reflects actual build state through Sprint 6 + Phase 2 enhancements
+Supersedes PRD v2.0 | Reflects actual build state through Sprints 1–8 (all pre-launch code work complete, 2026-04-14)
 
 | Field | Value |
 |---|---|
 | **Product Name** | RegPulse --- RBI Regulatory Intelligence Platform |
-| **Version** | 3.0 (Post-Build Reconciliation) |
+| **Version** | 3.0 (Post-Build Reconciliation; Sprint 8 addendum) |
 | **Supersedes** | PRD v2.0 |
 | **Regulatory Scope** | Reserve Bank of India (RBI) Directives (schema pre-built for multi-regulator expansion) |
 | **Primary Revenue** | SaaS Subscription + Per-question Credits |
 | **Compliance Scope** | India Digital Personal Data Protection Act 2023 (DPDP), RBI IT Guidelines |
 | **Deployment Target** | Google Cloud Platform (asia-south1) --- Cloud Run, Cloud SQL, Memorystore |
-| **Status** | 50/50 build prompts + Sprints 1--6 complete. GCP deployment pending. |
+| **Status** | 50/50 build prompts + Sprints 1--8 complete. 10/12 PRD v3.0 gaps closed. GCP deployment (Phases A--C) is the remaining critical path to v1.0.0. |
 
 ---
 
@@ -414,34 +414,40 @@ Every answer's Recommended Actions can be saved as trackable action items.
 
 ---
 
-## 12. Gaps: PRD v2.0 Features Not Yet Implemented
+## 12. Gaps: PRD v2.0 Features — Closure Status
 
-These features were specified in PRD v2.0 but are not present in the current codebase. They represent either deferred work or intentional design decisions.
+Originally 12 gaps were identified against PRD v2.0. **10 of 12 are now closed** (Sprints 7 and 8). The table below reflects actual delivery status.
 
-| Gap ID | PRD v2.0 Feature | Schema Ready? | Notes |
-|---|---|---|---|
-| G-01 | **DPDP Account Deletion** (PATCH /account/delete) | Yes (`deletion_requested_at` column exists) | Legal requirement. Must implement before production. |
-| G-02 | **DPDP Data Export** (GET /account/export) | N/A | Legal requirement. Must implement before production. |
-| G-03 | **Updates Feed unread tracking** (last_seen_updates, mark-seen) | Yes (column exists) | /updates page works but without unread badges or mark-seen. UX enhancement, not blocking. |
-| G-04 | **Subscription auto-renewal** (Celery task + toggle endpoint) | Yes (`plan_auto_renew`, `last_credit_alert_sent` columns exist) | Requires Razorpay recurring payment setup. |
-| G-05 | **Low-credit email notifications** (Celery task) | Yes (`last_credit_alert_sent` column exists) | Celery task not implemented. |
-| G-06 | **Action items /stats endpoint** | N/A | Simple aggregate query. Low effort. |
-| G-07 | **Admin Q&A Sandbox** (GET /admin/test-question) | N/A | Admin can test prompts without charging credits. |
-| G-08 | **Question suggestions** (GET /questions/suggestions) | N/A | Similar past questions by vector similarity. |
-| G-09 | **PDF QR codes** to rbi.org.in | N/A | Enhancement to existing PDF export. |
-| G-10 | **pybreaker circuit breaker** for LLM calls | N/A | Current try/catch fallback works but lacks circuit-open state tracking. |
-| G-11 | **Query expansion** (RAG_QUERY_EXPANSION) | N/A | Deferred --- KG expansion provides similar recall benefit at lower cost. |
-| G-12 | **Overdue computation** for action items | N/A | due_date < today AND status != COMPLETED. Application-layer computation. |
+| Gap ID | Feature | Status | Delivered In | Endpoint / Implementation |
+|---|---|---|---|---|
+| G-01 | DPDP Account Deletion | ✅ Closed | Sprint 7 (`8c9f34b`) | `POST /account/request-deletion-otp`, `PATCH /account/delete` — OTP-gated, PII anonymised, cascade delete |
+| G-02 | DPDP Data Export | ✅ Closed | Sprint 7 (`8c9f34b`) | `GET /account/export` — JSON with questions/saved/action_items |
+| G-03 | Updates Feed unread tracking | ✅ Closed | Sprint 8 (`56d628f`) | `GET /circulars/updates` + `POST /circulars/updates/mark-seen`; sidebar badge, filter chips |
+| G-04 | Subscription auto-renewal | ✅ Closed | Sprint 7 (`8c9f34b`) | `PATCH /subscriptions/auto-renew` + Celery `subscription_renewal_check` (daily 08:00 IST) |
+| G-05 | Low-credit email notifications | ✅ Closed | Sprint 7 (`8c9f34b`) | Celery `credit_notifications` (daily 09:00 IST) + in-request BackgroundTask at balance 5 / 2 |
+| G-06 | Action items /stats endpoint | ✅ Closed | Sprint 8 (`56d628f`) | `GET /action-items/stats` — GROUP BY status + overdue count |
+| G-07 | Admin Q&A Sandbox | ✅ Closed | Sprint 8 (`56d628f`) | `GET /admin/prompts/test-question` — no Question row, no credits, logs `AnalyticsEvent("admin_test_question")` |
+| G-08 | Question suggestions | ✅ Closed | Sprint 8 (`56d628f`) | `GET /questions/suggestions` — pgvector ANN on `questions.question_embedding` (now persisted on write) |
+| G-09 | PDF QR codes to rbi.org.in | ✅ Closed | Sprint 8 (`56d628f`) | `GET /questions/{id}/export` now returns `application/pdf` built with `reportlab`; per-citation QR via `qrcode[pil]` |
+| G-10 | pybreaker circuit breaker for LLM | ⏳ Sprint 9 | — | `pybreaker==1.2.0` already in `requirements.txt`; wire into `llm_service.py` with `fail_max=3`, `reset_timeout=60` |
+| G-11 | Query expansion | ❌ Deferred | — | KG-driven RAG expansion (`RAG_KG_EXPANSION_ENABLED=true` default, Sprint 6) serves the same recall benefit at lower cost |
+| G-12 | Overdue computation | ✅ Closed | Sprint 8 (`56d628f`) | `is_overdue` computed field on `GET /action-items` items; `/action-items/stats` exposes overdue count |
 
-### Priority Recommendation
+### Post-Launch Scope
 
-| Priority | Gaps | Rationale |
+| Sprint | Gap | Rationale |
 |---|---|---|
-| **Before Launch** | G-01, G-02 | Legal requirement (DPDP Act 2023) |
-| **Sprint 7** | G-04, G-05, G-06, G-12 | Revenue-impacting (subscription + action item UX) |
-| **Sprint 8** | G-03, G-07, G-08, G-09, G-10 | UX polish + reliability |
-| **Deferred** | G-11 | KG expansion already addresses the recall gap |
+| Sprint 9 | G-10 | Reliability improvement; current try/catch fallback is acceptable for v1.0.0. |
+| Deferred | G-11 | KG expansion already addresses the recall gap. |
+
+### Residual Tech Debt (carried into Sprint 9)
+
+| ID | Issue |
+|---|---|
+| TD-01 | Scraper writes directly to backend DB — acceptable for v1.0.0, isolate in v2 |
+| TD-03 | Manual `api.ts` client — replace with OpenAPI codegen |
+| TD-09 | `BACKEND_PUBLIC_URL` unset in demo — set via Secret Manager during Phase A |
 
 ---
 
-*--- RegPulse PRD v3.0 --- All rights reserved ---*
+*--- RegPulse PRD v3.0 (Sprint 8 addendum, 2026-04-14) --- All rights reserved ---*

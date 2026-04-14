@@ -4,7 +4,7 @@
 
 ### FUNCTIONAL SPECIFICATION DOCUMENT (FSD) --- v3.0
 
-Supersedes FSD v2.0 | Reflects actual build state through Sprint 6 + Phase 2 enhancements
+Supersedes FSD v2.0 | Reflects actual build state through Sprints 1–8 (all pre-launch code work complete, 2026-04-14)
 
 | Field | Value |
 |---|---|
@@ -635,24 +635,25 @@ Daily Celery task `run_question_clustering`:
 
 ---
 
-## 16. Gaps: FSD v2.0 Specifications Not Yet Implemented
+## 16. Gaps: FSD v2.0 Specifications — Closure Status
 
-| Gap | FSD v2.0 Spec | Current State |
+| Gap | FSD v2.0 Spec | Status (2026-04-14) |
 |---|---|---|
-| DPDP endpoints | PATCH /account/delete, GET /account/export | Not implemented. Schema ready. |
-| Updates feed tracking | last_seen_updates, mark-seen, unread badge | Column exists, endpoints not built. |
-| Subscription auto-renewal | Celery task + PATCH /auto-renew | Columns exist, task/endpoint not built. |
-| Low-credit notifications | Celery task + email templates | Column exists, task not built. |
-| Action items /stats | GET /action-items/stats | Not implemented. |
-| Admin Q&A sandbox | GET /admin/test-question | Not implemented. |
-| Question suggestions | GET /questions/suggestions | Not implemented. |
-| GET /credits | Separate credit balance endpoint | Credit info available via /subscriptions/plan. |
-| pybreaker circuit breaker | CircuitBreaker(fail_max=3, reset_timeout=60) | Uses try/catch fallback instead. |
-| PDF QR codes | QR codes to rbi.org.in in exported PDFs | Not implemented. |
-| RAG_QUERY_EXPANSION | Claude Haiku query reformulation | Not implemented. KG expansion serves similar purpose. |
-| DB_BACKUP_BUCKET | S3 bucket for pg_dump backups | Not applicable (GCP deployment uses Cloud SQL automated backups). |
-| ANALYTICS_SALT | HMAC salt for first-party analytics | PostHog used instead. |
+| DPDP endpoints | PATCH /account/delete, GET /account/export | ✅ Sprint 7 — `POST /account/request-deletion-otp` + `PATCH /account/delete` (OTP-gated, PII anonymised, cascade delete) + `GET /account/export` (JSON) |
+| Updates feed tracking | last_seen_updates, mark-seen, unread badge | ✅ Sprint 8 — `GET /circulars/updates` + `POST /circulars/updates/mark-seen`; frontend sidebar badge + filter chips |
+| Subscription auto-renewal | Celery task + PATCH /auto-renew | ✅ Sprint 7 — `PATCH /subscriptions/auto-renew` + Celery `subscription_renewal_check` (daily 08:00 IST) |
+| Low-credit notifications | Celery task + email templates | ✅ Sprint 7 — Celery `credit_notifications` (daily 09:00 IST) + in-request BackgroundTask at balance 5 / 2 |
+| Action items /stats | GET /action-items/stats | ✅ Sprint 8 — `GET /action-items/stats` returns `{pending, in_progress, completed, overdue}` |
+| Admin Q&A sandbox | GET /admin/test-question | ✅ Sprint 8 — `GET /admin/prompts/test-question`; no credits, no Question row, logs `AnalyticsEvent("admin_test_question")` |
+| Question suggestions | GET /questions/suggestions | ✅ Sprint 8 — pgvector ANN on `questions.question_embedding` (now persisted on write); backfill script for legacy rows |
+| GET /credits | Separate credit balance endpoint | Not planned — info available via `/subscriptions/plan` |
+| pybreaker circuit breaker | CircuitBreaker(fail_max=3, reset_timeout=60) | ⏳ Sprint 9 — `pybreaker==1.2.0` vendored in `requirements.txt`, wiring deferred |
+| PDF QR codes | QR codes to rbi.org.in in exported PDFs | ✅ Sprint 8 — real PDF via `reportlab`; per-citation QR via `qrcode[pil]`; citations' `rbi_url` resolved in router by a single IN query |
+| Action items is_overdue | Computed on list | ✅ Sprint 8 — `is_overdue` field in `ActionItemResponse` |
+| RAG_QUERY_EXPANSION | Claude Haiku query reformulation | ❌ Deferred — KG expansion (Sprint 6, default on) serves the same recall benefit at lower cost |
+| DB_BACKUP_BUCKET | S3 bucket for pg_dump backups | Not applicable — GCP deployment uses Cloud SQL automated backups (7-day retention, PITR) |
+| ANALYTICS_SALT | HMAC salt for first-party analytics | Superseded — PostHog used instead |
 
 ---
 
-*--- RegPulse FSD v3.0 --- All rights reserved ---*
+*--- RegPulse FSD v3.0 (Sprint 8 addendum, 2026-04-14) --- All rights reserved ---*

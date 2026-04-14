@@ -10,7 +10,7 @@ B2B SaaS for Indian banking professionals. RAG-powered Q&A over RBI Circulars wi
 
 > **Read `LEARNINGS.md` at the repo root before starting any sprint.** Phase 2 mistakes are catalogued there with root causes and prevention rules.
 
-**(Phase 2 — Sprints 1–7 shipped, CI green)**:
+**(Phase 2 — Sprints 1–8 shipped, CI green, v1.0.0-rc)**:
 - Strict zero-hallucination constraint with multi-signal confidence scoring (0.0-1.0).
 - "Consult an Expert" fallback when confidence < 0.5 or zero valid citations.
 - PostHog adopted for event/journey analytics to prevent lock-in.
@@ -21,6 +21,7 @@ B2B SaaS for Indian banking professionals. RAG-powered Q&A over RBI Circulars wi
 - Sprint 5: Admin manual PDF upload (`/admin/uploads`), semantic clustering heatmap (`/admin/heatmap`).
 - Sprint 6: Pre-launch hardening — SIGTERM graceful shutdown (backend + Celery), system user for audit log, scraper embeddings wired into `process_document` INSERT (TD-08 fully resolved), LLM exception handling tightened to typed API errors, retrieval-level integration eval, dev Dockerfile target, **KG-driven RAG expansion now ON by default** (`RAG_KG_EXPANSION_ENABLED=true`). Migration `005_sprint6_system_user.sql`.
 - Sprint 7: DPDP compliance — account deletion (OTP-verified, PII anonymisation, cascade delete), data export (JSON download), subscription auto-renewal toggle + Celery reminder task, low-credit notification Celery task + in-request trigger at balance 5/2. New router: `/api/v1/account` (3 endpoints). Gaps resolved: G-01, G-02, G-04, G-05.
+- Sprint 8: Pre-launch UX + admin tooling — `GET /circulars/updates` + `POST /updates/mark-seen` (unread badge in sidebar, filter chips), `GET /action-items/stats` + `is_overdue` computed field, admin Q&A sandbox (`GET /admin/prompts/test-question` — no credits, no Question row, logs `AnalyticsEvent("admin_test_question")`), question suggestions (`GET /questions/suggestions` — pgvector ANN over user's own `questions.question_embedding`, now persisted on write; backfill script `scripts/backfill_question_embeddings.py`), real PDF compliance brief with per-citation QR codes (`reportlab` + `qrcode[pil]`). Shared `build_rag_service` / `build_llm_service` extracted to `app/dependencies/rag.py`. Gaps resolved: G-03, G-06, G-07, G-08, G-09, G-12. **All pre-launch code gaps closed** — only G-10 (circuit breaker, Sprint 9) and G-11 (deferred; KG expansion serves same purpose) remain.
 
 ---
 
@@ -28,7 +29,7 @@ B2B SaaS for Indian banking professionals. RAG-powered Q&A over RBI Circulars wi
 
 **Scraper** (`/scraper`): Celery + Python. Crawls rbi.org.in daily → PDF extract → chunk → embed → pgvector. Supersession detection + impact classification.
 
-**Backend** (`/backend`): FastAPI, SQLAlchemy 2.0 async, Pydantic v2. All at `/api/v1/`. ~62 endpoints, 11 services.
+**Backend** (`/backend`): FastAPI, SQLAlchemy 2.0 async, Pydantic v2. All at `/api/v1/`. ~65 endpoints, 11 services.
 
 **Frontend** (`/frontend`): Next.js 14, TypeScript strict, Tailwind, TanStack Query, Zustand. 25 routes.
 
@@ -111,13 +112,20 @@ LLM returns: `{quick_answer, detailed_interpretation, risk_level, confidence_sco
 - Auth chain: get_current_user → require_active → require_verified → require_admin/credits
 - Auth uses `python-jose` RS256 JWT + jti blacklist in Redis
 - Admin mutations write to `admin_audit_log`
+- Admin read-only or non-mutating actions (e.g. Q&A sandbox) log to `analytics_events` with `event_type="admin_test_question"` — not `admin_audit_log`
 - Subscription plans defined in `PLANS` dict in `subscription_service.py`
 - Razorpay webhook at `/subscriptions/webhook` — excluded from CORS, verified via HMAC-SHA256
 - `POST /questions` uses `response_model=None` (Union return type: JSON or StreamingResponse)
+- `questions.question_embedding` is persisted on every new row (Sprint 8) — fed by `_maybe_embed_question()` in `routers/questions.py`, hits EmbeddingService's Redis cache
+- Shared RAG/LLM wiring lives in `app/dependencies/rag.py` (`build_rag_service`, `build_llm_service`) — used by both `questions.py` and `admin/prompts.py` sandbox
+- Route ordering: `/foo/stats`, `/foo/suggestions`, `/foo/updates` etc. MUST be declared BEFORE any `/foo/{id}` path parameter route or FastAPI will match them as UUIDs
+- pgvector-only SQL (e.g. `ORDER BY embedding <=> CAST(:vec AS vector)`) must check `db.bind.dialect.name == 'postgresql'` and short-circuit for SQLite unit tests
+- User mutations from routes (e.g. `last_seen_updates = now()`) must use `UPDATE users SET ... WHERE id = :id` rather than attribute-set-on-dependency-injected-user, because the user ORM object may be attached to a different session than the route's `db`
 - Config: `from app.config import get_settings` (@lru_cache singleton)
 - All errors: `{"success": false, "error": "...", "code": "..."}`
 - B008 suppressed globally, E402 suppressed for conftest.py in pyproject.toml
 - All ORM enums use `enum.StrEnum`
+- reportlab `Paragraph` treats `&`, `<`, `>` as markup — always pass user-facing strings through `pdf_export_service._escape()`
 
 **Scraper:**
 - `scraper/db.py` is synchronous — no await
@@ -173,9 +181,10 @@ docker compose up --build -d
 
 | ID | Issue | Plan |
 |---|---|---|
-| TD-01 | Scraper writes directly to backend DB | API isolation in v2 |
-| TD-03 | Manual api.ts client | OpenAPI codegen in v1.1 |
+| TD-01 | Scraper writes directly to backend DB | API isolation in v2 (Sprint 9+) |
+| TD-03 | Manual api.ts client | OpenAPI codegen in Sprint 9 |
 | TD-09 | OG image URL uses `BACKEND_PUBLIC_URL` config which is unset in demo | Set when GCP deploy lands, falls back to localhost:8000 |
+| G-10 | Simple try/catch LLM fallback; no circuit-open state tracking | `pybreaker` already in `requirements.txt`; wire in Sprint 9 |
 | ~~TD-02~~ | ~~No graceful shutdown handlers~~ | ✅ Fixed (Sprint 6) — SIGTERM handler in `main.py` + Celery `worker_shutting_down` signal |
 | ~~TD-04~~ | ~~admin_audit_log.actor_id NOT NULL — scraper can't log~~ | ✅ Fixed (Sprint 6) — System user seeded via `005_sprint6_system_user.sql`, scraper `_audit_log()` helper |
 | ~~TD-05~~ | ~~Scraper embedder is a stub~~ | ✅ Fixed (Sprint 1) — Uses OpenAI `text-embedding-3-large` |

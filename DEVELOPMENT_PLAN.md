@@ -11,12 +11,12 @@
 
 | Area | Status |
 |---|---|
-| **Codebase** | 50/50 prompts + Sprints 1–6 complete. ~58 endpoints, 19 tables, 25 frontend routes. |
-| **CI** | Green (backend-lint, backend-test, frontend-build) |
+| **Codebase** | 50/50 prompts + Sprints 1–8 complete. ~65 endpoints, 19 tables, 25 frontend routes. |
+| **CI** | Green (backend-lint, backend-test, frontend-build) — 106 unit tests passing on `main` at `56d628f`. |
 | **Eval** | Golden dataset 21/21 PASS, retrieval eval 8/8 PASS |
-| **Deploy pipeline** | Stub — GCP deploy.yml written but Cloud Run services not provisioned |
+| **Deploy pipeline** | Stub — GCP `deploy.yml` written but Cloud Run services not provisioned |
 | **Infra** | No GCP resources provisioned |
-| **PRD v2.0 gaps** | 12 gaps identified (3 critical, 4 high, 5 medium) |
+| **PRD v2.0 gaps** | 10/12 closed (Sprints 7–8); G-10 in Sprint 9; G-11 deferred |
 | **Tech debt** | TD-01 (scraper DB isolation), TD-03 (OpenAPI codegen), TD-09 (BACKEND_PUBLIC_URL) |
 
 ---
