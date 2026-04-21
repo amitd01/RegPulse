@@ -1,10 +1,9 @@
-import { AppSidebar } from "@/components/AppSidebar";
+"use client";
+
+import { usePathname } from "next/navigation";
+import { AppShell } from "@/components/shell/AppShell";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex h-screen overflow-hidden">
-      <AppSidebar />
-      <main className="flex-1 overflow-y-auto">{children}</main>
-    </div>
-  );
+  const pathname = usePathname();
+  return <AppShell routeKey={pathname}>{children}</AppShell>;
 }

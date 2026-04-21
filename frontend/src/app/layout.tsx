@@ -33,7 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
       </head>
       <CSPostHogProvider>
-        <body className="min-h-screen bg-gray-50 text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100">
+        <body className="min-h-screen antialiased">
           <ThemeBootstrap />
           <PostHogPageView />
           <QueryProvider>{children}</QueryProvider>
