@@ -1,13 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useState } from "react";
-import { CircularCard } from "@/components/library/CircularCard";
-import { FilterPanel } from "@/components/library/FilterPanel";
-import { Pagination } from "@/components/ui/Pagination";
-import { SearchInput } from "@/components/ui/SearchInput";
-import { CardListSkeleton } from "@/components/ui/Skeleton";
 import { useCircularList, useCircularSearch } from "@/hooks/useCirculars";
 import { useAuthStore } from "@/stores/authStore";
+import { RP_DATA } from "@/lib/mockData";
+import { Icon, Pill } from "@/components/design/Primitives";
 import type { CircularFilters } from "@/types";
 
 const DEFAULT_FILTERS: CircularFilters = {
@@ -20,11 +18,11 @@ const DEFAULT_FILTERS: CircularFilters = {
 export default function LibraryPage() {
   const [filters, setFilters] = useState<CircularFilters>(DEFAULT_FILTERS);
   const [searchQuery, setSearchQuery] = useState("");
+  const [impactFilter, setImpactFilter] = useState("all");
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   const isSearchMode = searchQuery.length >= 3;
 
-  // Use search hook when searching, list hook otherwise
   const listQuery = useCircularList(filters);
   const searchResults = useCircularSearch(
     searchQuery,
@@ -33,7 +31,7 @@ export default function LibraryPage() {
   );
 
   const activeQuery = isSearchMode && isAuthenticated ? searchResults : listQuery;
-  const { data, isLoading, isError, error } = activeQuery;
+  const { data, isLoading, isError } = activeQuery;
 
   const handleFilterChange = useCallback(
     (key: keyof CircularFilters, value: string) => {
@@ -46,128 +44,412 @@ export default function LibraryPage() {
     [],
   );
 
-  const handleResetFilters = useCallback(() => {
-    setFilters(DEFAULT_FILTERS);
-    setSearchQuery("");
-  }, []);
-
   const handlePageChange = useCallback((page: number) => {
     setFilters((prev) => ({ ...prev, page }));
   }, []);
 
-  const handleSearchChange = useCallback((value: string) => {
-    setSearchQuery(value);
-    setFilters((prev) => ({ ...prev, page: 1 }));
-  }, []);
+  // Merge live data with mock fallback
+  const liveCirculars = data?.data ?? [];
+  const displayCirculars =
+    liveCirculars.length > 0
+      ? liveCirculars.map((c) => ({
+          id: c.id,
+          num: c.circular_number || "",
+          title: c.title,
+          dept: c.department || "",
+          date: c.issued_date
+            ? new Date(c.issued_date).toLocaleDateString("en-IN", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })
+            : "",
+          impact: (c.impact_level?.toLowerCase() || "low") as "high" | "med" | "low",
+          status: (c.status?.toLowerCase() || "active") as "active" | "superseded",
+          tags: c.tags || [],
+          summary: "",
+          link: `/library/${c.id}`,
+        }))
+      : RP_DATA.circulars.map((c) => ({
+          ...c,
+          link: "#",
+        }));
+
+  const filtered =
+    impactFilter === "all"
+      ? displayCirculars
+      : displayCirculars.filter((c) => c.impact === impactFilter);
 
   return (
-    <div className="px-6 py-6 lg:px-8">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-50">
-          Circular Library
-        </h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Browse and search RBI circulars, master directions, and notifications.
-        </p>
-      </div>
-
-      {/* Search bar */}
-      <div className="mb-4">
-        <SearchInput
-          value={searchQuery}
-          onChange={handleSearchChange}
-          placeholder={
-            isAuthenticated
-              ? "Search circulars with AI-powered hybrid search..."
-              : "Log in to enable AI-powered search. Browse below."
-          }
-          className="max-w-2xl"
-        />
-        {isSearchMode && !isAuthenticated && (
-          <p className="mt-1 text-xs text-amber-600">
-            Sign in to use hybrid search. Showing filtered list instead.
-          </p>
+    <div
+      className="rp-route-fade"
+      style={{ display: "grid", gridTemplateColumns: "240px 1fr", height: "100%" }}
+    >
+      {/* Filter aside */}
+      <aside
+        style={{
+          borderRight: "1px solid var(--line)",
+          background: "var(--panel)",
+          padding: "18px 16px",
+          overflowY: "auto",
+        }}
+      >
+        <div className="tick" style={{ marginBottom: 10 }}>
+          FILTERS
+        </div>
+        <div
+          className="mono up"
+          style={{ fontSize: 10, color: "var(--ink-4)", marginBottom: 6 }}
+        >
+          IMPACT
+        </div>
+        {(
+          [
+            ["all", "All"],
+            ["high", "High"],
+            ["med", "Medium"],
+            ["low", "Low"],
+          ] as const
+        ).map(([k, l]) => (
+          <label
+            key={k}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "3px 0",
+              fontSize: 12.5,
+              cursor: "pointer",
+            }}
+          >
+            <input
+              type="radio"
+              checked={impactFilter === k}
+              onChange={() => setImpactFilter(k)}
+              className="checkbox"
+              style={{ borderRadius: "50%" }}
+            />
+            {l}
+          </label>
+        ))}
+        <div
+          className="mono up"
+          style={{ fontSize: 10, color: "var(--ink-4)", margin: "14px 0 6px" }}
+        >
+          DEPARTMENT
+        </div>
+        {["Dept. of Regulation", "Foreign Exchange", "DPSS", "Consumer Education"].map(
+          (d) => (
+            <label
+              key={d}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "3px 0",
+                fontSize: 12.5,
+                cursor: "pointer",
+              }}
+            >
+              <input
+                type="checkbox"
+                className="checkbox"
+                defaultChecked={d.startsWith("Dept")}
+                onChange={(e) => {
+                  if (d.startsWith("Dept")) {
+                    handleFilterChange(
+                      "department" as keyof CircularFilters,
+                      e.target.checked ? "" : "none",
+                    );
+                  }
+                }}
+              />{" "}
+              {d}
+            </label>
+          ),
         )}
-      </div>
-
-      {/* Filters */}
-      <div className="mb-6">
-        <FilterPanel
-          filters={filters}
-          onFilterChange={handleFilterChange}
-          onReset={handleResetFilters}
-        />
-      </div>
-
-      {/* Results count */}
-      {data && (
-        <div className="mb-4 text-sm text-gray-500 dark:text-gray-400">
-          {data.total === 0
-            ? "No circulars found"
-            : `Showing ${(data.page - 1) * data.page_size + 1}–${Math.min(
-                data.page * data.page_size,
-                data.total,
-              )} of ${data.total} circulars`}
+        <div
+          className="mono up"
+          style={{ fontSize: 10, color: "var(--ink-4)", margin: "14px 0 6px" }}
+        >
+          DATE
         </div>
-      )}
-
-      {/* Loading state */}
-      {isLoading && <CardListSkeleton rows={6} />}
-
-      {/* Error state */}
-      {isError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          Failed to load circulars.{" "}
-          {error instanceof Error ? error.message : "Please try again."}
+        {["Last 7 days", "Last 30 days", "FY26", "FY25"].map((d) => (
+          <label
+            key={d}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "3px 0",
+              fontSize: 12.5,
+              cursor: "pointer",
+            }}
+          >
+            <input type="checkbox" className="checkbox" /> {d}
+          </label>
+        ))}
+        <div
+          className="mono up"
+          style={{ fontSize: 10, color: "var(--ink-4)", margin: "14px 0 6px" }}
+        >
+          STATUS
         </div>
-      )}
+        <label
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "3px 0",
+            fontSize: 12.5,
+            cursor: "pointer",
+          }}
+        >
+          <input type="checkbox" className="checkbox" defaultChecked /> Active only
+        </label>
+      </aside>
 
-      {/* Results grid */}
-      {data && data.data.length > 0 && (
-        <div className="space-y-3">
-          {data.data.map((circular) => (
-            <CircularCard key={circular.id} circular={circular} />
+      {/* Main content */}
+      <div style={{ padding: "20px 24px", overflowY: "auto" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            marginBottom: 16,
+          }}
+        >
+          <h1
+            className="serif"
+            style={{ fontSize: 26, fontWeight: 400 }}
+          >
+            Circular Library
+          </h1>
+          <span
+            className="mono"
+            style={{ fontSize: 11, color: "var(--ink-4)" }}
+          >
+            {data
+              ? `${data.total.toLocaleString()} indexed`
+              : `${RP_DATA.pulse.totalCirculars.toLocaleString()} indexed`}{" "}
+            · {RP_DATA.pulse.superseded} superseded this week
+          </span>
+          <div style={{ flex: 1 }} />
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              border: "1px solid var(--line)",
+              background: "var(--panel)",
+              padding: "6px 10px",
+              borderRadius: 3,
+              minWidth: 320,
+            }}
+          >
+            <Icon.Search style={{ color: "var(--ink-4)" }} />
+            <input
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setFilters((prev) => ({ ...prev, page: 1 }));
+              }}
+              placeholder="Search circular number, title, section..."
+              style={{
+                flex: 1,
+                background: "transparent",
+                border: "none",
+                outline: "none",
+                fontSize: 12.5,
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Loading */}
+        {isLoading && (
+          <div style={{ padding: 40, textAlign: "center", color: "var(--ink-4)" }}>
+            Loading circulars...
+          </div>
+        )}
+
+        {/* Error */}
+        {isError && (
+          <div
+            style={{
+              padding: "12px 14px",
+              border: "1px solid var(--bad)",
+              background: "var(--bad-bg)",
+              borderRadius: "var(--radius)",
+              fontSize: 13,
+              color: "var(--bad)",
+              marginBottom: 16,
+            }}
+          >
+            Failed to load circulars. Showing demo data.
+          </div>
+        )}
+
+        {/* 2-col card grid */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 12,
+          }}
+        >
+          {filtered.map((c) => (
+            <CircCard key={c.id} c={c} />
           ))}
         </div>
-      )}
 
-      {/* Empty state */}
-      {data && data.data.length === 0 && !isLoading && (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <svg
-            className="mb-4 h-12 w-12 text-gray-300"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+        {/* Pagination */}
+        {data && data.total_pages > 1 && (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              gap: 6,
+              marginTop: 20,
+            }}
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m5.231 13.481L15 17.25m-4.5-15H5.625c-.621 0-1.125.504-1.125 1.125v16.5c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9zm3.75 11.625a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"
-            />
-          </svg>
-          <p className="text-sm text-gray-500">No circulars match your filters.</p>
-          <button
-            onClick={handleResetFilters}
-            className="mt-2 text-sm font-medium text-navy-600 hover:text-navy-700"
-          >
-            Clear all filters
-          </button>
-        </div>
-      )}
-
-      {/* Pagination */}
-      {data && data.total_pages > 1 && (
-        <div className="mt-6">
-          <Pagination
-            page={data.page}
-            totalPages={data.total_pages}
-            onPageChange={handlePageChange}
-          />
-        </div>
-      )}
+            {Array.from({ length: Math.min(data.total_pages, 10) }, (_, i) => i + 1).map(
+              (p) => (
+                <button
+                  key={p}
+                  onClick={() => handlePageChange(p)}
+                  className="btn sm"
+                  style={{
+                    background:
+                      p === (data.page || filters.page)
+                        ? "var(--ink)"
+                        : "var(--panel)",
+                    color:
+                      p === (data.page || filters.page)
+                        ? "var(--bg)"
+                        : "var(--ink-3)",
+                    minWidth: 32,
+                    textAlign: "center",
+                  }}
+                >
+                  {p}
+                </button>
+              ),
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
+}
+
+/* ── CircCard ──────────────────────────────────────────────────────────── */
+
+function CircCard({
+  c,
+}: {
+  c: {
+    id: string;
+    num: string;
+    title: string;
+    impact: "high" | "med" | "low";
+    status: "active" | "superseded";
+    date: string;
+    tags: string[];
+    summary?: string;
+    link?: string;
+  };
+}) {
+  const inner = (
+    <div
+      className="panel"
+      style={{
+        padding: 14,
+        cursor: "pointer",
+        transition: "border-color .12s",
+      }}
+      onMouseOver={(e) =>
+        (e.currentTarget.style.borderColor = "var(--ink-4)")
+      }
+      onMouseOut={(e) =>
+        (e.currentTarget.style.borderColor = "var(--line)")
+      }
+    >
+      <div
+        style={{
+          display: "flex",
+          gap: 6,
+          marginBottom: 8,
+          alignItems: "center",
+        }}
+      >
+        <Pill
+          tone={
+            c.impact === "high"
+              ? "amber"
+              : c.impact === "med"
+                ? "warn"
+                : "ghost"
+          }
+        >
+          {c.impact.toUpperCase()}
+        </Pill>
+        {c.status === "superseded" && <Pill tone="bad">SUPERSEDED</Pill>}
+        <span style={{ flex: 1 }} />
+        <span
+          className="mono tnum"
+          style={{ fontSize: 10.5, color: "var(--ink-4)" }}
+        >
+          {c.date}
+        </span>
+      </div>
+      <div
+        className="mono"
+        style={{ fontSize: 10.5, color: "var(--ink-4)", marginBottom: 4 }}
+      >
+        {c.num}
+      </div>
+      <div
+        style={{
+          fontSize: 13,
+          fontWeight: 500,
+          lineHeight: 1.3,
+          marginBottom: 8,
+          color: "var(--ink)",
+        }}
+      >
+        {c.title}
+      </div>
+      {c.summary && (
+        <div
+          className="serif"
+          style={{
+            fontSize: 12.5,
+            fontStyle: "italic",
+            color: "var(--ink-3)",
+            lineHeight: 1.4,
+            marginBottom: 10,
+          }}
+        >
+          {c.summary}
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+        {c.tags.map((t) => (
+          <Pill key={t} tone="ghost">
+            {t}
+          </Pill>
+        ))}
+      </div>
+    </div>
+  );
+
+  if (c.link && c.link !== "#") {
+    return (
+      <Link href={c.link} style={{ textDecoration: "none", color: "inherit" }}>
+        {inner}
+      </Link>
+    );
+  }
+  return inner;
 }

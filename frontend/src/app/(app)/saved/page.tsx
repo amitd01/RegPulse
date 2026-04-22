@@ -4,9 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
-import { Badge } from "@/components/ui/Badge";
-import { Pagination } from "@/components/ui/Pagination";
-import { Spinner } from "@/components/ui/Spinner";
+import { RP_DATA } from "@/lib/mockData";
+import { Btn, Icon, Pill } from "@/components/design/Primitives";
 
 interface SavedItem {
   id: string;
@@ -42,67 +41,183 @@ export default function SavedPage() {
   const { data, isLoading } = useSavedList(page);
   const deleteSaved = useDeleteSaved();
 
+  // Merge live data with mock fallback
+  const liveItems = data?.data ?? [];
+  const displayItems =
+    liveItems.length > 0
+      ? liveItems.map((s) => ({
+          id: s.id,
+          questionId: s.question_id,
+          title: s.name,
+          q: "",
+          when: new Date(s.created_at).toLocaleDateString("en-IN", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          }),
+          tags: s.tags || [],
+          needsReview: s.needs_review,
+          isLive: true,
+        }))
+      : RP_DATA.saved.map((s) => ({
+          id: s.id,
+          questionId: "",
+          title: s.title,
+          q: s.q,
+          when: s.when,
+          tags: s.tags,
+          needsReview: false,
+          isLive: false,
+        }));
+
+  const totalPages = data ? Math.ceil(data.total / 20) : 1;
+
   return (
-    <div className="px-6 py-6 lg:px-8">
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">Saved Interpretations</h1>
+    <div className="rp-route-fade" style={{ padding: "20px 24px 60px" }}>
+      <h1
+        className="serif"
+        style={{ fontSize: 28, fontWeight: 400, marginBottom: 4 }}
+      >
+        Saved Interpretations
+      </h1>
+      <p
+        className="serif"
+        style={{
+          fontSize: 14,
+          fontStyle: "italic",
+          color: "var(--ink-3)",
+          marginBottom: 16,
+        }}
+      >
+        Briefs you&rsquo;ve bookmarked for fast recall during board and
+        regulator reviews.
+      </p>
 
       {isLoading && (
-        <div className="flex justify-center py-20"><Spinner size="lg" /></div>
-      )}
-
-      {data && data.data.length === 0 && (
-        <p className="py-20 text-center text-sm text-gray-500">
-          No saved interpretations yet. Save answers from your Q&A history.
-        </p>
-      )}
-
-      {data && data.data.length > 0 && (
-        <div className="space-y-3">
-          {data.data.map((item) => (
-            <div
-              key={item.id}
-              className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4"
-            >
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <p className="text-sm font-medium text-gray-900 truncate">{item.name}</p>
-                  {item.needs_review && (
-                    <Badge variant="high">Needs Review</Badge>
-                  )}
-                </div>
-                {item.tags && item.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {item.tags.map((tag) => (
-                      <Badge key={tag}>{tag}</Badge>
-                    ))}
-                  </div>
-                )}
-                <p className="mt-1 text-xs text-gray-400">
-                  Saved {new Date(item.created_at).toLocaleDateString("en-IN")}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 ml-4">
-                <Link
-                  href={`/history/${item.question_id}`}
-                  className="rounded border border-gray-300 px-3 py-1 text-xs text-gray-600 hover:bg-gray-50"
-                >
-                  View
-                </Link>
-                <button
-                  onClick={() => deleteSaved.mutate(item.id)}
-                  className="rounded border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))}
+        <div style={{ padding: 40, textAlign: "center", color: "var(--ink-4)" }}>
+          Loading...
         </div>
       )}
 
-      {data && Math.ceil(data.total / 20) > 1 && (
-        <div className="mt-6">
-          <Pagination page={page} totalPages={Math.ceil(data.total / 20)} onPageChange={setPage} />
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 12,
+        }}
+      >
+        {displayItems.map((s) => {
+          const card = (
+            <div
+              key={s.id}
+              className="panel"
+              style={{ padding: 14, cursor: "pointer" }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  marginBottom: 8,
+                }}
+              >
+                <Icon.Bookmark style={{ color: "var(--signal)" }} />
+                <span
+                  className="mono"
+                  style={{ fontSize: 10.5, color: "var(--ink-4)" }}
+                >
+                  {s.when}
+                </span>
+                {s.needsReview && <Pill tone="bad">REVIEW</Pill>}
+                <div style={{ flex: 1 }} />
+                {s.isLive && (
+                  <Btn
+                    size="sm"
+                    variant="ghost"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      deleteSaved.mutate(s.id);
+                    }}
+                    style={{ color: "var(--bad)" }}
+                  >
+                    <Icon.Close /> Remove
+                  </Btn>
+                )}
+              </div>
+              <div
+                style={{
+                  fontSize: 14,
+                  fontWeight: 500,
+                  lineHeight: 1.3,
+                  marginBottom: 6,
+                }}
+              >
+                {s.title}
+              </div>
+              {s.q && (
+                <div
+                  className="serif"
+                  style={{
+                    fontSize: 12.5,
+                    fontStyle: "italic",
+                    color: "var(--ink-3)",
+                    marginBottom: 10,
+                  }}
+                >
+                  &ldquo;{s.q}&rdquo;
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                {s.tags.map((t) => (
+                  <Pill key={t} tone="ghost">
+                    {t}
+                  </Pill>
+                ))}
+              </div>
+            </div>
+          );
+
+          if (s.isLive && s.questionId) {
+            return (
+              <Link
+                key={s.id}
+                href={`/history/${s.questionId}`}
+                style={{ textDecoration: "none", color: "inherit" }}
+              >
+                {card}
+              </Link>
+            );
+          }
+          return card;
+        })}
+      </div>
+
+      {totalPages > 1 && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            gap: 6,
+            marginTop: 16,
+          }}
+        >
+          {Array.from({ length: Math.min(totalPages, 10) }, (_, idx) => idx + 1).map(
+            (p) => (
+              <button
+                key={p}
+                onClick={() => setPage(p)}
+                className="btn sm"
+                style={{
+                  background: p === page ? "var(--ink)" : "var(--panel)",
+                  color: p === page ? "var(--bg)" : "var(--ink-3)",
+                  minWidth: 32,
+                }}
+              >
+                {p}
+              </button>
+            ),
+          )}
         </div>
       )}
     </div>
