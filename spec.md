@@ -1,6 +1,6 @@
 # RegPulse — Technical Specification
 
-> **Living spec. Reflects actual implementation state — all 50 prompts + Sprints 1–8 complete.**
+> **Living spec. Reflects actual implementation state — all 50 prompts + Sprints 1–8 + Frontend v2 redesign complete.**
 > For architecture rules, see `MEMORY.md`. For build progress, see `CLAUDE.md`. For new-engineer onboarding, see `TEAM_HANDOVER.md`.
 
 ---
@@ -348,23 +348,27 @@ Schedule: daily_scrape at 02:00 IST, priority_scrape every 4h, **ingest_news eve
 
 ## 8. Frontend Pages
 
+**27 routes.** Redesigned with terminal-modern v2 design system (Frontend v2, April 2026).
+
 | Route | Page | Auth | Description |
 |-------|------|------|-------------|
 | `/` | Landing | Public | Product intro |
 | `/login` | Login | Public | Work email + Send OTP |
 | `/register` | Register | Public | Full profile form (name, org, type) |
 | `/verify` | Verify OTP | Public | 6-digit OTP with auto-submit |
-| `/library` | Library | Public | Browse circulars with filters, search, pagination |
+| `/library` | Library | Public | 240px filter aside + 2-col CircCard grid with search |
 | `/library/[id]` | Detail | Public | Circular metadata, AI summary, text chunks |
-| `/dashboard` | Dashboard | Verified | Welcome, stats, quick actions, recent questions |
-| `/ask` | Ask | Credits | SSE streaming Q&A with citations and actions |
-| `/history` | History | Verified | Paginated question list |
+| `/dashboard` | Dashboard | Verified | Executive command center: hero, 4 metric tiles, heatmap, activity feed |
+| `/ask` | Ask | Credits | Editorial brief: 2-col (main + 320px rail), SSE streaming, annotations, feedback, learning modal, confidence radial, citations, debate |
+| `/history` | History | Verified | dtable: Question / When / Risk pill / confidence bar / Teams |
 | `/history/[id]` | Q&A Detail | Verified | Full answer, citations, actions, feedback |
-| `/updates` | Updates | Verified | Regulatory updates feed (recent circulars) |
-| `/upgrade` | Upgrade | Verified | Plan cards with pricing |
-| `/account` | Account | Verified | Profile, plan info, payment history |
-| `/action-items` | Actions | Verified | CRUD with status filter tabs |
-| `/saved` | Saved | Verified | Saved interpretations with needs_review badge |
+| `/updates` | Updates | Verified | 3-tab (Circulars dtable / News relevance cards / Consultations), live-dot, filter chips |
+| `/upgrade` | Upgrade | Verified | 3-col plan cards with "MOST CHOSEN" ribbon, serif editorial headline |
+| `/account` | Account | Verified | PROFILE grid + TEAM members + PAYMENT HISTORY + DATA/DPDP panel |
+| `/action-items` | Actions | Verified | MiniStat header (OPEN/HIGH/OVERDUE) + 5-tab filters + dtable with checkbox toggle |
+| `/saved` | Saved | Verified | 2-col card grid with serif italic question quote |
+| `/learnings` | Learnings | Verified | 3 MiniStats + card list (avatar, serif takeaway, tags, pin/edit). Mock data. |
+| `/debate` | Debate | Verified | 2-col debate cards (OPEN/RESOLVED, agree/disagree bar). Mock data. |
 | `/admin` | Admin Dashboard | Admin | 8 aggregate stat cards |
 | `/admin/review` | Review | Admin | Flagged questions, override/mark-reviewed |
 | `/admin/prompts` | Prompts | Admin | Version CRUD with activate |
@@ -374,19 +378,18 @@ Schedule: daily_scrape at 02:00 IST, priority_scrape every 4h, **ingest_news eve
 | `/admin/uploads` | Uploads | Admin | Drag-drop PDF upload + status table (Sprint 5) |
 | `/admin/heatmap` | Heatmap | Admin | Semantic clustering heatmap with period/bucket controls (Sprint 5) |
 
-### Component Library
-- `AppSidebar` — navigation (Library, Ask, History, Updates, Action Items, Saved) + theme toggle (Sprint 4)
-- `Badge` — variants: default, high, medium, low, active, superseded, draft
-- `ConfidenceMeter` (Sprint 4) — full panel + compact pill, WCAG-AA bands (high / medium / low / fallback), reads `confidence_score` + `consult_expert`
-- `Skeleton` / `CardListSkeleton` (Sprint 4) — animated placeholders for list pages
-- `ThemeToggle` / `ThemeBootstrap` (Sprint 4) — Tailwind class-based dark mode + system-pref bootstrap
-- `Pagination` — page numbers with ellipsis
-- `SearchInput` — debounced (300ms) with clear
-- `Select` — styled dropdown
-- `Spinner` — loading indicator
-- `Heatmap` (Sprint 5) — CSS-grid heatmap with color interpolation, hover tooltips, expandable cluster rows
-- `CircularCard` — list item with badges, supports search results
-- `FilterPanel` — doc type, status, impact level, sort
+### Design System (Frontend v2)
+
+**Terminal-modern** aesthetic — "Bloomberg terminal meets editorial print." CSS custom-property tokens in `globals.css`, class-based dark mode (`html.dark`).
+
+- **Tokens:** paper/ink/amber palette (light + dark), 3 typefaces (Inter Tight sans, Source Serif 4, JetBrains Mono), CSS shadows/radii/grid
+- **Primitives** (`components/design/Primitives.tsx`): `Pill` (7 tones), `Btn` (4 variants × 2 sizes), `Icon` (20+ hand-rolled SVGs), `Avatar`, `Sparkline`, `MiniStat`, `Kbd`, `ToastProvider`/`useToast`, `Panel`, `cn`
+- **Shell** (`components/shell/`): `TopBar` (logo + nav links + credits + avatar), `Sidebar` (NAV items with badges + kbd hints), `Ticker` (auto-scroll marquee), `CommandPalette` (⌘K), `TweaksPanel` (gear toggle), `AppShell` (assembles all)
+- **CSS classes:** `.panel`, `.tick`, `.pill.*`, `.btn.*`, `.dtable`, `.rp-prose` (serif editorial body with `.dek` deck + `mark.annot`), `.bar.*`, `.input`, `.checkbox`, `.toast`, `.live-dot`, `.gridlines`, `.hr`
+- **Mock data** (`lib/mockData.ts`): Plausible Indian banking scenarios (circulars, actions, history, learnings, debates, featured answer). Used as fallback when backend returns empty lists.
+
+### Legacy Component Library (still used by admin + auth pages)
+- `Badge`, `ConfidenceMeter`, `Skeleton`/`CardListSkeleton`, `ThemeToggle`/`ThemeBootstrap`, `Pagination`, `SearchInput`, `Select`, `Spinner`, `Heatmap`, `CircularCard`, `FilterPanel`
 
 ### Data Layer
 - **TanStack Query** for all API calls (staleTime per query type)
@@ -394,6 +397,7 @@ Schedule: daily_scrape at 02:00 IST, priority_scrape every 4h, **ingest_news eve
 - **Axios** interceptor: auto-attach Bearer token, 401 → silent refresh → retry (one attempt)
 - **Middleware** (`src/middleware.ts`): library browsable without auth, protected routes redirect to `/login`
 - **SSE**: native `fetch` + `ReadableStream` (not EventSource, for POST body support)
+- **Mock fallback**: pages degrade to `RP_DATA` when backend lists are empty — the terminal stays alive in demo/dev
 
 ---
 

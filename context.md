@@ -1,20 +1,21 @@
 # RegPulse — Project Status
 
-> **50 build prompts + Sprints 1–8 complete. CI green. All pre-launch code gaps closed. Next critical path: GCP Phases A→C.**
+> **50 build prompts + Sprints 1–8 + Frontend v2 redesign complete. CI green. All pre-launch code gaps closed. Next critical path: GCP Phases A→C.**
 
 ---
 
-## Current State (2026-04-14)
+## Current State (2026-04-22)
 
-- **Branch:** `main` (`56d628f`) — Sprint 8 UX + admin tooling merged via PR #10
+- **Branch:** `main` — Sprint 8 + Frontend v2 redesign merged
 - **Phase:** Phase 2 complete. 10/12 PRD v3.0 gaps resolved (G-01/02/03/04/05/06/07/08/09/12). G-10 deferred to Sprint 9. G-11 superseded by KG expansion.
 - **CI:** All 3 jobs green on `main` (backend-lint 12s, backend-test 2m 15s, frontend-build 1m 19s)
 - **UAT:** 81/81 automated tests passed on Sprint 7 state (see `UAT_RESULTS.md`); Sprint 8 added 10 unit tests on top
 - **Golden eval:** 21/21 PASS | **Retrieval eval:** 8/8 PASS
 - **Ruff:** 0 errors | **Black:** 0 reformats | **tsc --noEmit:** clean | **ESLint:** clean
 - **Unit tests:** 106/106 passing (fixed 6 pre-existing failures flagged in Sprint 7 handover as part of Sprint 8 CI cleanup)
-- **Frontend:** 25 routes | **Backend:** ~65 endpoints, 11 services, 19 tables, 5 migrations
-- **Docker:** 6-container `docker compose up --build -d`; rebuild required to pick up Sprint 8 endpoints
+- **Frontend:** 27 routes (added `/learnings`, `/debate`) | **Backend:** ~65 endpoints, 11 services, 19 tables, 5 migrations
+- **Frontend v2:** Terminal-modern redesign shipped — design tokens, AppShell, editorial Ask brief, list page redesigns, 2 new routes, Upgrade + Account reskin. All live API wiring preserved.
+- **Docker:** 6-container `docker compose up --build -d`; rebuild required to pick up Frontend v2
 - **`LEARNINGS.md`** at repo root — L1–L8 + cross-sprint patterns
 
 ---
@@ -24,8 +25,9 @@
 **Backend:** 11 services, 19 router files (~65 endpoints), 19 tables, 5 migrations
   - New Sprint 8: `app/dependencies/rag.py` (shared RAG/LLM builders), `scripts/backfill_question_embeddings.py`
   - New Sprint 8 endpoints: `GET /circulars/updates`, `POST /circulars/updates/mark-seen`, `GET /action-items/stats`, `GET /admin/prompts/test-question`, `GET /questions/suggestions`; `GET /questions/{id}/export` now returns `application/pdf`
-**Frontend:** 25 routes, 9 UI components, Tailwind dark mode, PostHog analytics
+**Frontend:** 27 routes, terminal-modern v2 design system, PostHog analytics
   - Sprint 8: filter chips + sidebar unread badge on `/updates`, overdue badge on `/action-items`, debounced suggestions dropdown on `/ask`
+  - **Frontend v2 redesign** (5 chunks): CSS custom-property design tokens (paper/ink/amber palette, serif/mono/sans type scale), `AppShell` with `TopBar` + `Sidebar` + `Ticker` + `CommandPalette` + `TweaksPanel`, `Primitives.tsx` (Pill, Btn, Avatar, Icon set, Toast, MiniStat, Sparkline), `mockData.ts` (Indian banking fixtures). All 12 app pages rewritten: editorial Ask brief (2-col with right rail, annotations, feedback, learning modal), Library (240px filter aside + 2-col cards), Updates (dtable + news relevance cards), History (dtable with confidence bars), Saved (2-col cards), Action Items (MiniStats + dtable), Learnings (new route, mock), Debate (new route, mock), Upgrade (3-col plans), Account (PROFILE + TEAM + DPDP panels). Design source stashed in `files/design-v2/`.
 **Scraper:** 10 Celery tasks, 6 beat schedules
 **Infra:** CI/CD (ci.yml + deploy.yml), Nginx config, Makefile, launch_check.sh, PRODUCTION_PLAN.md
 **Evals:** `test_hallucination.py` (21), `test_retrieval.py` (8), `k6_load_test.js` (3 scenarios)

@@ -33,6 +33,7 @@
 | Sprint 6 | Pre-Launch Hardening: SIGTERM shutdown, system user audit log, scraper embeddings on insert, LLM exception tightening, KG expansion GA, retrieval eval | ✅ Complete |
 | Sprint 7 | DPDP compliance (account deletion + data export), subscription auto-renewal, low-credit notifications | ✅ Complete |
 | Sprint 8 | Updates feed tracking, action items stats/overdue, admin Q&A sandbox, question suggestions, real PDF + QR codes | ✅ Complete (`56d628f`) |
+| Frontend v2 | Terminal-modern redesign: design tokens, AppShell, editorial Ask, list pages, Learnings, Debate routes | ✅ Complete (`49cde9c`) |
 | Phase A | GCP infra provisioning (Cloud SQL, Memorystore, Artifact Registry, Secret Manager) | ⏳ Next |
 | Phase B | CI/CD hardening (WIF, staging env, security baseline, integration tests) | ⏳ Planned |
 | Phase C | Data migration + observability + v1.0.0 launch | ⏳ Planned |
@@ -51,7 +52,7 @@ rbi.org.in → Scraper (Celery) → PostgreSQL + pgvector ← FastAPI ← Next.j
 | Layer | Tech |
 |-------|------|
 | Backend | FastAPI, SQLAlchemy 2.0 async, Pydantic v2, Python 3.11 |
-| Frontend | Next.js 14, TypeScript strict, Tailwind, TanStack Query, Zustand |
+| Frontend | Next.js 14, TypeScript strict, CSS custom-property design tokens, TanStack Query, Zustand |
 | Database | PostgreSQL 16 + pgvector (17 tables, ivfflat + GIN indexes) |
 | Cache/Queue | Redis 7, Celery |
 | LLM | claude-sonnet-4-20250514 with extended thinking (primary), gpt-4o (fallback) |

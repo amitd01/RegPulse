@@ -31,7 +31,7 @@ B2B SaaS for Indian banking professionals. RAG-powered Q&A over RBI Circulars wi
 
 **Backend** (`/backend`): FastAPI, SQLAlchemy 2.0 async, Pydantic v2. All at `/api/v1/`. ~65 endpoints, 11 services.
 
-**Frontend** (`/frontend`): Next.js 14, TypeScript strict, Tailwind, TanStack Query, Zustand. 25 routes.
+**Frontend** (`/frontend`): Next.js 14, TypeScript strict, terminal-modern v2 design system (CSS custom-property tokens, Inter Tight + Source Serif 4 + JetBrains Mono), TanStack Query, Zustand. 27 routes. Design source in `files/design-v2/`.
 
 **LLM:** claude-sonnet-4-20250514 with extended thinking (10k budget) primary, gpt-4o fallback. Embeddings: text-embedding-3-large (3072-dim). Reranker: ms-marco-MiniLM-L-6-v2 (skipped in DEMO_MODE).
 
@@ -143,6 +143,12 @@ LLM returns: `{quick_answer, detailed_interpretation, risk_level, confidence_sco
 - SSE via `fetch` + `ReadableStream` (not EventSource)
 - Library browsable without auth; search/ask require verified user
 - Middleware checks protected routes (cookie sent automatically by browser)
+- **Frontend v2 design system**: CSS custom-property tokens in `globals.css` — `var(--ink)`, `var(--signal)`, `var(--panel)` etc. Dark mode via `html.dark` class (not `[data-theme]`). Tokens NEVER in `tailwind.config.ts`.
+- **Primitives** in `components/design/Primitives.tsx`: `Pill`, `Btn`, `Icon`, `Avatar`, `Sparkline`, `MiniStat`, `ToastProvider`/`useToast`, `Panel`, `cn`
+- **AppShell** in `components/shell/`: `TopBar`, `Sidebar`, `Ticker`, `CommandPalette` (⌘K), `TweaksPanel`
+- **Mock fallback**: pages degrade to `RP_DATA` from `lib/mockData.ts` when backend returns empty lists — never show "no data" zero-states on executive surfaces
+- **Toasts**: `useToast().push({ tag: "LEARNING", text: "..." })` — wired globally by `ToastProvider` in `AppShell`
+- `<Link>` + `<button>` child is invalid HTML — use router.push in onClick or styled `<a>`
 
 ---
 

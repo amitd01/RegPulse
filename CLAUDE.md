@@ -42,7 +42,7 @@
 | 37–42 | Dashboard, updates, admin UI, analytics, summary services | Done |
 | 43–50 | PDF export, CI/CD, Nginx, Makefile, launch checks | Done |
 
-## Phase 2 Roadmap (Sprint 1-8)
+## Phase 2 Roadmap (Sprint 1-8 + Frontend v2)
 
 | Sprint | Description | Status |
 |--------|-------------|--------|
@@ -54,6 +54,7 @@
 | Sprint 6 | Pre-Launch Hardening: SIGTERM shutdown, system user audit, scraper embeddings on insert, LLM exception tightening, KG expansion GA, retrieval eval, dev Dockerfile | ✅ Complete |
 | Sprint 7 | DPDP Compliance (account deletion + data export), subscription auto-renewal, low-credit notifications | ✅ Complete |
 | Sprint 8 | Updates feed tracking, action items stats/overdue, admin Q&A sandbox, question suggestions, PDF export w/ QR codes | ✅ Complete |
+| Frontend v2 | Terminal-modern redesign — design tokens, AppShell, editorial Ask, list pages, Learnings, Debate, Upgrade, Account | ✅ Complete (`49cde9c`) |
 | Post-Build | Real data migration, GCP deployment, Beta launch | ⏳ Planned |
 
 ## Localhost Demo
@@ -68,6 +69,7 @@ Status: **Running + UAT passed** (2026-04-14). All 6 containers via `docker comp
 - Migrations: `001`–`005` (initial → Sprint 6 system user)
 - Evals: golden dataset 21/21, retrieval 8/8, k6 load tests (smoke/load/spike)
 - Key Sprint features: snippet sharing (`/s/[slug]`), RSS news (69 items), KG (95 entities), Confidence Meter UI, dark mode (WCAG-AA), skeleton loaders, admin PDF upload, semantic heatmaps, DPDP compliance, auto-renewal, low-credit alerts
+- **Frontend v2 ("terminal-modern")**: design tokens (paper/ink/amber palette, serif editorial, mono data), AppShell with TopBar + Sidebar + Ticker + CommandPalette + TweaksPanel, editorial Ask brief with SSE, 2-col library, dtable list pages, Learnings + Debate new routes, 3-col Upgrade, DPDP Account panel. 27 routes. Design source in `files/design-v2/`.
 - See `UAT_RESULTS.md` for full test results, `PRODUCTION_PLAN.md` for GCP deploy
 
 ## Next Steps (Post-Sprint 8)
@@ -122,3 +124,4 @@ Sprint 7 resolved G-01 (DPDP deletion), G-02 (DPDP export), G-04 (auto-renewal),
 | `UAT_PLAN.md` | 208 manual UAT test scenarios across 28 categories |
 | `UAT_RESULTS.md` | Automated UAT results — 81/81 passed (2026-04-14) |
 | `HANDOVER.md` | Session handover — what was done, what's next, environment state |
+| `HANDOVER_DESIGN_V2.md` | Frontend v2 redesign handover — chunks, design source, constraints |
