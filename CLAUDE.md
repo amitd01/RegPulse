@@ -118,8 +118,10 @@ Sprint 7 resolved G-01 (DPDP deletion), G-02 (DPDP export), G-04 (auto-renewal),
 | `TESTCASES.md` | Complete test inventory — functional, technical, eval, load, stress |
 | `PRODUCTION_PLAN.md` | GCP deployment roadmap and cost estimates |
 | `DEVELOPMENT_PLAN.md` | Unified implementation plan — gap closure, infra, roadmap |
-| `RegPulse_PRD_v3.md` | Product requirements v3.0 with gap analysis |
-| `RegPulse_FSD_v3.md` | Functional specification v3.0 with gap analysis |
+| `RegPulse_PRD_v4.md` | Product requirements v4.0 — Frontend v2 + Learnings/Debates/Annotations |
+| `RegPulse_FSD_v4.md` | Functional specification v4.0 — schema, endpoints, design system |
+| `RegPulse_PRD_v3.md` | Product requirements v3.0 (superseded by v4.0) |
+| `RegPulse_FSD_v3.md` | Functional specification v3.0 (superseded by v4.0) |
 | `TECHNICAL_DOCS.md` | Full technical documentation — architecture, DB, API, RAG, security, runbook |
 | `UAT_PLAN.md` | 208 manual UAT test scenarios across 28 categories |
 | `UAT_RESULTS.md` | Automated UAT results — 81/81 passed (2026-04-14) |
