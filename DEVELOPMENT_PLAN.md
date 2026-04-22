@@ -3,7 +3,7 @@
 > Master plan covering code gap closure, GCP deployment, tech debt, and feature roadmap.
 > Informed by PRD v3.0 / FSD v3.0 gap analysis (12 gaps identified) and PRODUCTION_PLAN.md.
 >
-> **Last updated:** 2026-04-13
+> **Last updated:** 2026-04-14 (Sprint 8 landed)
 
 ---
 
@@ -11,12 +11,12 @@
 
 | Area | Status |
 |---|---|
-| **Codebase** | 50/50 prompts + Sprints 1–6 complete. ~58 endpoints, 19 tables, 25 frontend routes. |
-| **CI** | Green (backend-lint, backend-test, frontend-build) |
+| **Codebase** | 50/50 prompts + Sprints 1–8 complete. ~65 endpoints, 19 tables, 25 frontend routes. |
+| **CI** | Green (backend-lint, backend-test, frontend-build) — 106 unit tests passing on `main` at `56d628f`. |
 | **Eval** | Golden dataset 21/21 PASS, retrieval eval 8/8 PASS |
-| **Deploy pipeline** | Stub — GCP deploy.yml written but Cloud Run services not provisioned |
+| **Deploy pipeline** | Stub — GCP `deploy.yml` written but Cloud Run services not provisioned |
 | **Infra** | No GCP resources provisioned |
-| **PRD v2.0 gaps** | 12 gaps identified (3 critical, 4 high, 5 medium) |
+| **PRD v2.0 gaps** | 10/12 closed (Sprints 7–8); G-10 in Sprint 9; G-11 deferred |
 | **Tech debt** | TD-01 (scraper DB isolation), TD-03 (OpenAPI codegen), TD-09 (BACKEND_PUBLIC_URL) |
 
 ---
@@ -452,16 +452,16 @@ Sprint 8 (UX gaps) ── can start ──────────┤
 |---|---|---|---|
 | G-01 | DPDP Account Deletion | Sprint 7 | ✅ Complete |
 | G-02 | DPDP Data Export | Sprint 7 | ✅ Complete |
-| G-03 | Updates Feed unread tracking | Sprint 8 | Planned |
+| G-03 | Updates Feed unread tracking | Sprint 8 | ✅ Complete |
 | G-04 | Subscription auto-renewal | Sprint 7 | ✅ Complete |
 | G-05 | Low-credit notifications | Sprint 7 | ✅ Complete |
-| G-06 | Action items /stats | Sprint 8 | Planned |
-| G-07 | Admin Q&A sandbox | Sprint 8 | Planned |
-| G-08 | Question suggestions | Sprint 8 | Planned |
-| G-09 | PDF QR codes | Sprint 8 | Planned |
+| G-06 | Action items /stats | Sprint 8 | ✅ Complete |
+| G-07 | Admin Q&A sandbox | Sprint 8 | ✅ Complete |
+| G-08 | Question suggestions | Sprint 8 | ✅ Complete |
+| G-09 | PDF QR codes | Sprint 8 | ✅ Complete |
 | G-10 | pybreaker circuit breaker | Sprint 9 | Planned |
 | G-11 | Query expansion | Deferred | KG expansion serves same purpose |
-| G-12 | Action items overdue | Sprint 8 | Planned |
+| G-12 | Action items overdue | Sprint 8 | ✅ Complete |
 
 ---
 

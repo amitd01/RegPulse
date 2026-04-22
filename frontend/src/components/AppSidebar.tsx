@@ -2,9 +2,25 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import api from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { useAuthStore } from "@/stores/authStore";
 import { ThemeToggle } from "@/components/ThemeToggle";
+
+function useUpdatesUnreadCount(enabled: boolean) {
+  return useQuery<{ unread_count: number }>({
+    queryKey: ["circulars", "updates-badge"],
+    queryFn: async () => {
+      const { data } = await api.get("/circulars/updates", {
+        params: { page: 1, page_size: 1 },
+      });
+      return { unread_count: data.unread_count ?? 0 };
+    },
+    staleTime: 60_000,
+    enabled,
+  });
+}
 
 const navigation = [
   {
@@ -96,6 +112,8 @@ const navigation = [
 export function AppSidebar() {
   const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
+  const { data: badge } = useUpdatesUnreadCount(!!user);
+  const unread = badge?.unread_count ?? 0;
 
   return (
     <aside className="flex h-screen w-64 flex-col border-r border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
@@ -113,6 +131,7 @@ export function AppSidebar() {
       <nav className="flex-1 space-y-1 px-3 py-4">
         {navigation.map((item) => {
           const isActive = pathname.startsWith(item.href);
+          const showBadge = item.href === "/updates" && unread > 0;
           return (
             <Link
               key={item.name}
@@ -125,7 +144,12 @@ export function AppSidebar() {
               )}
             >
               {item.icon}
-              {item.name}
+              <span className="flex-1">{item.name}</span>
+              {showBadge && (
+                <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-red-600 px-1.5 text-[10px] font-semibold leading-5 text-white">
+                  {unread > 99 ? "99+" : unread}
+                </span>
+              )}
             </Link>
           );
         })}

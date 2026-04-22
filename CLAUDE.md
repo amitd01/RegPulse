@@ -42,7 +42,7 @@
 | 37–42 | Dashboard, updates, admin UI, analytics, summary services | Done |
 | 43–50 | PDF export, CI/CD, Nginx, Makefile, launch checks | Done |
 
-## Phase 2 Roadmap (Sprint 1-7)
+## Phase 2 Roadmap (Sprint 1-8 + Frontend v2)
 
 | Sprint | Description | Status |
 |--------|-------------|--------|
@@ -53,6 +53,8 @@
 | Sprint 5 | Admin Manual PDF Upload, Semantic Clustering Heatmaps | ✅ Complete (`5a8a77b` + CI fixes `33d9b8d`) |
 | Sprint 6 | Pre-Launch Hardening: SIGTERM shutdown, system user audit, scraper embeddings on insert, LLM exception tightening, KG expansion GA, retrieval eval, dev Dockerfile | ✅ Complete |
 | Sprint 7 | DPDP Compliance (account deletion + data export), subscription auto-renewal, low-credit notifications | ✅ Complete |
+| Sprint 8 | Updates feed tracking, action items stats/overdue, admin Q&A sandbox, question suggestions, PDF export w/ QR codes | ✅ Complete |
+| Frontend v2 | Terminal-modern redesign — design tokens, AppShell, editorial Ask, list pages, Learnings, Debate, Upgrade, Account | ✅ Complete (`49cde9c`) |
 | Post-Build | Real data migration, GCP deployment, Beta launch | ⏳ Planned |
 
 ## Localhost Demo
@@ -67,17 +69,17 @@ Status: **Running + UAT passed** (2026-04-14). All 6 containers via `docker comp
 - Migrations: `001`–`005` (initial → Sprint 6 system user)
 - Evals: golden dataset 21/21, retrieval 8/8, k6 load tests (smoke/load/spike)
 - Key Sprint features: snippet sharing (`/s/[slug]`), RSS news (69 items), KG (95 entities), Confidence Meter UI, dark mode (WCAG-AA), skeleton loaders, admin PDF upload, semantic heatmaps, DPDP compliance, auto-renewal, low-credit alerts
+- **Frontend v2 ("terminal-modern")**: design tokens (paper/ink/amber palette, serif editorial, mono data), AppShell with TopBar + Sidebar + Ticker + CommandPalette + TweaksPanel, editorial Ask brief with SSE, 2-col library, dtable list pages, Learnings + Debate new routes, 3-col Upgrade, DPDP Account panel. 27 routes. Design source in `files/design-v2/`.
 - See `UAT_RESULTS.md` for full test results, `PRODUCTION_PLAN.md` for GCP deploy
 
-## Next Steps (Post-Sprint 7)
+## Next Steps (Post-Sprint 8)
 
-Sprint 7 resolved G-01 (DPDP deletion), G-02 (DPDP export), G-04 (auto-renewal), G-05 (low-credit notifications). See `DEVELOPMENT_PLAN.md` for the unified implementation plan.
+Sprint 7 resolved G-01 (DPDP deletion), G-02 (DPDP export), G-04 (auto-renewal), G-05 (low-credit notifications). Sprint 8 resolved G-03 (updates tracking), G-06 (action stats), G-07 (admin sandbox), G-08 (suggestions), G-09 (PDF QR), G-12 (overdue). See `DEVELOPMENT_PLAN.md` for the unified implementation plan.
 
-### Pre-Launch (Sprint 8 + GCP Phases A–C)
+### Pre-Launch (GCP Phases A–C)
 | Phase | Work |
 |-------|------|
-| Sprint 8 | Updates feed tracking, action items stats/overdue, admin Q&A sandbox, question suggestions, PDF QR codes |
-| Phase A | GCP infra provisioning: Cloud SQL, Memorystore, Artifact Registry, Secret Manager (parallel with Sprint 7) |
+| Phase A | GCP infra provisioning: Cloud SQL, Memorystore, Artifact Registry, Secret Manager |
 | Phase B | CI/CD hardening: WIF, staging env, security baseline, integration tests |
 | Phase C | Data migration (full RBI scrape), observability, pre-launch testing, v1.0.0 launch |
 
@@ -99,7 +101,7 @@ Sprint 7 resolved G-01 (DPDP deletion), G-02 (DPDP export), G-04 (auto-renewal),
 |----------|------|
 | ~~**Before Launch**~~ | ~~G-01 (DPDP deletion), G-02 (DPDP export)~~ — ✅ Sprint 7 |
 | ~~**Sprint 7**~~ | ~~G-04 (auto-renewal), G-05 (low-credit emails)~~ — ✅ Sprint 7 |
-| **Sprint 8** | G-03 (updates tracking), G-06 (action stats), G-07 (admin sandbox), G-08 (suggestions), G-09 (PDF QR), G-12 (overdue) |
+| ~~**Sprint 8**~~ | ~~G-03 (updates tracking), G-06 (action stats), G-07 (admin sandbox), G-08 (suggestions), G-09 (PDF QR), G-12 (overdue)~~ — ✅ Sprint 8 |
 | **Sprint 9** | G-10 (circuit breaker) |
 | **Deferred** | G-11 (query expansion — KG expansion serves same purpose) |
 
@@ -107,6 +109,7 @@ Sprint 7 resolved G-01 (DPDP deletion), G-02 (DPDP export), G-04 (auto-renewal),
 
 | File | Purpose |
 |------|---------|
+| `TEAM_HANDOVER.md` | **Start here** if you're new — one-page orientation + reading order |
 | `MEMORY.md` | Architecture, schema, business rules, patterns |
 | `context.md` | Project state — inventory, verification results |
 | `spec.md` | Full technical spec — schema, API, RAG pipeline, security |
@@ -121,3 +124,4 @@ Sprint 7 resolved G-01 (DPDP deletion), G-02 (DPDP export), G-04 (auto-renewal),
 | `UAT_PLAN.md` | 208 manual UAT test scenarios across 28 categories |
 | `UAT_RESULTS.md` | Automated UAT results — 81/81 passed (2026-04-14) |
 | `HANDOVER.md` | Session handover — what was done, what's next, environment state |
+| `HANDOVER_DESIGN_V2.md` | Frontend v2 redesign handover — chunks, design source, constraints |

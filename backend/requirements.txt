@@ -55,3 +55,7 @@ tenacity==9.0.0
 tiktoken==0.8.0
 email-validator==2.2.0
 aiodns==3.2.0
+
+# PDF export + QR codes (compliance brief download)
+reportlab==4.2.5
+qrcode[pil]==7.4.2

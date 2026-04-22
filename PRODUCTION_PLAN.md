@@ -4,13 +4,13 @@
 
 | Area | Status |
 |------|--------|
-| **Codebase** | 50/50 prompts complete, Sprints 1–6 shipped |
-| **CI** | GitHub Actions passing (lint + test + build) |
-| **Deploy pipeline** | Stub — Cloud Run deploy not yet wired |
+| **Codebase** | 50/50 prompts + Sprints 1–8 shipped. All pre-launch code gaps closed (10/12 PRD v3 gaps). |
+| **CI** | GitHub Actions all green on `main` at `56d628f` (lint + test + build) |
+| **Deploy pipeline** | Stub — `.github/workflows/deploy.yml` written but Cloud Run services not provisioned |
 | **Infra** | No GCP resources provisioned, no GitHub environments configured |
 | **Branch protection** | Not possible (private repo, free GitHub plan) |
-| **Tests** | 75 unit tests, 21 eval tests, 8 retrieval tests, k6 load tests |
-| **Secrets management** | `.env` file only, no Secret Manager |
+| **Tests** | 106 unit tests passing, 21 golden eval tests, 8 retrieval eval tests, k6 load tests |
+| **Secrets management** | `.env` file only, no Secret Manager yet |
 
 ---
 
@@ -30,7 +30,10 @@ git pull origin main
 |----|-------|--------|
 | TD-02 | No graceful shutdown | ✅ Fixed (Sprint 6) — SIGTERM handlers |
 | TD-04 | `admin_audit_log.actor_id` NOT NULL | ✅ Fixed (Sprint 6) — System user seeded |
-| TD-01 | Scraper writes directly to backend DB | Acceptable for v1, document as known risk |
+| TD-01 | Scraper writes directly to backend DB | Acceptable for v1, document as known risk; isolate in Sprint 9+ |
+| G-01 | DPDP Account Deletion | ✅ Fixed (Sprint 7) |
+| G-02 | DPDP Data Export | ✅ Fixed (Sprint 7) |
+| G-09 | PDF export w/ QR codes | ✅ Fixed (Sprint 8) |
 
 ---
 
@@ -199,8 +202,8 @@ Build + push images to Artifact Registry, deploy Cloud Run services on `v*` tags
 | Item | Action |
 |------|--------|
 | **Backups** | Cloud SQL automated backups (7-day retention), test restore procedure |
-| **Migration plan** | Script to seed initial circulars — run scraper against RBI once infra is up |
-| **DPDP Act compliance** | **LAUNCH BLOCKER** — `PATCH /account/delete` and `GET /account/export` must be implemented before production (see `DEVELOPMENT_PLAN.md` Sprint 7, Gaps G-01 and G-02) |
+| **Migration plan** | Script to seed initial circulars — run scraper against RBI once infra is up. Also run `python backend/scripts/backfill_question_embeddings.py` once post-deploy so the /questions/suggestions endpoint has data for pre-Sprint 8 rows. |
+| **DPDP Act compliance** | ✅ Implemented (Sprint 7) — `POST /account/request-deletion-otp`, `PATCH /account/delete`, `GET /account/export`. Verify end-to-end in Phase C smoke tests. |
 | **Data retention** | Define policy: how long to keep questions, analytics events, audit logs |
 | **Audit trail** | `admin_audit_log` already exists — verify it covers all admin mutations |
 

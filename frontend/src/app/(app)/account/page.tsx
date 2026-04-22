@@ -1,18 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { Badge } from "@/components/ui/Badge";
-import { Spinner } from "@/components/ui/Spinner";
+import { Avatar, Btn, Icon, Pill, useToast } from "@/components/design/Primitives";
+import { RP_DATA } from "@/lib/mockData";
 import { usePaymentHistory, usePlanInfo } from "@/hooks/useSubscriptions";
 import { useAuthStore } from "@/stores/authStore";
 import api from "@/lib/api";
 
 export default function AccountPage() {
+  const toast = useToast();
   const user = useAuthStore((s) => s.user);
   const clearAuth = useAuthStore((s) => s.clearAuth);
   const { data: planData, isLoading: planLoading } = usePlanInfo();
-  const { data: historyData, isLoading: historyLoading } = usePaymentHistory();
+  const { data: historyData } = usePaymentHistory();
 
   // Auto-renew toggle state
   const [autoRenew, setAutoRenew] = useState<boolean | null>(null);
@@ -33,13 +33,13 @@ export default function AccountPage() {
 
   if (!user) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <p className="text-gray-500">Please log in to view your account.</p>
+      <div style={{ padding: 40, textAlign: "center", color: "var(--ink-4)" }}>
+        Please log in to view your account.
       </div>
     );
   }
 
-  // --- Handlers ---
+  // --- Handlers (preserved from existing page) ---
 
   async function handleAutoRenewToggle() {
     setAutoRenewLoading(true);
@@ -48,8 +48,12 @@ export default function AccountPage() {
         auto_renew: !isAutoRenew,
       });
       setAutoRenew(!isAutoRenew);
+      toast.push({
+        tag: "ACCOUNT",
+        text: `Auto-renew ${!isAutoRenew ? "enabled" : "disabled"}.`,
+      });
     } catch {
-      // Silently fail — user can retry
+      toast.push({ tag: "ERROR", text: "Failed to update auto-renew." });
     } finally {
       setAutoRenewLoading(false);
     }
@@ -98,133 +102,175 @@ export default function AccountPage() {
       a.download = `regpulse_export_${Date.now()}.json`;
       a.click();
       URL.revokeObjectURL(url);
+      toast.push({ tag: "EXPORT", text: "Data export downloaded." });
     } catch {
-      // Silently fail
+      toast.push({ tag: "ERROR", text: "Export failed." });
     } finally {
       setExportLoading(false);
     }
   }
 
+  // Display values — live user or mock
+  const displayName = user.full_name || RP_DATA.user.name;
+  const displayEmail = user.email || RP_DATA.user.email;
+  const displayRole = user.designation || RP_DATA.user.role;
+  const displayOrg = user.org_name || RP_DATA.user.org;
+  const displayPlan = planData?.data.plan || user.plan || RP_DATA.user.plan;
+  const displayCredits = planData?.data.credit_balance ?? user.credit_balance;
+  const displayExpires = planData?.data.plan_expires_at
+    ? new Date(planData.data.plan_expires_at).toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
+    : "Never (free plan)";
+
+  // Team — mock for now
+  const team = [
+    { i: "PM", n: "Priya Menon", r: "CCO" },
+    { i: "RK", n: "Raghav Krishnan", r: "Head, Risk" },
+    { i: "AS", n: "Anjali Shah", r: "Treasury" },
+    { i: "VN", n: "Vikram Nair", r: "Compliance Lead" },
+    { i: "DK", n: "Divya Kapoor", r: "Capital Strategy" },
+  ];
+
   return (
-    <div className="px-6 py-6 lg:px-8">
-      <h1 className="mb-6 text-2xl font-bold text-gray-900 dark:text-gray-100">
+    <div
+      className="rp-route-fade"
+      style={{ padding: "20px 24px 60px", maxWidth: 900 }}
+    >
+      <h1
+        className="serif"
+        style={{ fontSize: 28, fontWeight: 400, marginBottom: 20 }}
+      >
         Account
       </h1>
 
-      {/* User info */}
-      <div className="mb-8 rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
-        <h2 className="mb-4 text-sm font-semibold text-gray-700 dark:text-gray-300">
-          Profile
-        </h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      {/* ── PROFILE ──────────────────────────────────────────────────── */}
+      <div className="panel" style={{ padding: 20, marginBottom: 16 }}>
+        <div className="tick" style={{ marginBottom: 14 }}>
+          PROFILE
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "120px 1fr",
+            gap: 10,
+            fontSize: 13,
+          }}
+        >
+          <div style={{ color: "var(--ink-4)" }}>Name</div>
+          <div>{displayName}</div>
+          <div style={{ color: "var(--ink-4)" }}>Email</div>
+          <div className="mono">{displayEmail}</div>
+          <div style={{ color: "var(--ink-4)" }}>Role</div>
+          <div>{displayRole}</div>
+          <div style={{ color: "var(--ink-4)" }}>Organisation</div>
+          <div>{displayOrg}</div>
+          <div style={{ color: "var(--ink-4)" }}>Plan</div>
           <div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">Name</div>
-            <div className="text-sm font-medium dark:text-gray-200">
-              {user.full_name}
-            </div>
+            <Pill tone="amber">{displayPlan.toUpperCase()}</Pill>
           </div>
+          <div style={{ color: "var(--ink-4)" }}>Credits</div>
+          <div className="mono tnum" style={{ fontWeight: 600 }}>
+            {displayCredits}
+          </div>
+          <div style={{ color: "var(--ink-4)" }}>Expires</div>
+          <div className="mono" style={{ fontSize: 12 }}>
+            {displayExpires}
+          </div>
+          <div style={{ color: "var(--ink-4)" }}>Auto-Renew</div>
           <div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">
-              Email
-            </div>
-            <div className="text-sm font-medium dark:text-gray-200">
-              {user.email}
-            </div>
+            <button
+              onClick={handleAutoRenewToggle}
+              disabled={autoRenewLoading || planLoading}
+              style={{
+                position: "relative",
+                display: "inline-flex",
+                alignItems: "center",
+                width: 40,
+                height: 22,
+                borderRadius: 11,
+                background: isAutoRenew ? "var(--signal)" : "var(--line-2)",
+                border: "none",
+                cursor: "pointer",
+                transition: "background .2s",
+              }}
+            >
+              <span
+                style={{
+                  display: "block",
+                  width: 16,
+                  height: 16,
+                  borderRadius: "50%",
+                  background: "#fff",
+                  transition: "transform .2s",
+                  transform: isAutoRenew ? "translateX(20px)" : "translateX(3px)",
+                }}
+              />
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Plan info */}
-      <div className="mb-8 rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-            Subscription
-          </h2>
-          <Link
-            href="/upgrade"
-            className="text-sm font-medium text-navy-600 hover:text-navy-700 dark:text-blue-400"
-          >
-            Upgrade
-          </Link>
+      {/* ── TEAM ─────────────────────────────────────────────────────── */}
+      <div className="panel" style={{ padding: 20, marginBottom: 16 }}>
+        <div className="tick" style={{ marginBottom: 14 }}>
+          TEAM · {team.length} MEMBERS
         </div>
-
-        {planLoading ? (
-          <Spinner size="sm" className="mt-4" />
-        ) : planData ? (
-          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-4">
-            <div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">
-                Plan
-              </div>
-              <div className="text-sm font-medium capitalize dark:text-gray-200">
-                {planData.data.plan}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">
-                Credits
-              </div>
-              <div className="text-sm font-bold text-navy-700 dark:text-blue-400">
-                {planData.data.credit_balance}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">
-                Expires
-              </div>
-              <div className="text-sm font-medium dark:text-gray-200">
-                {planData.data.plan_expires_at
-                  ? new Date(planData.data.plan_expires_at).toLocaleDateString(
-                      "en-IN",
-                      { day: "numeric", month: "short", year: "numeric" },
-                    )
-                  : "Never (free plan)"}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">
-                Auto-Renew
-              </div>
-              <button
-                onClick={handleAutoRenewToggle}
-                disabled={autoRenewLoading}
-                className={`mt-1 relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  isAutoRenew
-                    ? "bg-navy-600 dark:bg-blue-500"
-                    : "bg-gray-300 dark:bg-gray-600"
-                }`}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {team.map((m) => (
+            <div
+              key={m.i}
+              style={{ display: "flex", alignItems: "center", gap: 10 }}
+            >
+              <Avatar
+                initials={m.i}
+                size={26}
+                tone={m.i === "PM" ? "signal" : "default"}
+              />
+              <div style={{ fontSize: 13, fontWeight: 500 }}>{m.n}</div>
+              <div
+                className="mono"
+                style={{ fontSize: 10.5, color: "var(--ink-4)" }}
               >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    isAutoRenew ? "translate-x-6" : "translate-x-1"
-                  }`}
-                />
-              </button>
+                {m.r}
+              </div>
+              <div style={{ flex: 1 }} />
+              <Btn size="sm" variant="ghost">
+                Permissions
+              </Btn>
             </div>
-          </div>
-        ) : null}
+          ))}
+        </div>
       </div>
 
-      {/* Payment history */}
-      <div className="mb-8 rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
-        <h2 className="mb-4 text-sm font-semibold text-gray-700 dark:text-gray-300">
-          Payment History
-        </h2>
-
-        {historyLoading ? (
-          <Spinner size="sm" />
-        ) : historyData && historyData.data.length > 0 ? (
-          <div className="space-y-3">
+      {/* ── PAYMENT HISTORY ──────────────────────────────────────────── */}
+      {historyData && historyData.data.length > 0 && (
+        <div className="panel" style={{ padding: 20, marginBottom: 16 }}>
+          <div className="tick" style={{ marginBottom: 14 }}>
+            PAYMENT HISTORY
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {historyData.data.map((event) => (
               <div
                 key={event.id}
-                className="flex items-center justify-between rounded-lg border border-gray-100 p-3 dark:border-gray-700"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "8px 0",
+                  borderBottom: "1px solid var(--line)",
+                }}
               >
-                <div>
-                  <div className="text-sm font-medium capitalize dark:text-gray-200">
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, textTransform: "capitalize" }}>
                     {event.plan}
                   </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                  <div
+                    className="mono"
+                    style={{ fontSize: 10.5, color: "var(--ink-4)" }}
+                  >
                     {new Date(event.created_at).toLocaleDateString("en-IN", {
                       day: "numeric",
                       month: "short",
@@ -232,136 +278,214 @@ export default function AccountPage() {
                     })}
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium dark:text-gray-200">
-                    {"\u20b9"}
-                    {(event.amount_paise / 100).toLocaleString()}
-                  </span>
-                  <Badge
-                    variant={
-                      event.status === "captured" ? "active" : "default"
-                    }
-                  >
-                    {event.status}
-                  </Badge>
+                <div
+                  className="mono tnum"
+                  style={{ fontSize: 13, fontWeight: 600 }}
+                >
+                  {"\u20b9"}
+                  {(event.amount_paise / 100).toLocaleString()}
                 </div>
+                <Pill tone={event.status === "captured" ? "good" : "ghost"}>
+                  {event.status.toUpperCase()}
+                </Pill>
               </div>
             ))}
           </div>
-        ) : (
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            No payments yet.
-          </p>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* Data Management (DPDP) */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
-        <h2 className="mb-4 text-sm font-semibold text-gray-700 dark:text-gray-300">
-          Data Management
-        </h2>
-        <p className="mb-4 text-xs text-gray-500 dark:text-gray-400">
-          Under the Digital Personal Data Protection Act, you have the right to
-          export or delete your personal data.
-        </p>
-
-        <div className="flex flex-wrap gap-3">
-          {/* Export Data */}
-          <button
-            onClick={handleExportData}
-            disabled={exportLoading}
-            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-          >
-            {exportLoading ? "Exporting..." : "Export My Data"}
-          </button>
-
-          {/* Delete Account */}
-          <button
+      {/* ── DATA · DPDP COMPLIANCE ───────────────────────────────────── */}
+      <div className="panel" style={{ padding: 20, marginBottom: 16 }}>
+        <div className="tick" style={{ marginBottom: 14 }}>
+          DATA · DPDP COMPLIANCE
+        </div>
+        <div
+          style={{
+            fontSize: 12.5,
+            color: "var(--ink-3)",
+            marginBottom: 12,
+          }}
+        >
+          You have the right to export or delete your data at any time under the
+          DPDP Act.
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Btn onClick={handleExportData} disabled={exportLoading}>
+            {exportLoading ? "Exporting..." : "Export my data"}
+          </Btn>
+          <Btn
+            variant="ghost"
+            style={{ color: "var(--bad)" }}
             onClick={() => {
               setShowDeleteModal(true);
               setDeleteStep("confirm");
               setDeleteOtp("");
               setDeleteError("");
             }}
-            className="rounded-md border border-red-300 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20"
           >
-            Delete Account
-          </button>
+            Delete account
+          </Btn>
         </div>
       </div>
 
-      {/* Delete Account Modal */}
+      {/* ── Delete Account Modal ─────────────────────────────────────── */}
       {showDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6 dark:bg-gray-800">
-            <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
-              Delete Account
-            </h3>
+        <div
+          onClick={() => setShowDeleteModal(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 90,
+            background: "rgba(0,0,0,0.35)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 480,
+              background: "var(--panel)",
+              border: "1px solid var(--line-2)",
+              boxShadow: "var(--shadow-lg)",
+              borderRadius: 4,
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                padding: "14px 18px",
+                borderBottom: "1px solid var(--line)",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+              }}
+            >
+              <Icon.Flag style={{ color: "var(--bad)" }} />
+              <h3 style={{ fontSize: 14, fontWeight: 600 }}>Delete Account</h3>
+              <div style={{ flex: 1 }} />
+              <Btn
+                variant="ghost"
+                icon
+                onClick={() => setShowDeleteModal(false)}
+              >
+                <Icon.Close />
+              </Btn>
+            </div>
 
-            {deleteStep === "confirm" ? (
-              <>
-                <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-                  This action is <strong>permanent and irreversible</strong>.
-                  Your personal data will be anonymised, and your questions,
-                  saved interpretations, and action items will be deleted. An OTP
-                  will be sent to your email for verification.
-                </p>
-                <div className="flex justify-end gap-3">
-                  <button
-                    onClick={() => setShowDeleteModal(false)}
-                    className="rounded-md px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+            <div style={{ padding: 18 }}>
+              {deleteStep === "confirm" ? (
+                <>
+                  <p
+                    style={{
+                      fontSize: 13,
+                      color: "var(--ink-2)",
+                      lineHeight: 1.5,
+                      marginBottom: 16,
+                    }}
                   >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleRequestDeletionOTP}
-                    disabled={deleteLoading}
-                    className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                  >
-                    {deleteLoading ? "Sending OTP..." : "Send Verification OTP"}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-                  Enter the 6-digit OTP sent to your email to confirm account
-                  deletion.
-                </p>
-                <input
-                  type="text"
-                  maxLength={6}
-                  value={deleteOtp}
-                  onChange={(e) =>
-                    setDeleteOtp(e.target.value.replace(/\D/g, ""))
-                  }
-                  placeholder="Enter OTP"
-                  className="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 text-center text-lg tracking-widest dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                />
-                {deleteError && (
-                  <p className="mb-3 text-sm text-red-600 dark:text-red-400">
-                    {deleteError}
+                    This action is <strong>permanent and irreversible</strong>.
+                    Your personal data will be anonymised, and your questions,
+                    saved interpretations, and action items will be deleted. An
+                    OTP will be sent to your email for verification.
                   </p>
-                )}
-                <div className="flex justify-end gap-3">
-                  <button
-                    onClick={() => setShowDeleteModal(false)}
-                    className="rounded-md px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "flex-end",
+                      gap: 8,
+                    }}
                   >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleConfirmDeletion}
-                    disabled={deleteLoading || deleteOtp.length !== 6}
-                    className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                    <Btn
+                      variant="ghost"
+                      onClick={() => setShowDeleteModal(false)}
+                    >
+                      Cancel
+                    </Btn>
+                    <Btn
+                      variant="accent"
+                      onClick={handleRequestDeletionOTP}
+                      disabled={deleteLoading}
+                      style={{
+                        background: "var(--bad)",
+                        borderColor: "var(--bad)",
+                      }}
+                    >
+                      {deleteLoading ? "Sending OTP..." : "Send Verification OTP"}
+                    </Btn>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p
+                    style={{
+                      fontSize: 13,
+                      color: "var(--ink-2)",
+                      lineHeight: 1.5,
+                      marginBottom: 12,
+                    }}
                   >
-                    {deleteLoading
-                      ? "Deleting..."
-                      : "Permanently Delete Account"}
-                  </button>
-                </div>
-              </>
-            )}
+                    Enter the 6-digit OTP sent to your email to confirm account
+                    deletion.
+                  </p>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={deleteOtp}
+                    onChange={(e) =>
+                      setDeleteOtp(e.target.value.replace(/\D/g, ""))
+                    }
+                    placeholder="Enter OTP"
+                    className="input"
+                    style={{
+                      textAlign: "center",
+                      fontSize: 18,
+                      letterSpacing: "0.3em",
+                      marginBottom: 12,
+                    }}
+                  />
+                  {deleteError && (
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: "var(--bad)",
+                        marginBottom: 12,
+                      }}
+                    >
+                      {deleteError}
+                    </div>
+                  )}
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "flex-end",
+                      gap: 8,
+                    }}
+                  >
+                    <Btn
+                      variant="ghost"
+                      onClick={() => setShowDeleteModal(false)}
+                    >
+                      Cancel
+                    </Btn>
+                    <Btn
+                      variant="accent"
+                      onClick={handleConfirmDeletion}
+                      disabled={deleteLoading || deleteOtp.length !== 6}
+                      style={{
+                        background: "var(--bad)",
+                        borderColor: "var(--bad)",
+                      }}
+                    >
+                      {deleteLoading
+                        ? "Deleting..."
+                        : "Permanently Delete Account"}
+                    </Btn>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}

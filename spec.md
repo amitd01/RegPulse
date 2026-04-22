@@ -1,7 +1,7 @@
 # RegPulse — Technical Specification
 
-> **Living spec. Reflects actual implementation state — all 50 prompts + Sprints 1–7 complete.**
-> For architecture rules, see `MEMORY.md`. For build progress, see `CLAUDE.md`.
+> **Living spec. Reflects actual implementation state — all 50 prompts + Sprints 1–8 + Frontend v2 redesign complete.**
+> For architecture rules, see `MEMORY.md`. For build progress, see `CLAUDE.md`. For new-engineer onboarding, see `TEAM_HANDOVER.md`.
 
 ---
 
@@ -9,7 +9,7 @@
 
 RegPulse is a B2B SaaS platform delivering RAG-powered Q&A over RBI Circulars for Indian banking professionals. Two modules: a Celery scraper that indexes RBI documents into pgvector, and a FastAPI+Next.js web app that retrieves and answers questions with cited sources.
 
-**(Phase 2 — Sprints 1–7 complete)**: HTTPOnly cookie security, PostHog analytics, OpenAI embedding pipeline, marketing landing page, anti-hallucination confidence scoring with "Consult an Expert" fallback, golden dataset evaluation pipeline, k6 load tests, public safe snippet sharing, RSS news ingest with embedding-based circular linking, knowledge graph extraction with **RAG expansion now enabled by default**, Confidence Meter UI, class-based dark mode with WCAG-AA contrast, skeleton loaders, rAF-buffered SSE rendering, PostHog feature-flag scaffolding, admin manual PDF upload, semantic clustering heatmaps. Sprint 6: SIGTERM graceful shutdown, system user audit log, scraper embeddings on insert, typed LLM exceptions, retrieval-level integration eval, dev Dockerfile. Sprint 7: DPDP compliance (account deletion + data export), subscription auto-renewal toggle, low-credit notification tasks.
+**(Phase 2 — Sprints 1–8 complete)**: HTTPOnly cookie security, PostHog analytics, OpenAI embedding pipeline, marketing landing page, anti-hallucination confidence scoring with "Consult an Expert" fallback, golden dataset evaluation pipeline, k6 load tests, public safe snippet sharing, RSS news ingest with embedding-based circular linking, knowledge graph extraction with **RAG expansion now enabled by default**, Confidence Meter UI, class-based dark mode with WCAG-AA contrast, skeleton loaders, rAF-buffered SSE rendering, PostHog feature-flag scaffolding, admin manual PDF upload, semantic clustering heatmaps. Sprint 6: SIGTERM graceful shutdown, system user audit log, scraper embeddings on insert, typed LLM exceptions, retrieval-level integration eval, dev Dockerfile. Sprint 7: DPDP compliance (account deletion + data export), subscription auto-renewal toggle, low-credit notification tasks. **Sprint 8: updates feed unread tracking + sidebar badge, action items stats + `is_overdue`, admin Q&A sandbox, question suggestions via pgvector ANN on `questions.question_embedding` (now persisted on every write), real PDF compliance brief with per-citation QR codes.**
 
 ```
 rbi.org.in → Scraper (Celery/Redis) → PostgreSQL+pgvector
@@ -90,24 +90,27 @@ rbi.org.in → Scraper (Celery/Redis) → PostgreSQL+pgvector
 
 All endpoints at `/api/v1/`. Error format: `{"success": false, "error": "...", "code": "..."}`.
 
-### 3.1 Circulars (7 endpoints)
+### 3.1 Circulars (9 endpoints)
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | /circulars | Public | List with filters (doc_type, status, impact_level, department, regulator, tags, date_from/to), pagination, sorting |
 | GET | /circulars/search | Verified | Hybrid vector+BM25 search with RRF fusion. Returns relevance_score + snippet |
 | GET | /circulars/autocomplete | Public | ILIKE prefix match on title + circular_number (active only) |
+| GET | /circulars/updates (Sprint 8) | Verified | Recent circulars by `indexed_at >= now() - days`, with `unread_count = COUNT(indexed_at > user.last_seen_updates)`. Optional `impact_level` filter. |
+| POST | /circulars/updates/mark-seen (Sprint 8) | Verified | Sets `users.last_seen_updates = now()` via direct UPDATE. |
 | GET | /circulars/{id} | Public | Detail with eager-loaded chunks |
 | GET | /circulars/departments | Public | Distinct department values |
 | GET | /circulars/tags | Public | Distinct tags (unnested JSONB) |
 | GET | /circulars/doc-types | Public | Distinct doc_type values |
 
-### 3.2 Questions (4 endpoints)
+### 3.2 Questions (6 endpoints)
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST | /questions | Credits | Ask question. SSE when `Accept: text/event-stream`, JSON otherwise. Events: `token`, `citations`, `done`, `error`. Credit deducted on `done` only. |
+| POST | /questions | Credits | Ask question. SSE when `Accept: text/event-stream`, JSON otherwise. Events: `token`, `citations`, `done`, `error`. Credit deducted on `done` only. Persists `question_embedding` (Sprint 8). |
 | GET | /questions | Verified | Paginated history (user's own) |
+| GET | /questions/suggestions (Sprint 8) | Verified | Embeds `q` and returns the caller's top-N similar past questions via `ORDER BY question_embedding <=> :vec` (pgvector cosine distance). Returns empty for `len(q) < 5` or when embeddings unavailable. Postgres-only (SQLite tests short-circuit). |
 | GET | /questions/{id} | Verified | Detail (owner only) |
-| GET | /questions/{id}/export | Verified | Download compliance brief (text format) |
+| GET | /questions/{id}/export | Verified | Download compliance brief — **PDF (Sprint 8)** built with reportlab; each citation includes a QR code to its `rbi_url`. Falls back to text via `generate_brief()` for callers that need it. |
 | PATCH | /questions/{id}/feedback | Verified | Submit feedback (-1/+1) with optional comment |
 
 ### 3.3 Subscriptions (6 endpoints)
@@ -120,10 +123,11 @@ All endpoints at `/api/v1/`. Error format: `{"success": false, "error": "...", "
 | GET | /subscriptions/plan | Verified | Current plan info |
 | GET | /subscriptions/history | Verified | Payment history |
 
-### 3.4 Action Items (4 endpoints)
+### 3.4 Action Items (5 endpoints)
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | /action-items | Verified | List (filter by status, assigned_team, priority) |
+| GET | /action-items | Verified | List (filter by status, assigned_team, priority). Response items include `is_overdue` computed field (Sprint 8): `due_date < today AND status != 'COMPLETED'`. |
+| GET | /action-items/stats (Sprint 8) | Verified | `{pending, in_progress, completed, overdue}` counts for the current user. `overdue` uses `COUNT(*) FILTER (WHERE due_date < CURRENT_DATE AND status != 'COMPLETED')`. |
 | POST | /action-items | Verified | Create |
 | PATCH | /action-items/{id} | Verified | Update (owner only) |
 | DELETE | /action-items/{id} | Verified | Delete (owner only) |
@@ -137,7 +141,7 @@ All endpoints at `/api/v1/`. Error format: `{"success": false, "error": "...", "
 | PATCH | /saved/{id} | Verified | Update name/tags |
 | DELETE | /saved/{id} | Verified | Delete |
 
-### 3.6 Admin (19 endpoints, all require `is_admin`)
+### 3.6 Admin (20 endpoints, all require `is_admin`)
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | /admin/dashboard | Aggregate stats (users, questions, circulars, pending reviews, avg feedback, credits 30d) |
@@ -146,6 +150,7 @@ All endpoints at `/api/v1/`. Error format: `{"success": false, "error": "...", "
 | PATCH | /admin/review/{id}/mark-reviewed | Mark reviewed without override |
 | GET | /admin/prompts | List prompt versions |
 | POST | /admin/prompts | Create + auto-activate new version |
+| GET | /admin/prompts/test-question (Sprint 8) | Q&A sandbox — runs full RAG+LLM pipeline without creating a `Question` row, deducting credits, or writing the answer cache. Logs one `AnalyticsEvent(event_type="admin_test_question")`. Returns the LLM output + `chunks_used` + `latency_ms`. |
 | POST | /admin/prompts/{id}/activate | Activate specific version |
 | GET | /admin/users | List users (search, filter by plan/active) |
 | PATCH | /admin/users/{id} | Update user (credits, plan, active, admin, bot_suspect) |
@@ -160,7 +165,19 @@ All endpoints at `/api/v1/`. Error format: `{"success": false, "error": "...", "
 | GET | /admin/dashboard/heatmap | Cluster × time-bucket matrix for heatmap |
 | POST | /admin/dashboard/heatmap/refresh | Manually trigger re-clustering |
 
-### 3.7 Snippets (Sprint 3, 5 endpoints)
+### 3.7 Account (Sprint 7, 3 endpoints)
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | /account/request-deletion-otp | Verified | Request OTP for account deletion. Sends 6-digit code via SMTP. |
+| PATCH | /account/delete | Verified | DPDP-compliant deletion. OTP-gated. PII anonymised (`email → deleted_{uuid}@deleted.regpulse.com`, `full_name → 'Deleted User'`), sessions + saved_interpretations + action_items deleted, `questions.user_id` nullified, `deletion_requested_at` set. Confirmation email sent before anonymising. |
+| GET | /account/export | Verified | DPDP-compliant JSON download of all user data (questions + citations + timestamps, saved_interpretations, action_items). |
+
+### 3.8 Subscription auto-renewal (Sprint 7)
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| PATCH | /subscriptions/auto-renew | Verified | Toggle `users.plan_auto_renew` boolean. Celery Beat task `subscription_renewal_check` (daily 08:00 IST) sends reminder emails 3 days before expiry for auto-renew users. |
+
+### 3.9 Snippets (Sprint 3, 5 endpoints)
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | POST | /snippets | Verified | Create a public snippet from one of the user's questions. Returns slug + share_url |
@@ -169,7 +186,7 @@ All endpoints at `/api/v1/`. Error format: `{"success": false, "error": "...", "
 | GET | /snippets/{slug}/og | Public (60/min) | 1200×630 PNG OG image, cached 24h |
 | DELETE | /snippets/{slug} | Owner or Admin | Soft revoke |
 
-### 3.8 News (Sprint 3, 4 endpoints)
+### 3.10 News (Sprint 3, 4 endpoints)
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | /news | Verified | Paginated news feed with `source` and `only_linked` filters |
@@ -177,7 +194,7 @@ All endpoints at `/api/v1/`. Error format: `{"success": false, "error": "...", "
 | GET | /admin/news | Admin | Includes dismissed items, status filter |
 | PATCH | /admin/news/{id} | Admin | Update status (NEW/REVIEWED/DISMISSED) |
 
-### 3.9 Health (2 endpoints)
+### 3.11 Health (2 endpoints)
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | /health | Liveness probe |
@@ -217,6 +234,10 @@ User question
 ```
 
 **Sprint 3 — Optional knowledge graph expansion (default OFF):** When `RAG_KG_EXPANSION_ENABLED=true`, after step 5 (dedup) the pipeline seeds from the top-3 chunks, runs the regex entity finder over their text, looks up neighbour circulars in `kg_relationships`, and pulls additional chunks from those circulars with a small boost (`RAG_KG_BOOST_WEIGHT`). Best-effort — any failure short-circuits to the un-expanded result.
+
+**Sprint 8 — Question embeddings persisted:** after step 14 the router calls `_maybe_embed_question(request, question_text)` and assigns the result to `questions.question_embedding` before INSERT. EmbeddingService's Redis cache (keyed by SHA256) turns this into a cache hit since step 3 already embedded the same string. Any embedding failure logs `question_embedding_failed` and sets `NULL` — the question itself is never blocked by an embedding error. Persisted embeddings feed `GET /questions/suggestions` and are ANN-searched with `ORDER BY question_embedding <=> CAST(:vec AS vector)`.
+
+**Sprint 8 — Admin Q&A sandbox:** `GET /admin/prompts/test-question` uses `build_rag_service` + `build_llm_service` (in `app/dependencies/rag.py`) to run the same retrieve→generate pipeline. Does NOT: insert a `Question` row, deduct credits, or call `rag.cache_answer`. DOES: append one `AnalyticsEvent(event_type="admin_test_question", user_hash=SHA256(admin.id))` row containing `{q, prompt_id, latency_ms, matched_chunks}`.
 
 ### RAG Config (env vars)
 | Variable | Default | Description |
@@ -327,23 +348,27 @@ Schedule: daily_scrape at 02:00 IST, priority_scrape every 4h, **ingest_news eve
 
 ## 8. Frontend Pages
 
+**27 routes.** Redesigned with terminal-modern v2 design system (Frontend v2, April 2026).
+
 | Route | Page | Auth | Description |
 |-------|------|------|-------------|
 | `/` | Landing | Public | Product intro |
 | `/login` | Login | Public | Work email + Send OTP |
 | `/register` | Register | Public | Full profile form (name, org, type) |
 | `/verify` | Verify OTP | Public | 6-digit OTP with auto-submit |
-| `/library` | Library | Public | Browse circulars with filters, search, pagination |
+| `/library` | Library | Public | 240px filter aside + 2-col CircCard grid with search |
 | `/library/[id]` | Detail | Public | Circular metadata, AI summary, text chunks |
-| `/dashboard` | Dashboard | Verified | Welcome, stats, quick actions, recent questions |
-| `/ask` | Ask | Credits | SSE streaming Q&A with citations and actions |
-| `/history` | History | Verified | Paginated question list |
+| `/dashboard` | Dashboard | Verified | Executive command center: hero, 4 metric tiles, heatmap, activity feed |
+| `/ask` | Ask | Credits | Editorial brief: 2-col (main + 320px rail), SSE streaming, annotations, feedback, learning modal, confidence radial, citations, debate |
+| `/history` | History | Verified | dtable: Question / When / Risk pill / confidence bar / Teams |
 | `/history/[id]` | Q&A Detail | Verified | Full answer, citations, actions, feedback |
-| `/updates` | Updates | Verified | Regulatory updates feed (recent circulars) |
-| `/upgrade` | Upgrade | Verified | Plan cards with pricing |
-| `/account` | Account | Verified | Profile, plan info, payment history |
-| `/action-items` | Actions | Verified | CRUD with status filter tabs |
-| `/saved` | Saved | Verified | Saved interpretations with needs_review badge |
+| `/updates` | Updates | Verified | 3-tab (Circulars dtable / News relevance cards / Consultations), live-dot, filter chips |
+| `/upgrade` | Upgrade | Verified | 3-col plan cards with "MOST CHOSEN" ribbon, serif editorial headline |
+| `/account` | Account | Verified | PROFILE grid + TEAM members + PAYMENT HISTORY + DATA/DPDP panel |
+| `/action-items` | Actions | Verified | MiniStat header (OPEN/HIGH/OVERDUE) + 5-tab filters + dtable with checkbox toggle |
+| `/saved` | Saved | Verified | 2-col card grid with serif italic question quote |
+| `/learnings` | Learnings | Verified | 3 MiniStats + card list (avatar, serif takeaway, tags, pin/edit). Mock data. |
+| `/debate` | Debate | Verified | 2-col debate cards (OPEN/RESOLVED, agree/disagree bar). Mock data. |
 | `/admin` | Admin Dashboard | Admin | 8 aggregate stat cards |
 | `/admin/review` | Review | Admin | Flagged questions, override/mark-reviewed |
 | `/admin/prompts` | Prompts | Admin | Version CRUD with activate |
@@ -353,19 +378,18 @@ Schedule: daily_scrape at 02:00 IST, priority_scrape every 4h, **ingest_news eve
 | `/admin/uploads` | Uploads | Admin | Drag-drop PDF upload + status table (Sprint 5) |
 | `/admin/heatmap` | Heatmap | Admin | Semantic clustering heatmap with period/bucket controls (Sprint 5) |
 
-### Component Library
-- `AppSidebar` — navigation (Library, Ask, History, Updates, Action Items, Saved) + theme toggle (Sprint 4)
-- `Badge` — variants: default, high, medium, low, active, superseded, draft
-- `ConfidenceMeter` (Sprint 4) — full panel + compact pill, WCAG-AA bands (high / medium / low / fallback), reads `confidence_score` + `consult_expert`
-- `Skeleton` / `CardListSkeleton` (Sprint 4) — animated placeholders for list pages
-- `ThemeToggle` / `ThemeBootstrap` (Sprint 4) — Tailwind class-based dark mode + system-pref bootstrap
-- `Pagination` — page numbers with ellipsis
-- `SearchInput` — debounced (300ms) with clear
-- `Select` — styled dropdown
-- `Spinner` — loading indicator
-- `Heatmap` (Sprint 5) — CSS-grid heatmap with color interpolation, hover tooltips, expandable cluster rows
-- `CircularCard` — list item with badges, supports search results
-- `FilterPanel` — doc type, status, impact level, sort
+### Design System (Frontend v2)
+
+**Terminal-modern** aesthetic — "Bloomberg terminal meets editorial print." CSS custom-property tokens in `globals.css`, class-based dark mode (`html.dark`).
+
+- **Tokens:** paper/ink/amber palette (light + dark), 3 typefaces (Inter Tight sans, Source Serif 4, JetBrains Mono), CSS shadows/radii/grid
+- **Primitives** (`components/design/Primitives.tsx`): `Pill` (7 tones), `Btn` (4 variants × 2 sizes), `Icon` (20+ hand-rolled SVGs), `Avatar`, `Sparkline`, `MiniStat`, `Kbd`, `ToastProvider`/`useToast`, `Panel`, `cn`
+- **Shell** (`components/shell/`): `TopBar` (logo + nav links + credits + avatar), `Sidebar` (NAV items with badges + kbd hints), `Ticker` (auto-scroll marquee), `CommandPalette` (⌘K), `TweaksPanel` (gear toggle), `AppShell` (assembles all)
+- **CSS classes:** `.panel`, `.tick`, `.pill.*`, `.btn.*`, `.dtable`, `.rp-prose` (serif editorial body with `.dek` deck + `mark.annot`), `.bar.*`, `.input`, `.checkbox`, `.toast`, `.live-dot`, `.gridlines`, `.hr`
+- **Mock data** (`lib/mockData.ts`): Plausible Indian banking scenarios (circulars, actions, history, learnings, debates, featured answer). Used as fallback when backend returns empty lists.
+
+### Legacy Component Library (still used by admin + auth pages)
+- `Badge`, `ConfidenceMeter`, `Skeleton`/`CardListSkeleton`, `ThemeToggle`/`ThemeBootstrap`, `Pagination`, `SearchInput`, `Select`, `Spinner`, `Heatmap`, `CircularCard`, `FilterPanel`
 
 ### Data Layer
 - **TanStack Query** for all API calls (staleTime per query type)
@@ -373,6 +397,7 @@ Schedule: daily_scrape at 02:00 IST, priority_scrape every 4h, **ingest_news eve
 - **Axios** interceptor: auto-attach Bearer token, 401 → silent refresh → retry (one attempt)
 - **Middleware** (`src/middleware.ts`): library browsable without auth, protected routes redirect to `/login`
 - **SSE**: native `fetch` + `ReadableStream` (not EventSource, for POST body support)
+- **Mock fallback**: pages degrade to `RP_DATA` when backend lists are empty — the terminal stays alive in demo/dev
 
 ---
 

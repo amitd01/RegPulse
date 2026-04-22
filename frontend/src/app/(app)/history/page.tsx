@@ -2,11 +2,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Badge, impactVariant } from "@/components/ui/Badge";
-import { ConfidenceMeter } from "@/components/ui/ConfidenceMeter";
-import { Pagination } from "@/components/ui/Pagination";
-import { CardListSkeleton } from "@/components/ui/Skeleton";
 import { useQuestionHistory } from "@/hooks/useQuestions";
+import { RP_DATA } from "@/lib/mockData";
+import { Icon, Pill } from "@/components/design/Primitives";
 
 export default function HistoryPage() {
   const [page, setPage] = useState(1);
@@ -14,104 +12,198 @@ export default function HistoryPage() {
 
   const { data, isLoading, isError } = useQuestionHistory(page, pageSize);
 
-  return (
-    <div className="px-6 py-6 lg:px-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-50">
-          Question History
-        </h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Your past questions and answers.
-        </p>
-      </div>
+  // Merge live data with mock fallback
+  const liveItems = data?.data ?? [];
+  const displayItems =
+    liveItems.length > 0
+      ? liveItems.map((q) => ({
+          id: q.id,
+          q: q.question_text,
+          when: new Date(q.created_at).toLocaleDateString("en-IN", {
+            day: "numeric",
+            month: "short",
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          risk: (q.risk_level?.toLowerCase() || "low") as "high" | "med" | "low",
+          conf: q.confidence_score ?? 0,
+          teams: [] as string[],
+          link: `/history/${q.id}`,
+        }))
+      : RP_DATA.history.map((h) => ({
+          ...h,
+          link: "#",
+        }));
 
-      {isLoading && <CardListSkeleton rows={6} />}
+  const totalPages = data ? Math.ceil(data.total / pageSize) : 1;
+
+  return (
+    <div className="rp-route-fade" style={{ padding: "20px 24px 60px" }}>
+      <h1
+        className="serif"
+        style={{ fontSize: 28, fontWeight: 400, marginBottom: 4 }}
+      >
+        History
+      </h1>
+      <p
+        className="serif"
+        style={{
+          fontSize: 14,
+          fontStyle: "italic",
+          color: "var(--ink-3)",
+          marginBottom: 16,
+        }}
+      >
+        Every question you&rsquo;ve asked — with confidence, risk, and teams
+        affected.
+      </p>
+
+      {isLoading && (
+        <div style={{ padding: 40, textAlign: "center", color: "var(--ink-4)" }}>
+          Loading history...
+        </div>
+      )}
 
       {isError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-200">
-          Failed to load question history. Please try again.
+        <div
+          style={{
+            padding: "12px 14px",
+            border: "1px solid var(--bad)",
+            background: "var(--bad-bg)",
+            borderRadius: "var(--radius)",
+            fontSize: 13,
+            color: "var(--bad)",
+            marginBottom: 16,
+          }}
+        >
+          Failed to load history. Showing demo data.
         </div>
       )}
 
-      {data && data.data.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            No questions yet.
-          </p>
-          <Link
-            href="/ask"
-            className="mt-2 text-sm font-medium text-navy-600 hover:text-navy-700 dark:text-navy-300 dark:hover:text-navy-200"
-          >
-            Ask your first question
-          </Link>
-        </div>
-      )}
-
-      {data && data.data.length > 0 && (
-        <div className="space-y-3">
-          {data.data.map((q) => (
-            <Link
-              key={q.id}
-              href={`/history/${q.id}`}
-              className="block rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:border-gray-800 dark:bg-gray-900 dark:hover:shadow-none"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-gray-900 line-clamp-2 dark:text-gray-100">
-                    {q.question_text}
-                  </p>
-                  {q.quick_answer && (
-                    <p className="mt-1 text-xs text-gray-500 line-clamp-2 dark:text-gray-400">
-                      {q.quick_answer}
-                    </p>
-                  )}
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    {q.risk_level && (
-                      <Badge variant={impactVariant(q.risk_level)}>
-                        {q.risk_level}
-                      </Badge>
-                    )}
-                    {(q.confidence_score !== null || q.consult_expert) && (
-                      <ConfidenceMeter
-                        score={q.confidence_score}
-                        consultExpert={q.consult_expert}
-                        compact
-                      />
-                    )}
-                    {q.feedback === 1 && (
-                      <span className="text-xs text-green-600 dark:text-green-400">
-                        &#128077; Helpful
+      <div className="panel">
+        <table className="dtable">
+          <thead>
+            <tr>
+              <th>Question</th>
+              <th style={{ width: 120 }}>When</th>
+              <th style={{ width: 70 }}>Risk</th>
+              <th style={{ width: 120 }}>Confidence</th>
+              <th style={{ width: 180 }}>Teams</th>
+              <th style={{ width: 80 }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {displayItems.map((i) => {
+              const row = (
+                <tr key={i.id} style={{ cursor: "pointer" }}>
+                  <td style={{ fontSize: 13, fontWeight: 500, maxWidth: 500 }}>
+                    {i.q}
+                  </td>
+                  <td
+                    className="mono"
+                    style={{ fontSize: 11, color: "var(--ink-3)" }}
+                  >
+                    {i.when}
+                  </td>
+                  <td>
+                    <Pill
+                      tone={
+                        i.risk === "high"
+                          ? "bad"
+                          : i.risk === "med"
+                            ? "warn"
+                            : "good"
+                      }
+                    >
+                      {i.risk.toUpperCase()}
+                    </Pill>
+                  </td>
+                  <td>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                      }}
+                    >
+                      <div className="bar" style={{ flex: 1 }}>
+                        <span
+                          style={{
+                            width: `${i.conf * 100}%`,
+                            background:
+                              i.conf > 0.7
+                                ? "var(--good)"
+                                : i.conf > 0.5
+                                  ? "var(--warn)"
+                                  : "var(--bad)",
+                          }}
+                        />
+                      </div>
+                      <span
+                        className="mono tnum"
+                        style={{ fontSize: 10.5, color: "var(--ink-3)" }}
+                      >
+                        {Math.round(i.conf * 100)}%
                       </span>
-                    )}
-                    {q.feedback === -1 && (
-                      <span className="text-xs text-red-500 dark:text-red-400">
-                        &#128078; Not helpful
-                      </span>
-                    )}
-                    <span className="text-xs text-gray-400 dark:text-gray-500">
-                      {new Date(q.created_at).toLocaleDateString("en-IN", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
+                    </div>
+                  </td>
+                  <td>
+                    <div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
+                      {i.teams.map((t) => (
+                        <Pill key={t} tone="ghost">
+                          {t}
+                        </Pill>
+                      ))}
+                    </div>
+                  </td>
+                  <td>
+                    <Icon.Arrow style={{ color: "var(--ink-4)" }} />
+                  </td>
+                </tr>
+              );
 
-      {data && Math.ceil(data.total / pageSize) > 1 && (
-        <div className="mt-6">
-          <Pagination
-            page={page}
-            totalPages={Math.ceil(data.total / pageSize)}
-            onPageChange={setPage}
-          />
+              if (i.link && i.link !== "#") {
+                return (
+                  <Link
+                    key={i.id}
+                    href={i.link}
+                    style={{ display: "contents", textDecoration: "none", color: "inherit" }}
+                  >
+                    {row}
+                  </Link>
+                );
+              }
+              return row;
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {totalPages > 1 && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            gap: 6,
+            marginTop: 16,
+          }}
+        >
+          {Array.from({ length: Math.min(totalPages, 10) }, (_, idx) => idx + 1).map(
+            (p) => (
+              <button
+                key={p}
+                onClick={() => setPage(p)}
+                className="btn sm"
+                style={{
+                  background: p === page ? "var(--ink)" : "var(--panel)",
+                  color: p === page ? "var(--bg)" : "var(--ink-3)",
+                  minWidth: 32,
+                }}
+              >
+                {p}
+              </button>
+            ),
+          )}
         </div>
       )}
     </div>
