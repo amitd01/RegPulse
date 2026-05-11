@@ -141,7 +141,8 @@ class EmailService:
                 port=self._settings.SMTP_PORT,
                 username=self._settings.SMTP_USER,
                 password=self._settings.SMTP_PASS,
-                use_tls=True,
+                start_tls=True,   # ✅ correct for 587
+                use_tls=False,
             )
             logger.info("email_sent", domain=domain, subject=subject)
         except Exception:

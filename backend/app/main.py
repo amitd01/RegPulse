@@ -239,7 +239,7 @@ class CORSMiddlewareExcludingWebhook(CORSMiddleware):
 
 app.add_middleware(
     CORSMiddlewareExcludingWebhook,
-    allow_origins=[settings.FRONTEND_URL],
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

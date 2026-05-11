@@ -227,10 +227,10 @@ async def verify_otp(
     email = body.email.lower().strip()
     domain = _domain(email)
     purpose = body.purpose
-
+    print(body.otp)
     # Verify OTP (raises OTPVerificationError on failure)
     await otp_svc.verify_otp(email, body.otp, purpose=purpose)
-
+    
     if purpose == "register":
         user = await _create_user_from_registration(email, body, db, redis, settings)
         # Send welcome email (fire-and-forget — don't fail the request)

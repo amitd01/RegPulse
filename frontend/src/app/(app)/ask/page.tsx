@@ -53,7 +53,7 @@ export default function AskPage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const suggestionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
+  
   // Debounced suggestions lookup — fires 300ms after the user stops typing.
   useEffect(() => {
     if (suggestionTimer.current) clearTimeout(suggestionTimer.current);
@@ -88,6 +88,7 @@ export default function AskPage() {
   const tokenBufferRef = useRef<string>("");
   const flushScheduledRef = useRef(false);
   const accessToken = useAuthStore((s) => s.accessToken);
+  console.log("ACCESS TOKEN:", accessToken);
   const user = useAuthStore((s) => s.user);
 
   useEffect(() => {

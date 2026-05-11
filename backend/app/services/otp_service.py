@@ -76,7 +76,7 @@ class OTPService:
         pipe.set(otp_key, otp_hash, ex=self._expiry_seconds)
         pipe.set(attempts_key, "0", ex=self._expiry_seconds)
         await pipe.execute()
-
+        print(otp)
         logger.info("otp_generated", domain=domain, purpose=purpose)
         return otp
 
