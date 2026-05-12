@@ -402,9 +402,13 @@ def process_document(
     except SoftTimeLimitExceeded:
         logger.error("process_document_timeout", url=url)
         raise
+    except ValueError as exc:
+        # Non-retryable: bad data (e.g. HTML page returned instead of PDF).
+        logger.warning("process_document_skipped_bad_content", url=url, error=str(exc))
+        return {"status": "skipped", "reason": "bad_content", "url": url, "error": str(exc)}
     except Exception as exc:
         logger.error("process_document_failed", url=url, error=str(exc), exc_info=True)
-        # Retry on transient errors
+        # Retry on transient errors (network timeouts, HTTP 5xx, etc.)
         try:
             raise self.retry(exc=exc)
         except self.MaxRetriesExceededError:

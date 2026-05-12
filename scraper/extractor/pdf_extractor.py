@@ -110,6 +110,15 @@ class PDFExtractor:
         pdf_bytes = response.content
         temp_path.write_bytes(pdf_bytes)
 
+        # Validate PDF magic bytes — RBI returns HTML 200 for missing/moved docs.
+        # pdfminer emits hundreds of "Illegal character in hex string" warnings
+        # and then fails with "Couldn't read xref table" when fed HTML.
+        if not pdf_bytes.startswith(b"%PDF-"):
+            raise ValueError(
+                f"URL did not return a PDF (got {len(pdf_bytes)} bytes starting with "
+                f"{pdf_bytes[:16]!r}); likely an HTML error page"
+            )
+
         logger.info(
             "pdf_downloaded",
             url=url,
