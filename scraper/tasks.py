@@ -236,6 +236,17 @@ def process_document(
     """
     logger.info("process_document_started", url=url, title=title[:80])
 
+    # Fast DB connectivity check — fail loudly rather than silently skip
+    from scraper.db import check_db_connection
+
+    if not check_db_connection():
+        logger.error(
+            "process_document_db_unreachable",
+            url=url,
+            action="retrying_task",
+        )
+        raise self.retry(countdown=15, exc=RuntimeError("DB connection check failed"))
+
     # Idempotency check: skip if URL already indexed
     with get_db_session() as db:
         existing = db.execute(
@@ -251,13 +262,41 @@ def process_document(
         pdf_extractor = PDFExtractor()
         extracted = _run_async(pdf_extractor.extract(url))
 
+        logger.info(
+            "process_document_extraction_result",
+            url=url,
+            extraction_method=extracted.extraction_method,
+            page_count=extracted.page_count,
+            raw_text_length=len(extracted.raw_text),
+            stripped_text_length=len(extracted.raw_text.strip()),
+            warnings=extracted.warnings,
+        )
+
         if not extracted.raw_text.strip():
-            logger.warning("process_document_empty_text", url=url)
+            logger.warning(
+                "process_document_empty_text",
+                url=url,
+                extraction_method=extracted.extraction_method,
+                page_count=extracted.page_count,
+                raw_text_length=len(extracted.raw_text),
+                warnings=extracted.warnings,
+                action="skipping_no_text_to_index",
+            )
             return {"status": "skipped", "reason": "empty_text", "url": url}
 
         # Step 2: Extract metadata
         metadata_extractor = MetadataExtractor()
         metadata = metadata_extractor.extract(extracted.raw_text, source_url=url)
+
+        logger.info(
+            "process_document_metadata_extracted",
+            url=url,
+            circular_number=metadata.circular_number,
+            department=metadata.department,
+            issued_date=str(metadata.issued_date),
+            effective_date=str(metadata.effective_date),
+            supersession_refs=metadata.supersession_refs,
+        )
 
         # Use extracted title if not provided by crawler
         effective_title = title or metadata.circular_number or url.split("/")[-1]
@@ -267,13 +306,50 @@ def process_document(
         chunks = chunker.chunk(extracted.raw_text)
 
         if not chunks:
-            logger.warning("process_document_no_chunks", url=url)
+            logger.warning(
+                "process_document_no_chunks",
+                url=url,
+                raw_text_length=len(extracted.raw_text),
+                action="skipping_nothing_to_embed",
+            )
             return {"status": "skipped", "reason": "no_chunks", "url": url}
 
-        # Step 4: Generate embeddings
-        embedder = Embedder()
+        logger.info(
+            "process_document_chunked",
+            url=url,
+            chunk_count=len(chunks),
+            total_tokens=sum(c.token_count for c in chunks),
+        )
+
+        # Step 4: Generate embeddings — degrade gracefully if OpenAI is unavailable
         chunk_texts = [c.text for c in chunks]
-        embeddings = embedder.embed_chunks(chunk_texts)
+        logger.info(
+            "process_document_embedding_start",
+            url=url,
+            chunk_count=len(chunk_texts),
+        )
+        try:
+            embedder = Embedder()
+            embeddings = embedder.embed_chunks(chunk_texts)
+            logger.info(
+                "process_document_embedding_done",
+                url=url,
+                embeddings_returned=len(embeddings),
+                chunks_expected=len(chunk_texts),
+                mismatch=(len(embeddings) != len(chunk_texts)),
+            )
+        except Exception as embed_exc:
+            # Save the document and chunks without embeddings rather than failing.
+            # Embeddings can be backfilled later (see scripts/backfill_question_embeddings.py).
+            logger.warning(
+                "process_document_embedding_failed_degraded",
+                url=url,
+                error=str(embed_exc),
+                error_type=type(embed_exc).__name__,
+                action="proceeding_with_null_embeddings",
+                exc_info=True,
+            )
+            embeddings = []
 
         # Step 5: Classify impact level
         summary_excerpt = extracted.raw_text[:500]
@@ -284,10 +360,20 @@ def process_document(
             department=metadata.department or "",
         )
 
-        # Step 6: Save to database (single transaction)
+        # Step 6a: Save circular_documents row (committed immediately — independent of chunks)
         doc_id = str(uuid.uuid4())
+        logger.info(
+            "process_document_inserting_circular",
+            url=url,
+            doc_id=doc_id,
+            circular_number=metadata.circular_number,
+            title=effective_title[:80],
+            impact_level=impact_level,
+            doc_type=doc_type,
+            chunks_to_insert=len(chunks),
+            embeddings_count=len(embeddings),
+        )
         with get_db_session() as db:
-            # Insert circular_documents row
             db.execute(
                 text("""
                     INSERT INTO circular_documents (
@@ -318,29 +404,58 @@ def process_document(
                     "scraper_run_id": scraper_run_id,
                 },
             )
+            db.commit()
 
-            # Insert document_chunks rows with embeddings (TD-08)
+        logger.info(
+            "process_document_circular_saved",
+            url=url,
+            doc_id=doc_id,
+            circular_number=metadata.circular_number,
+        )
+
+        # Step 6b: Insert document_chunks with embeddings — each chunk in its own savepoint
+        # so a single bad embedding never rolls back the already-committed circular row.
+        chunks_inserted = 0
+        chunks_failed = 0
+        with get_db_session() as db:
             for i, chunk in enumerate(chunks):
                 emb = embeddings[i] if i < len(embeddings) else None
                 emb_str = "[" + ",".join(str(x) for x in emb) + "]" if emb else None
-                db.execute(
-                    text("""
-                        INSERT INTO document_chunks (
-                            id, document_id, chunk_index, chunk_text, token_count, embedding
-                        ) VALUES (
-                            :id, :document_id, :chunk_index, :chunk_text, :token_count,
-                            CAST(:embedding AS vector)
-                        )
-                    """),
-                    {
-                        "id": str(uuid.uuid4()),
-                        "document_id": doc_id,
-                        "chunk_index": chunk.chunk_index,
-                        "chunk_text": chunk.text,
-                        "token_count": chunk.token_count,
-                        "embedding": emb_str,
-                    },
-                )
+                try:
+                    db.execute(
+                        text("""
+                            INSERT INTO document_chunks (
+                                id, document_id, chunk_index, chunk_text, token_count, embedding
+                            ) VALUES (
+                                :id, :document_id, :chunk_index, :chunk_text, :token_count,
+                                CAST(:embedding AS vector)
+                            )
+                        """),
+                        {
+                            "id": str(uuid.uuid4()),
+                            "document_id": doc_id,
+                            "chunk_index": chunk.chunk_index,
+                            "chunk_text": chunk.text,
+                            "token_count": chunk.token_count,
+                            "embedding": emb_str,
+                        },
+                    )
+                    chunks_inserted += 1
+                except Exception as chunk_exc:
+                    chunks_failed += 1
+                    logger.warning(
+                        "process_document_chunk_insert_failed",
+                        doc_id=doc_id,
+                        chunk_index=chunk.chunk_index,
+                        chunk_text_length=len(chunk.text),
+                        has_embedding=emb is not None,
+                        error=str(chunk_exc),
+                    )
+                    # Roll back just this chunk's statement so the session stays usable
+                    try:
+                        db.rollback()
+                    except Exception:
+                        pass
 
             db.commit()
 
@@ -350,7 +465,9 @@ def process_document(
             doc_id=doc_id,
             circular_number=metadata.circular_number,
             impact_level=impact_level,
-            chunks=len(chunks),
+            chunks_total=len(chunks),
+            chunks_inserted=chunks_inserted,
+            chunks_failed=chunks_failed,
         )
 
         # Step 6.5: Knowledge graph extraction (Sprint 3 Pillar A)
@@ -403,16 +520,35 @@ def process_document(
         logger.error("process_document_timeout", url=url)
         raise
     except ValueError as exc:
-        # Non-retryable: bad data (e.g. HTML page returned instead of PDF).
-        logger.warning("process_document_skipped_bad_content", url=url, error=str(exc))
+        # Non-retryable: bad data (HTML error page, content too short, etc.)
+        logger.warning(
+            "process_document_skipped_bad_content",
+            url=url,
+            error=str(exc),
+            error_type=type(exc).__name__,
+            action="non_retryable_skip",
+        )
         return {"status": "skipped", "reason": "bad_content", "url": url, "error": str(exc)}
     except Exception as exc:
-        logger.error("process_document_failed", url=url, error=str(exc), exc_info=True)
+        logger.error(
+            "process_document_failed",
+            url=url,
+            error=str(exc),
+            error_type=type(exc).__name__,
+            retries_so_far=self.request.retries,
+            max_retries=self.max_retries,
+            exc_info=True,
+        )
         # Retry on transient errors (network timeouts, HTTP 5xx, etc.)
         try:
             raise self.retry(exc=exc)
         except self.MaxRetriesExceededError:
-            logger.error("process_document_max_retries", url=url)
+            logger.error(
+                "process_document_max_retries",
+                url=url,
+                error=str(exc),
+                action="giving_up_after_retries",
+            )
             return {"status": "failed", "url": url, "error": str(exc)}
 
 
