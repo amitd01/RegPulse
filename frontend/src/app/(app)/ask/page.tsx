@@ -53,8 +53,8 @@ export default function AskPage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const suggestionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  
-  // Debounced suggestions lookup — fires 300ms after the user stops typing.
+
+  // Debounced suggestions lookup — fires 300 ms after the user stops typing.
   useEffect(() => {
     if (suggestionTimer.current) clearTimeout(suggestionTimer.current);
     const trimmed = question.trim();
@@ -81,46 +81,54 @@ export default function AskPage() {
     () => (showSuggestions ? suggestions : []),
     [showSuggestions, suggestions],
   );
-  // SSE jitter fix: buffer incoming tokens and flush once per animation
-  // frame so React doesn't re-render on every chunk delta. The text and
-  // citations panels live in stable containers below so the layout never
-  // shifts when the citations event arrives mid-stream.
+
+  // ---------------------------------------------------------------------------
+  // Streaming helpers
+  //
+  // WHY setInterval instead of requestAnimationFrame:
+  //   reader.read() resolves as a microtask. When the server sends tokens fast
+  //   (or TCP delivers a batch), dozens of microtasks can resolve before the
+  //   browser reaches its next rendering phase. rAF callbacks only fire during
+  //   that rendering phase, so they are starved — all tokens pile up and are
+  //   flushed in one shot at the end. setInterval is a macrotask; it fires on
+  //   a fixed wall-clock cadence (50 ms ≈ 20 fps) regardless of how many
+  //   microtasks are queued, guaranteeing incremental React state updates
+  //   throughout the stream.
+  // ---------------------------------------------------------------------------
   const tokenBufferRef = useRef<string>("");
-  const flushScheduledRef = useRef(false);
+  const flushIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const accessToken = useAuthStore((s) => s.accessToken);
-  console.log("ACCESS TOKEN:", accessToken);
   const user = useAuthStore((s) => s.user);
 
+  // Clean up on unmount
   useEffect(() => {
     return () => {
       abortRef.current?.abort();
+      if (flushIntervalRef.current !== null) clearInterval(flushIntervalRef.current);
     };
   }, []);
 
+  // Drain tokenBufferRef into React state immediately (used at event boundaries)
   const flushTokens = useCallback(() => {
-    flushScheduledRef.current = false;
     const pending = tokenBufferRef.current;
     if (!pending) return;
     tokenBufferRef.current = "";
     setState((prev) => ({ ...prev, answer: prev.answer + pending }));
   }, []);
 
-  const scheduleFlush = useCallback(() => {
-    if (flushScheduledRef.current) return;
-    flushScheduledRef.current = true;
-    if (typeof requestAnimationFrame === "function") {
-      requestAnimationFrame(flushTokens);
-    } else {
-      setTimeout(flushTokens, 16);
+  const stopFlushInterval = useCallback(() => {
+    if (flushIntervalRef.current !== null) {
+      clearInterval(flushIntervalRef.current);
+      flushIntervalRef.current = null;
     }
-  }, [flushTokens]);
+  }, []);
 
   const handleAsk = useCallback(async () => {
     if (!question.trim() || question.trim().length < 5) return;
     if (state.status === "streaming") return;
 
     tokenBufferRef.current = "";
-    flushScheduledRef.current = false;
+    stopFlushInterval();
     setState({ ...initialState, status: "streaming" });
     trackEvent("ask_question_submitted", {
       question_length: question.trim().length,
@@ -128,6 +136,15 @@ export default function AskPage() {
 
     const controller = new AbortController();
     abortRef.current = controller;
+
+    // Start the interval before the fetch so the first token is always
+    // flushed within 50 ms of arriving, even if the read loop runs fast.
+    flushIntervalRef.current = setInterval(() => {
+      const pending = tokenBufferRef.current;
+      if (!pending) return;
+      tokenBufferRef.current = "";
+      setState((prev) => ({ ...prev, answer: prev.answer + pending }));
+    }, 50);
 
     const apiUrl =
       process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
@@ -146,18 +163,19 @@ export default function AskPage() {
       });
 
       if (!response.ok) {
+        stopFlushInterval();
         const errorData = await response.json().catch(() => null);
         setState((prev) => ({
           ...prev,
           status: "error",
-          errorMessage:
-            errorData?.error || `Request failed (${response.status})`,
+          errorMessage: errorData?.error || `Request failed (${response.status})`,
         }));
         return;
       }
 
       const reader = response.body?.getReader();
       if (!reader) {
+        stopFlushInterval();
         setState((prev) => ({
           ...prev,
           status: "error",
@@ -167,90 +185,151 @@ export default function AskPage() {
       }
 
       const decoder = new TextDecoder();
-      let buffer = "";
+      // Carry-over buffer for partial SSE messages that span read() calls
+      let partial = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
+        // Normalise both CRLF and bare CR to LF so the \n\n split is reliable
+        partial += decoder
+          .decode(value, { stream: true })
+          .replace(/\r\n/g, "\n")
+          .replace(/\r/g, "\n");
 
-        for (const line of lines) {
-          if (line.startsWith("event: ")) {
-            // Event type parsed from SSE protocol (data follows on next line)
-            continue;
+        // SSE messages are separated by blank lines (\n\n).  Split there so
+        // each iteration processes one complete message at a time. The last
+        // slice may be an incomplete message — keep it in `partial`.
+        const messages = partial.split("\n\n");
+        partial = messages.pop() ?? "";
+
+        for (const message of messages) {
+          if (!message.trim()) continue;
+
+          // Extract the named event type and its data payload from the block.
+          // The SSE spec puts "event:" before "data:" within the same message.
+          let eventType = "";
+          let dataStr = "";
+          for (const line of message.split("\n")) {
+            if (line.startsWith("event: ")) {
+              eventType = line.slice(7).trim();
+            } else if (line.startsWith("data: ")) {
+              dataStr = line.slice(6);
+            }
           }
-          if (line.startsWith("data: ")) {
-            const dataStr = line.slice(6);
-            try {
-              const data = JSON.parse(dataStr);
+          if (!dataStr) continue;
 
-              // Determine event type from the data shape
-              if ("token" in data) {
-                // Buffer + rAF flush — see scheduleFlush above.
-                tokenBufferRef.current += data.token;
-                scheduleFlush();
-              } else if ("citations" in data) {
-                // Drain any pending tokens before swapping in metadata so
-                // the citations panel never appears ahead of the prose.
-                flushTokens();
-                setState((prev) => ({
-                  ...prev,
-                  citations: data.citations || [],
-                  riskLevel: data.risk_level || null,
-                  confidenceScore:
-                    typeof data.confidence_score === "number"
-                      ? data.confidence_score
-                      : null,
-                  consultExpert: Boolean(data.consult_expert),
-                  affectedTeams: data.affected_teams || [],
-                  recommendedActions: data.recommended_actions || [],
-                  quickAnswer: data.quick_answer || null,
-                }));
-                trackEvent("confidence_meter_viewed", {
-                  confidence_score:
-                    typeof data.confidence_score === "number"
-                      ? data.confidence_score
-                      : null,
-                  consult_expert: Boolean(data.consult_expert),
-                  source: "ask",
+          let data: Record<string, unknown>;
+          try {
+            data = JSON.parse(dataStr) as Record<string, unknown>;
+          } catch {
+            continue; // skip malformed JSON
+          }
+
+          switch (eventType) {
+            case "token":
+              // Accumulate in ref; the setInterval drains it to React state.
+              tokenBufferRef.current += (data.token as string) ?? "";
+              break;
+
+            case "citations": {
+              // Inline-flush so the prose panel is up-to-date before metadata
+              // arrives — prevents citations appearing ahead of their context.
+              const pending = tokenBufferRef.current;
+              if (pending) {
+                tokenBufferRef.current = "";
+                setState((prev) => ({ ...prev, answer: prev.answer + pending }));
+              }
+              setState((prev) => ({
+                ...prev,
+                citations: (data.citations as CitationItem[]) || [],
+                riskLevel: (data.risk_level as string) || null,
+                confidenceScore:
+                  typeof data.confidence_score === "number"
+                    ? data.confidence_score
+                    : null,
+                consultExpert: Boolean(data.consult_expert),
+                affectedTeams: (data.affected_teams as string[]) || [],
+                recommendedActions:
+                  (data.recommended_actions as RecommendedAction[]) || [],
+                quickAnswer: (data.quick_answer as string) || null,
+              }));
+              trackEvent("confidence_meter_viewed", {
+                confidence_score:
+                  typeof data.confidence_score === "number"
+                    ? data.confidence_score
+                    : null,
+                consult_expert: Boolean(data.consult_expert),
+                source: "ask",
+              });
+              break;
+            }
+
+            case "done": {
+              stopFlushInterval();
+              // Merge any buffered tokens into the final state in one update
+              // to avoid a transient render without the last few words.
+              const pending = tokenBufferRef.current;
+              tokenBufferRef.current = "";
+              setState((prev) => ({
+                ...prev,
+                status: "done",
+                answer: pending ? prev.answer + pending : prev.answer,
+                questionId: (data.question_id as string) ?? null,
+                creditBalance:
+                  typeof data.credit_balance === "number"
+                    ? data.credit_balance
+                    : null,
+              }));
+              if (user && data.credit_balance !== undefined) {
+                useAuthStore.setState({
+                  user: {
+                    ...user,
+                    credit_balance: data.credit_balance as number,
+                  },
                 });
-              } else if ("question_id" in data) {
+              }
+              break;
+            }
+
+            case "error":
+              stopFlushInterval();
+              // Flush any tokens received before the error so partial answers
+              // stay visible alongside the error banner.
+              flushTokens();
+              setState((prev) => ({
+                ...prev,
+                status: "error",
+                errorMessage: (data.error as string) ?? "Streaming error",
+              }));
+              break;
+
+            default:
+              // Fallback shape-based dispatch for any future/undocumented events
+              if (typeof data.token === "string") {
+                tokenBufferRef.current += data.token;
+              } else if (typeof data.error === "string") {
+                stopFlushInterval();
                 flushTokens();
-                setState((prev) => ({
-                  ...prev,
-                  status: "done",
-                  questionId: data.question_id,
-                  creditBalance: data.credit_balance,
-                }));
-                // Update credit balance in store
-                if (user && data.credit_balance !== undefined) {
-                  useAuthStore.setState({
-                    user: { ...user, credit_balance: data.credit_balance },
-                  });
-                }
-              } else if ("error" in data) {
                 setState((prev) => ({
                   ...prev,
                   status: "error",
-                  errorMessage: data.error,
+                  errorMessage: data.error as string,
                 }));
               }
-            } catch {
-              // Skip malformed JSON lines
-            }
           }
         }
       }
 
-      // If we reach here without "done", mark as done
+      // Stream closed without an explicit `done` event (edge case)
+      stopFlushInterval();
       flushTokens();
       setState((prev) =>
         prev.status === "streaming" ? { ...prev, status: "done" } : prev,
       );
     } catch (err) {
+      stopFlushInterval();
       if (err instanceof DOMException && err.name === "AbortError") return;
       setState((prev) => ({
         ...prev,
@@ -258,7 +337,7 @@ export default function AskPage() {
         errorMessage: err instanceof Error ? err.message : "Request failed",
       }));
     }
-  }, [question, state.status, accessToken, user, flushTokens, scheduleFlush]);
+  }, [question, state.status, accessToken, user, flushTokens, stopFlushInterval]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -270,9 +349,11 @@ export default function AskPage() {
     [handleAsk],
   );
 
-  const showAnswer =
-    (state.status === "streaming" || state.status === "done") &&
-    Boolean(state.answer);
+  // Show the answer panel during streaming, after completion, AND when an
+  // error occurs mid-stream: partial answers are still valuable — the error
+  // banner renders separately. Previously this hid the answer on error status,
+  // discarding any text already flushed to state.
+  const showAnswer = state.status !== "idle" && Boolean(state.answer);
 
   return (
     <div className="flex h-full flex-col px-6 py-6 lg:px-8">
@@ -345,7 +426,7 @@ export default function AskPage() {
         </div>
       </div>
 
-      {/* Error */}
+      {/* Error banner — shown even when partial answer text is present */}
       {state.status === "error" && state.errorMessage && (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-200">
           {state.errorMessage}
@@ -355,9 +436,8 @@ export default function AskPage() {
       {/* Answer */}
       {showAnswer && (
         <div className="flex-1 space-y-6 overflow-y-auto">
-          {/* Confidence meter — present once metadata arrives, but the
-              container above always exists during streaming so the prose
-              below doesn't shift downward when it appears. */}
+          {/* Confidence meter — stable container prevents layout shift when
+              metadata arrives mid-stream after the prose has started. */}
           <div className="min-h-[1px]">
             {(state.confidenceScore !== null || state.consultExpert) && (
               <ConfidenceMeter
