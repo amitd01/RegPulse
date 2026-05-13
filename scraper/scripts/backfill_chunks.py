@@ -44,7 +44,7 @@ def _fetch_docs_without_chunks() -> list[tuple[str, str, str]]:
                       SELECT 1 FROM document_chunks dc
                       WHERE dc.document_id = cd.id
                   )
-                ORDER BY cd.created_at ASC
+                ORDER BY cd.updated_at ASC
             """)
         ).fetchall()
     return [(r[0], r[1], r[2]) for r in rows]
