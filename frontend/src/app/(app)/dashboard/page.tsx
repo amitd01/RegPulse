@@ -12,6 +12,7 @@ import {
 } from "@/components/design/Primitives";
 import { useAuthStore } from "@/stores/authStore";
 import { RP_DATA, type ActionMock } from "@/lib/mockData";
+import { useDashboardPulse } from "@/hooks/useDashboard";
 
 // <Link> rendering a <button> child is invalid HTML, so we use a router push
 // inside Btn's onClick. Keeps a11y (real <button>) and the ghost/sm styling.
@@ -34,6 +35,14 @@ function LinkBtn({
 }
 
 export default function DashboardPage() {
+  const { data: pulseData } = useDashboardPulse();
+  const pulse = pulseData?.pulse;
+
+  const totalCirculars = pulse?.total_circulars ?? RP_DATA.pulse.totalCirculars;
+  const questionsAsked = pulse?.questions_asked ?? RP_DATA.pulse.questionsAsked;
+  const learningsCaptured = pulse?.learnings_captured ?? RP_DATA.pulse.learningsCaptured;
+  const sparkline = pulse?.sparkline ?? RP_DATA.pulse.sparkline;
+
   return (
     <div
       style={{
@@ -54,21 +63,21 @@ export default function DashboardPage() {
       >
         <MetricTile
           label="CIRCULARS INDEXED"
-          value={RP_DATA.pulse.totalCirculars.toLocaleString()}
+          value={totalCirculars.toLocaleString()}
           delta="+7 wk"
           trend="up"
-          sparkline={RP_DATA.pulse.sparkline}
+          sparkline={sparkline}
         />
         <MetricTile
           label="QUESTIONS ASKED"
-          value={RP_DATA.pulse.questionsAsked.toLocaleString()}
+          value={questionsAsked.toLocaleString()}
           delta="+142 wk"
           trend="up"
           sparkline={[10, 12, 14, 18, 16, 22, 20, 24, 19, 23, 25, 27, 24, 29]}
         />
         <MetricTile
           label="TEAM LEARNINGS"
-          value={String(RP_DATA.pulse.learningsCaptured)}
+          value={String(learningsCaptured)}
           delta="+14 wk"
           trend="up"
           sparkline={[1, 2, 1, 3, 2, 4, 3, 5, 4, 6, 5, 7, 6, 8]}
@@ -530,7 +539,8 @@ function ThisWeekBrief() {
 
 /* -------------------------------- Heatmap --------------------------------- */
 function HeatmapPanel() {
-  const h = RP_DATA.heatmap;
+  const { data } = useDashboardPulse();
+  const h = data?.heatmap?.rows?.length ? data.heatmap : RP_DATA.heatmap;
   const max = Math.max(...h.rows.flatMap((r) => r.vals));
 
   const color = (v: number) => {
@@ -627,7 +637,8 @@ function HeatmapPanel() {
 
 /* -------------------------------- Activity -------------------------------- */
 function ActivityStream() {
-  const items = RP_DATA.activity;
+  const { data } = useDashboardPulse();
+  const items = data?.activity?.length ? data.activity : RP_DATA.activity;
   const typeStyle: Record<string, { color: string; label: string }> = {
     circ:   { color: "var(--signal)",      label: "CIRC" },
     ask:    { color: "var(--accent-blue)", label: "ASK" },
