@@ -1,0 +1,2625 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RegPulse v2 — Terminal-Modern Mockup (inlined)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+html,body,#root{height:100%}
+/* RegPulse — Terminal Modern tokens */
+:root {
+  /* LIGHT (default) — paper, ink, signal */
+  --bg: #f6f5f1;         /* warm paper */
+  --bg-1: #eeece4;
+  --bg-2: #e6e3d8;
+  --panel: #fbfaf6;
+  --panel-2: #f1efe7;
+  --line: #dedacb;
+  --line-2: #c9c3ae;
+  --ink: #131210;
+  --ink-2: #2b2924;
+  --ink-3: #5a574d;
+  --ink-4: #8b8773;
+  --ink-5: #b3ae9a;
+
+  --signal: #c25a11;       /* amber signal */
+  --signal-2: #d97515;
+  --signal-bg: #f4e3cc;
+  --signal-ink: #6e3405;
+
+  --good: #2c6f3f;
+  --good-bg: #d9e7d5;
+  --warn: #a66500;
+  --warn-bg: #f0e0b4;
+  --bad:  #a22020;
+  --bad-bg: #efd3c9;
+
+  --accent-blue: #1c3a68;
+  --accent-blue-bg: #dde5f0;
+
+  --radius: 2px;
+  --radius-2: 4px;
+  --radius-card: 6px;
+
+  --font-sans: "Inter Tight", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-serif: "Source Serif 4", "Source Serif Pro", "Georgia", serif;
+  --font-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+
+  --shadow-sm: 0 1px 0 rgba(0,0,0,.04);
+  --shadow: 0 1px 0 rgba(0,0,0,.04), 0 4px 16px -4px rgba(20,18,10,.08);
+  --shadow-lg: 0 30px 60px -20px rgba(20,18,10,.25), 0 10px 24px -10px rgba(20,18,10,.15);
+
+  --grid: rgba(20,18,10,.06);
+  --grid-strong: rgba(20,18,10,.12);
+}
+
+:root[data-theme="dark"] {
+  --bg: #0d0e0f;
+  --bg-1: #121315;
+  --bg-2: #17191c;
+  --panel: #121315;
+  --panel-2: #1a1c20;
+  --line: #26292e;
+  --line-2: #393d44;
+  --ink: #f3efe2;
+  --ink-2: #d9d5c6;
+  --ink-3: #9a968a;
+  --ink-4: #6a685f;
+  --ink-5: #44433d;
+
+  --signal: #f0a24a;
+  --signal-2: #f7b567;
+  --signal-bg: #3a2410;
+  --signal-ink: #f7c48a;
+
+  --good: #6bd38a;
+  --good-bg: #102616;
+  --warn: #e9b75a;
+  --warn-bg: #2a1f08;
+  --bad: #ef7d6d;
+  --bad-bg: #2a1411;
+
+  --accent-blue: #7aa4de;
+  --accent-blue-bg: #101a2a;
+
+  --shadow: 0 1px 0 rgba(0,0,0,.4), 0 10px 30px -10px rgba(0,0,0,.6);
+  --shadow-lg: 0 30px 60px -20px rgba(0,0,0,.8), 0 10px 24px -10px rgba(0,0,0,.6);
+
+  --grid: rgba(255,255,255,.04);
+  --grid-strong: rgba(255,255,255,.08);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01","cv11";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-size: 14px;
+  line-height: 1.45;
+  letter-spacing: -0.005em;
+}
+button, input, textarea, select { font: inherit; color: inherit; }
+button { background: none; border: none; cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+
+/* Utility */
+.mono { font-family: var(--font-mono); font-feature-settings: "zero", "ss02"; }
+.serif { font-family: var(--font-serif); }
+.tnum { font-variant-numeric: tabular-nums; }
+.up { text-transform: uppercase; letter-spacing: .08em; }
+
+/* Grid lines background used by terminal panels */
+.gridlines {
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Scrollbars */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--line); border-radius: 10px; border: 2px solid var(--bg); }
+*::-webkit-scrollbar-thumb:hover { background: var(--line-2); }
+
+/* Pulse animation */
+@keyframes pulseDot {
+  0% { box-shadow: 0 0 0 0 rgba(194,90,17,.7); }
+  70% { box-shadow: 0 0 0 10px rgba(194,90,17,0); }
+  100% { box-shadow: 0 0 0 0 rgba(194,90,17,0); }
+}
+.live-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--signal);
+  animation: pulseDot 1.8s infinite;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+@keyframes sparkle {
+  0%, 100% { opacity: .35; }
+  50% { opacity: 1; }
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Tick ticker */
+.ticker-track {
+  display: flex; gap: 48px;
+  animation: marquee 80s linear infinite;
+  width: max-content;
+}
+
+/* Focus */
+:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+
+/* Selection — readers will highlight answers */
+::selection { background: var(--signal); color: #fff; }
+
+/* Divider bar used everywhere */
+.hr { border: 0; height: 1px; background: var(--line); }
+
+/* Card / panel */
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+.panel-flat { background: var(--panel); border: 1px solid var(--line); }
+
+/* Ticks (section headers) */
+.tick {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--font-mono); font-size: 10.5px;
+  color: var(--ink-3); letter-spacing: .12em; text-transform: uppercase;
+}
+.tick::before {
+  content: ""; width: 10px; height: 1px; background: var(--ink-3);
+}
+
+/* Pills */
+.pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 7px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: .04em;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--ink-2);
+  border-radius: 2px;
+  white-space: nowrap;
+}
+.pill.amber { background: var(--signal-bg); color: var(--signal-ink); border-color: transparent; }
+.pill.good  { background: var(--good-bg);   color: var(--good);       border-color: transparent; }
+.pill.warn  { background: var(--warn-bg);   color: var(--warn);       border-color: transparent; }
+.pill.bad   { background: var(--bad-bg);    color: var(--bad);        border-color: transparent; }
+.pill.blue  { background: var(--accent-blue-bg); color: var(--accent-blue); border-color: transparent; }
+.pill.ghost { background: transparent; }
+
+/* Button */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid var(--line-2);
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 500;
+  border-radius: 2px;
+  transition: background .12s ease, border-color .12s ease, transform .06s;
+  cursor: pointer;
+}
+.btn:hover { background: var(--panel-2); border-color: var(--ink-4); }
+.btn:active { transform: translateY(1px); }
+.btn.primary {
+  background: var(--ink); color: var(--bg); border-color: var(--ink);
+}
+.btn.primary:hover { background: var(--ink-2); }
+.btn.accent {
+  background: var(--signal); color: #fff; border-color: var(--signal);
+}
+.btn.accent:hover { background: var(--signal-2); border-color: var(--signal-2); }
+.btn.ghost { background: transparent; border-color: transparent; color: var(--ink-3); }
+.btn.ghost:hover { color: var(--ink); background: var(--panel-2); }
+.btn.sm { padding: 4px 8px; font-size: 11px; }
+.btn.icon { padding: 6px; }
+.btn[disabled] { opacity: .5; cursor: not-allowed; }
+
+/* Kbd */
+kbd {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  padding: 1px 5px;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  background: var(--panel);
+  color: var(--ink-3);
+  border-radius: 3px;
+}
+
+/* Table */
+.dtable { width: 100%; border-collapse: collapse; font-size: 12px; }
+.dtable th {
+  text-align: left; font-weight: 500;
+  color: var(--ink-4);
+  font-family: var(--font-mono);
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+.dtable td {
+  padding: 10px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-2);
+  vertical-align: top;
+}
+.dtable tr:hover td { background: var(--panel-2); }
+
+/* Prose */
+.prose { font-family: var(--font-serif); font-size: 16.5px; line-height: 1.65; color: var(--ink-2); }
+.prose p { margin-bottom: 1em; }
+.prose p:last-child { margin-bottom: 0; }
+.prose strong { color: var(--ink); font-weight: 600; }
+.prose em { font-style: italic; }
+.prose .dek {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  line-height: 1.3;
+  color: var(--ink);
+  font-weight: 400;
+  margin-bottom: 1.2em;
+  font-style: italic;
+  letter-spacing: -0.01em;
+  border-left: 2px solid var(--signal);
+  padding-left: 16px;
+}
+.prose mark.annot {
+  background: var(--signal-bg);
+  color: var(--signal-ink);
+  padding: 1px 0;
+  border-bottom: 1px dashed var(--signal);
+  cursor: pointer;
+  transition: background .15s;
+}
+.prose mark.annot:hover { background: var(--signal); color: #fff; }
+
+/* Input */
+.input {
+  width: 100%; padding: 8px 10px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  border-radius: 2px;
+  font-size: 13px;
+}
+.input:focus { outline: none; border-color: var(--signal); box-shadow: 0 0 0 3px rgba(194,90,17,.15); }
+textarea.input { resize: vertical; line-height: 1.5; }
+
+/* Checkbox/radio */
+.checkbox {
+  appearance: none;
+  width: 14px; height: 14px;
+  border: 1px solid var(--line-2);
+  background: var(--panel);
+  border-radius: 2px;
+  position: relative;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.checkbox:checked { background: var(--ink); border-color: var(--ink); }
+.checkbox:checked::after {
+  content: ""; position: absolute;
+  left: 3px; top: 0px;
+  width: 5px; height: 9px;
+  border: solid var(--bg);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* Progress bar generic */
+.bar { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; position: relative; }
+.bar > span { display: block; height: 100%; background: var(--ink); }
+.bar.amber > span { background: var(--signal); }
+.bar.good > span { background: var(--good); }
+.bar.warn > span { background: var(--warn); }
+.bar.bad > span { background: var(--bad); }
+
+/* Toast */
+.toast-stack {
+  position: fixed; bottom: 20px; right: 20px; z-index: 100;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.toast {
+  background: var(--ink);
+  color: var(--bg);
+  padding: 10px 14px;
+  font-size: 12.5px;
+  border-radius: 3px;
+  box-shadow: var(--shadow-lg);
+  animation: toastIn .24s ease;
+  display: flex; align-items: center; gap: 10px;
+  min-width: 280px; max-width: 400px;
+  border-left: 3px solid var(--signal);
+}
+.toast .tmono { font-family: var(--font-mono); font-size: 10.5px; color: var(--signal); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.development.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script>
+// RegPulse mock data — plausible Indian banking scenarios
+// Used by every screen. Change ONE thing here and the whole app reflects it.
+
+window.RP_DATA = {
+  user: {
+    name: "Priya Menon",
+    role: "Chief Compliance Officer",
+    org: "Axis Bank Ltd.",
+    initials: "PM",
+    email: "priya.menon@axisbank.com",
+    credits: 182,
+    plan: "Enterprise",
+    team: ["PM", "RK", "AS", "VN", "DK"],
+  },
+
+  market: {
+    asOf: "21 Apr 2026 · 10:42 IST",
+    rbiRate: { repo: 6.25, reverse: 6.00, srf: 6.50, crr: 4.00, slr: 18.00 },
+    usdInr: 83.41,
+    ticker: [
+      { tag: "CIRC", text: "DOR.CAP.REC.22/21.01.002 — SBR Framework revisions", impact: "high" },
+      { tag: "NEWS", text: "RBI opens consultation on expected credit loss (ECL) framework", impact: "med" },
+      { tag: "CIRC", text: "Master Direction on KYC — Amendment dated 19 Apr 2026", impact: "high" },
+      { tag: "DATA", text: "RepoRate 6.25% · CRR 4.00% · SLR 18.00%", impact: "low" },
+      { tag: "CIRC", text: "FEMA — ECB external benchmark linkage deadline extended to 30 Sep", impact: "med" },
+      { tag: "NEWS", text: "SBI, HDFC, Axis brief Gov. Das on digital lending guardrails", impact: "low" },
+      { tag: "ALRT", text: "Priority Sector Lending shortfall — Q4 FY26 filing due in 9 days", impact: "high" },
+    ],
+  },
+
+  pulse: {
+    totalCirculars: 4821,
+    thisWeek: 7,
+    superseded: 3,
+    questionsAsked: 1842,
+    questionsAnswered: 1812,
+    learningsCaptured: 96,
+    sparkline: [3, 5, 2, 8, 6, 9, 4, 11, 7, 10, 12, 9, 13, 15, 11, 17, 14, 19, 16, 21, 18, 22, 20, 24, 21, 26, 23, 28],
+  },
+
+  // Weekly exposure — domain heatmap (cols = days, rows = domain)
+  heatmap: {
+    cols: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    rows: [
+      { name: "KYC / AML",           vals: [3, 2, 7, 4, 5, 1, 0] },
+      { name: "Priority Sector",     vals: [1, 4, 2, 6, 8, 2, 0] },
+      { name: "SBR Framework",       vals: [5, 2, 3, 9, 7, 3, 1] },
+      { name: "Digital Lending",     vals: [2, 1, 4, 3, 2, 1, 0] },
+      { name: "FEMA / ECB",          vals: [0, 1, 2, 5, 6, 0, 0] },
+      { name: "Basel III Capital",   vals: [4, 3, 2, 1, 2, 1, 0] },
+      { name: "Governance",          vals: [1, 0, 1, 2, 3, 0, 0] },
+    ],
+  },
+
+  circulars: [
+    {
+      id: "c1",
+      num: "DOR.CAP.REC.22/21.01.002/2026-27",
+      title: "Scale Based Regulation (SBR): Revisions to Capital Adequacy Framework for NBFC-UL",
+      dept: "Dept. of Regulation",
+      date: "20 Apr 2026",
+      daysAgo: 1,
+      impact: "high",
+      status: "active",
+      tags: ["NBFC-UL", "Capital", "SBR"],
+      pages: 14,
+      deadline: "30 Jun 2026",
+      teams: ["Risk", "Capital", "Treasury"],
+      summary: "Raises Tier 1 minimum for Upper Layer NBFCs from 9% to 10% effective FY27; introduces leverage ratio cap at 7×.",
+      live: true,
+    },
+    {
+      id: "c2",
+      num: "DOR.AML.REC.18/14.01.001/2026-27",
+      title: "Master Direction — Know Your Customer (KYC) Amendment",
+      dept: "Dept. of Regulation",
+      date: "19 Apr 2026",
+      daysAgo: 2,
+      impact: "high",
+      status: "active",
+      tags: ["KYC", "AML", "Video-KYC"],
+      pages: 38,
+      deadline: "31 Jul 2026",
+      teams: ["Compliance", "Ops", "Tech"],
+      summary: "Tightens video-KYC liveness requirements; mandates secondary OVD refresh every 3 years for HRAs.",
+    },
+    {
+      id: "c3",
+      num: "FED.FE.REC.09/23.67.001/2026-27",
+      title: "External Commercial Borrowings — Extension of ECB Benchmark Linkage",
+      dept: "Foreign Exchange Dept.",
+      date: "18 Apr 2026",
+      daysAgo: 3,
+      impact: "med",
+      status: "active",
+      tags: ["FEMA", "ECB", "Benchmark"],
+      pages: 6,
+      deadline: "30 Sep 2026",
+      teams: ["Treasury", "FX"],
+      summary: "Extends deadline for transitioning ECB contracts from LIBOR proxies to SOFR/TONA linkage by 90 days.",
+    },
+    {
+      id: "c4",
+      num: "DOR.PSL.REC.07/04.09.001/2026-27",
+      title: "Priority Sector Lending — Target Revisions for FY27",
+      dept: "Dept. of Regulation",
+      date: "15 Apr 2026",
+      daysAgo: 6,
+      impact: "high",
+      status: "active",
+      tags: ["PSL", "Agri", "MSME"],
+      pages: 22,
+      deadline: "31 Mar 2027",
+      teams: ["Retail", "MSME", "Reporting"],
+      summary: "Agri target retained at 18%; introduces 2% sub-target for climate-adaptive agriculture lending.",
+    },
+    {
+      id: "c5",
+      num: "DPSS.CO.PD.04/02.14.003/2026-27",
+      title: "Digital Lending — Fair Practices & Cooling-off Period Clarifications",
+      dept: "Dept. of Payment & Settlement",
+      date: "12 Apr 2026",
+      daysAgo: 9,
+      impact: "med",
+      status: "active",
+      tags: ["Digital Lending", "Consumer"],
+      pages: 11,
+      deadline: "01 Aug 2026",
+      teams: ["Retail", "Tech", "Legal"],
+      summary: "Cooling-off window for digital personal loans raised to 5 days; key fact statement must include total cost annualized.",
+    },
+    {
+      id: "c6",
+      num: "DOR.RET.REC.05/12.01.001/2026-27",
+      title: "Liquidity Coverage Ratio — Transition to Basel III Endgame Buffers",
+      dept: "Dept. of Regulation",
+      date: "09 Apr 2026",
+      daysAgo: 12,
+      impact: "med",
+      status: "active",
+      tags: ["Basel III", "LCR", "HQLA"],
+      pages: 19,
+      deadline: "31 Dec 2026",
+      teams: ["Treasury", "Risk"],
+    },
+    {
+      id: "c7",
+      num: "DOR.GOV.REC.02/29.16.001/2026-27",
+      title: "Corporate Governance — Related Party Transactions (RPT) Framework",
+      dept: "Dept. of Regulation",
+      date: "05 Apr 2026",
+      daysAgo: 16,
+      impact: "low",
+      status: "active",
+      tags: ["Governance", "RPT"],
+      pages: 9,
+    },
+    {
+      id: "c8",
+      num: "DOR.CAP.REC.19/21.01.002/2025-26",
+      title: "Scale Based Regulation (SBR): Capital Adequacy Framework for NBFC-UL",
+      dept: "Dept. of Regulation",
+      date: "14 Nov 2025",
+      daysAgo: 158,
+      impact: "high",
+      status: "superseded",
+      supersededBy: "c1",
+      tags: ["NBFC-UL", "Capital", "SBR"],
+      pages: 11,
+    },
+  ],
+
+  // Featured Q&A used across Ask / history / debates
+  featuredAnswer: {
+    id: "q-2041",
+    question: "What changes in the April 20th SBR revision materially affect our Tier-1 planning for FY27, and which teams must we brief this week?",
+    askedBy: "Priya Menon",
+    askedAt: "Today, 10:14 IST",
+    risk: "high",
+    confidence: 0.86,
+    dek: "The April 20 revision lifts the Tier-1 floor for Upper-Layer NBFCs to 10% and introduces a 7× leverage cap — pulling forward a 90bps capital call and making Q3 planning a cross-functional exercise, not a Treasury one.",
+    body: [
+      { text: "The revised framework raises the Tier-1 minimum for Upper-Layer NBFCs from 9% to " },
+      { text: "10% effective 1 April 2027", annot: true, annotId: "a1" },
+      { text: ", with a glide-path allowing phased build-up starting Q2 FY27. On your current trajectory (Tier-1 at 10.4% as of Q3 FY26), the headroom is 40 bps — insufficient given the 25bps buffer requested by the Board's Risk Committee last quarter." },
+      { text: "In parallel, paragraph 6.3 introduces a " },
+      { text: "hard leverage ratio cap of 7×", annot: true, annotId: "a2" },
+      { text: ", which bites earlier than the capital requirement. Axis is at 5.8× today, but the organic book growth plan (+18% FY27) plus the retail-NBFC arm at ~6.2× consolidated means the cap becomes a binding constraint in Q2 FY27 without corrective action." },
+      { text: "Three teams must be briefed this week. Treasury, to revise the AT-1 issuance calendar for H2 FY27. Risk, to re-run the 2-year ICAAP with the new floor. Capital Strategy, to assess whether the retail-NBFC subsidiary should be re-tiered under the Middle Layer using the revised asset-size cut-off of ₹12,500 cr." },
+    ],
+    citations: [
+      { num: "DOR.CAP.REC.22/21.01.002/2026-27", section: "¶ 4.2 (a)", quote: "Upper Layer NBFCs shall maintain Common Equity Tier-1 capital of not less than ten (10) per cent of the risk-weighted assets." },
+      { num: "DOR.CAP.REC.22/21.01.002/2026-27", section: "¶ 6.3",      quote: "A leverage ratio cap of seven times (7×) on-and-off-balance-sheet exposures shall apply on a continuous basis." },
+      { num: "DOR.CAP.REC.22/21.01.002/2026-27", section: "Annex II",   quote: "For the purposes of tier reclassification, the revised asset-size cut-off shall be ₹12,500 crore." },
+    ],
+    actions: [
+      { team: "Treasury",        priority: "high", text: "Revise AT-1 issuance calendar; target ₹2,400 Cr raise by 31 Dec 2026 to rebuild 90bps headroom.", due: "28 Apr" },
+      { team: "Risk",            priority: "high", text: "Re-run 2-year ICAAP with 10% Tier-1 floor and publish to Board Risk Committee.", due: "15 May" },
+      { team: "Capital Strategy",priority: "med",  text: "Evaluate re-tiering of retail-NBFC arm using ₹12,500 Cr cut-off.", due: "30 May" },
+    ],
+    debate: [
+      { who: "RK", role: "Head, Risk", when: "2h ago", text: "Leverage cap interpretation — does 'on-and-off-balance-sheet' include securitised pools we've de-recognised under Ind-AS 109? The answer matters. If it does, we're at 6.9×, not 5.8×." },
+      { who: "AS", role: "Treasury",   when: "1h ago", text: "Based on the Nov 2024 clarificatory FAQ, securitised pools with true-sale are excluded. But RBI could re-clarify. I'd model both scenarios.", refs: 1 },
+      { who: "PM", role: "CCO",        when: "12m ago", text: "Good catch. @AS — please include both in the ICAAP submission. I'll raise it with the Regulator at the next bilateral." },
+    ],
+  },
+
+  activity: [
+    { when: "10:42", type: "circ",  text: "DOR.CAP.REC.22 indexed — Tier-1 floor raised to 10%.", impact: "high" },
+    { when: "10:18", type: "ask",   text: "Priya asked: ‘Tier-1 impact of SBR revision on FY27?’" },
+    { when: "10:06", type: "save",  text: "Raghav saved an interpretation on ECB benchmark linkage." },
+    { when: "09:51", type: "learn", text: "Team learning captured: ‘PSL climate-adaptive sub-target is additive, not a carve-out.’" },
+    { when: "09:32", type: "debate",text: "Disagreement thread opened on KYC video-liveness (2 replies)." },
+    { when: "08:49", type: "circ",  text: "FED.FE.REC.09 ECB extension — deadline moved to 30 Sep." },
+    { when: "08:20", type: "ask",   text: "Vikram asked: ‘Cooling-off for pre-approved digital loans?’" },
+    { when: "Yday",  type: "learn", text: "Team learning captured: ‘SBR glide-path is 3 quarters for UL, not 4.’" },
+  ],
+
+  actionItems: [
+    { id: "ai1", title: "Revise AT-1 issuance calendar — rebuild 90bps Tier-1 headroom", team: "Treasury", priority: "high", due: "28 Apr 2026", status: "in-progress", owner: "AS", src: "SBR Revision" },
+    { id: "ai2", title: "Re-run 2-year ICAAP with 10% Tier-1 floor", team: "Risk", priority: "high", due: "15 May 2026", status: "pending", owner: "RK", src: "SBR Revision" },
+    { id: "ai3", title: "Evaluate re-tiering of retail-NBFC arm at ₹12,500 Cr cut-off", team: "Capital", priority: "med", due: "30 May 2026", status: "pending", owner: "DK", src: "SBR Revision" },
+    { id: "ai4", title: "Brief Ops on video-KYC liveness vendor change", team: "Compliance", priority: "med", due: "02 May 2026", status: "pending", owner: "VN", src: "KYC Amendment" },
+    { id: "ai5", title: "File Q4 FY26 PSL shortfall disclosure", team: "Reporting", priority: "high", due: "30 Apr 2026", status: "in-progress", owner: "PM", src: "PSL Targets" },
+    { id: "ai6", title: "Update KFS template with annualized total-cost field", team: "Legal", priority: "low", due: "10 Jun 2026", status: "pending", owner: "VN", src: "Digital Lending" },
+    { id: "ai7", title: "Transition 3 ECB contracts from LIBOR proxy to SOFR", team: "Treasury", priority: "med", due: "30 Sep 2026", status: "pending", owner: "AS", src: "ECB" },
+    { id: "ai8", title: "Confirm no RPT disclosure gaps for Q4", team: "Secretarial", priority: "low", due: "25 Apr 2026", status: "done", owner: "PM", src: "RPT Framework" },
+  ],
+
+  history: [
+    { id: "q1", q: "Tier-1 impact of SBR revision on FY27?",                 when: "Today 10:14", risk: "high", conf: 0.86, teams: ["Treasury","Risk","Capital"] },
+    { id: "q2", q: "Can pre-approved digital loans skip the cooling-off?",  when: "Today 08:20", risk: "med",  conf: 0.72, teams: ["Retail","Legal"] },
+    { id: "q3", q: "PSL climate-adaptive sub-target — carve-out or additive?", when: "Yesterday", risk: "med", conf: 0.91, teams: ["Retail","MSME"] },
+    { id: "q4", q: "ECB — grandfathering for contracts with LIBOR fallback?", when: "Yesterday", risk: "low", conf: 0.88, teams: ["Treasury"] },
+    { id: "q5", q: "Video-KYC — does the new liveness standard apply to re-KYC?", when: "19 Apr",  risk: "high", conf: 0.64, teams: ["Compliance","Tech"] },
+    { id: "q6", q: "RPT — disclosure triggers for intra-group guarantees",    when: "18 Apr",    risk: "low",  conf: 0.82, teams: ["Secretarial"] },
+    { id: "q7", q: "NSFR — treatment of retail deposits under new buffers",   when: "17 Apr",    risk: "med",  conf: 0.78, teams: ["Treasury","Risk"] },
+    { id: "q8", q: "Leverage cap — does de-recognised securitised pool count?", when: "17 Apr",  risk: "high", conf: 0.58, teams: ["Risk","Treasury"] },
+  ],
+
+  learnings: [
+    { id: "l1", title: "PSL climate-adaptive sub-target is additive, not a carve-out.", by: "PM", when: "Yesterday", src: "c4", tags: ["PSL","Agri"], note: "Confirmed via bilateral with RBI DGBR on 19 Apr. Sub-target of 2% sits on top of the 18% agri target — not subtracted." },
+    { id: "l2", title: "SBR glide-path is 3 quarters for Upper Layer, not 4.",           by: "RK", when: "Yesterday", src: "c1", tags: ["SBR","Tier-1"], note: "Framework ¶4.2(c) — glide-path ends Q4 FY27, not Q1 FY28 as originally briefed." },
+    { id: "l3", title: "Video-KYC liveness standard IS extendable to re-KYC when OVD is refreshed, not at routine periodicity check.", by: "VN", when: "18 Apr", src: "c2", tags: ["KYC","Video"], note: "Narrow reading of paragraph 7.4 — trigger is ‘refresh of OVD’." },
+    { id: "l4", title: "ECB fallback language alone is not sufficient — SOFR linkage must be executed via amendment.", by: "AS", when: "17 Apr", src: "c3", tags: ["ECB","FEMA"] },
+    { id: "l5", title: "RPT disclosure kicks in at 10% of net-worth OR ₹1000 Cr — whichever is lower. Lower bound bites first.", by: "PM", when: "15 Apr", src: "c7", tags: ["RPT","Governance"] },
+    { id: "l6", title: "LCR HQLA Level 1 — SDLs with residual maturity < 1yr get full weight; > 1yr get 85%.", by: "RK", when: "12 Apr", src: "c6", tags: ["LCR","HQLA"] },
+  ],
+
+  saved: [
+    { id: "s1", title: "SBR Tier-1 impact — briefing note", q: "Tier-1 impact of SBR revision on FY27?", when: "Today 10:16", tags: ["SBR","Board-deck"] },
+    { id: "s2", title: "PSL climate-adaptive — interpretation", q: "PSL climate-adaptive sub-target — carve-out?", when: "Yesterday", tags: ["PSL"] },
+    { id: "s3", title: "ECB fallback — action plan", q: "ECB — grandfathering for contracts with LIBOR fallback?", when: "Yesterday", tags: ["ECB","Treasury"] },
+    { id: "s4", title: "Video-KYC — re-KYC scope note", q: "Video-KYC — does the new standard apply to re-KYC?", when: "19 Apr", tags: ["KYC"] },
+  ],
+};
+</script>
+<script type="text/babel" data-presets="react">
+// Shared small components used across screens.
+// Depends on window.RP_DATA
+
+const { useState, useEffect, useRef, useMemo } = React;
+
+// ---------- Primitives ----------
+
+const cn = (...parts) => parts.filter(Boolean).join(" ");
+
+function Pill({ children, tone = "", className = "", ...rest }) {
+  return (
+    <span className={cn("pill", tone, className)} {...rest}>{children}</span>
+  );
+}
+
+function Tick({ children, right }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+      <div className="tick">{children}</div>
+      {right ? <div style={{ flex: 1, height: 1, background: "var(--line)" }} /> : null}
+      {right}
+    </div>
+  );
+}
+
+function Btn({ children, variant = "", size = "", icon = false, className = "", ...rest }) {
+  return (
+    <button className={cn("btn", variant, size, icon && "icon", className)} {...rest}>
+      {children}
+    </button>
+  );
+}
+
+function Kbd({ children }) { return <kbd>{children}</kbd>; }
+
+// Tiny SVG icons (hand-rolled minimal line icons)
+const Icon = {
+  Search:  (p) => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>),
+  Ask:     (p) => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 4h18v14h-8l-5 4v-4H3z"/></svg>),
+  Book:    (p) => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M4 4h10a4 4 0 0 1 4 4v12H8a4 4 0 0 0-4 4V4z"/><path d="M20 20H8a4 4 0 0 0-4 4"/></svg>),
+  Pulse:   (p) => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 12h3l3-9 4 18 3-9h5"/></svg>),
+  Check:   (p) => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 12l5 5L21 4"/></svg>),
+  Flag:    (p) => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M4 22V4s3-2 7 0 7 0 7 0v12s-3 2-7 0-7 0-7 0"/></svg>),
+  Bookmark:(p) => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M5 3h14v18l-7-5-7 5z"/></svg>),
+  Grid:    (p) => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>),
+  Spark:   (p) => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>),
+  Users:   (p) => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="9" cy="8" r="4"/><path d="M2 22c0-4 3-7 7-7s7 3 7 7"/><circle cx="17" cy="8" r="3"/><path d="M22 21c0-3-2-5-5-5"/></svg>),
+  Settings:(p) => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>),
+  Sun:     (p) => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>),
+  Moon:    (p) => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>),
+  Arrow:   (p) => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M5 12h14M13 6l6 6-6 6"/></svg>),
+  Up:      (p) => (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="m6 15 6-6 6 6"/></svg>),
+  Down:    (p) => (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="m6 9 6 6 6-6"/></svg>),
+  Tag:     (p) => (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M20 12 12 20l-9-9V3h8z"/><circle cx="7.5" cy="7.5" r="1"/></svg>),
+  Plus:    (p) => (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 5v14M5 12h14"/></svg>),
+  Close:   (p) => (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M6 6l12 12M18 6 6 18"/></svg>),
+  Thumb:   (p) => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M7 10v11H3V10zM7 10l5-8a2 2 0 0 1 3 2l-1 6h5a2 2 0 0 1 2 2l-2 8a2 2 0 0 1-2 1H7"/></svg>),
+  ThumbD:  (p) => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p} style={{ transform: "scaleY(-1)", ...(p.style||{}) }}><path d="M7 10v11H3V10zM7 10l5-8a2 2 0 0 1 3 2l-1 6h5a2 2 0 0 1 2 2l-2 8a2 2 0 0 1-2 1H7"/></svg>),
+  Pin:     (p) => (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 2v8M8 10h8l-1 5H9zM12 15v7"/></svg>),
+};
+
+// ---------- Sparkline ----------
+function Sparkline({ data, width = 100, height = 28, stroke = "var(--signal)", fill = "rgba(194,90,17,0.12)" }) {
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const range = max - min || 1;
+  const step = width / (data.length - 1);
+  const points = data.map((v, i) => [i * step, height - ((v - min) / range) * height]);
+  const path = points.map(([x, y], i) => (i === 0 ? `M${x},${y}` : `L${x},${y}`)).join(" ");
+  const area = `${path} L${width},${height} L0,${height} Z`;
+  return (
+    <svg width={width} height={height} style={{ display: "block" }}>
+      <path d={area} fill={fill} />
+      <path d={path} stroke={stroke} strokeWidth="1.25" fill="none" />
+    </svg>
+  );
+}
+
+// ---------- Avatar ----------
+function Avatar({ initials, size = 24, tone = "default" }) {
+  const bg = tone === "signal" ? "var(--signal)" : "var(--ink-3)";
+  const color = tone === "signal" ? "#fff" : "var(--bg)";
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: "50%",
+      background: bg, color, fontFamily: "var(--font-mono)",
+      fontSize: size * 0.4, fontWeight: 600,
+      display: "inline-flex", alignItems: "center", justifyContent: "center",
+      letterSpacing: 0, flexShrink: 0,
+    }}>{initials}</div>
+  );
+}
+
+// ---------- Toast system (imperative) ----------
+const ToastContext = React.createContext(null);
+function ToastProvider({ children }) {
+  const [toasts, setToasts] = useState([]);
+  const push = (t) => {
+    const id = Math.random().toString(36).slice(2);
+    const toast = { id, ...t };
+    setToasts((prev) => [...prev, toast]);
+    setTimeout(() => setToasts((prev) => prev.filter(x => x.id !== id)), 3800);
+  };
+  return (
+    <ToastContext.Provider value={{ push }}>
+      {children}
+      <div className="toast-stack">
+        {toasts.map(t => (
+          <div key={t.id} className="toast">
+            <span className="tmono">{t.tag || "OK"}</span>
+            <span>{t.text}</span>
+          </div>
+        ))}
+      </div>
+    </ToastContext.Provider>
+  );
+}
+const useToast = () => React.useContext(ToastContext);
+
+// Export
+Object.assign(window, {
+  cn, Pill, Tick, Btn, Kbd, Icon, Sparkline, Avatar, ToastProvider, useToast,
+});
+</script>
+<script type="text/babel" data-presets="react">
+// App shell — topbar, sidebar, ticker, command palette hint
+
+const NAV = [
+  { id: "dashboard", label: "Dashboard", icon: Icon.Grid },
+  { id: "ask",       label: "Ask",       icon: Icon.Ask,  kbd: "A" },
+  { id: "updates",   label: "Updates",   icon: Icon.Pulse, badge: 7 },
+  { id: "library",   label: "Library",   icon: Icon.Book },
+  { id: "actions",   label: "Action Items", icon: Icon.Flag, badge: 5 },
+  { id: "history",   label: "History",   icon: Icon.Search },
+  { id: "saved",     label: "Saved",     icon: Icon.Bookmark },
+  { id: "learnings", label: "Learnings", icon: Icon.Spark, signal: true },
+  { id: "debate",    label: "Debate",    icon: Icon.Users, badge: 2 },
+];
+
+const NAV_BOTTOM = [
+  { id: "upgrade",  label: "Upgrade",  icon: Icon.Plus },
+  { id: "account",  label: "Account",  icon: Icon.Settings },
+  { id: "admin",    label: "Admin",    icon: Icon.Settings, tag: "ADMIN" },
+];
+
+// --- Ticker ---
+function Ticker() {
+  const items = RP_DATA.market.ticker;
+  // Duplicate for seamless loop
+  const loop = [...items, ...items];
+  return (
+    <div style={{
+      borderBottom: "1px solid var(--line)",
+      background: "var(--panel)",
+      overflow: "hidden",
+      height: 28,
+      position: "relative",
+      flexShrink: 0,
+    }}>
+      <div className="ticker-track" style={{ padding: "6px 0" }}>
+        {loop.map((t, i) => (
+          <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 11.5 }}>
+            <span className="mono" style={{
+              fontSize: 10, padding: "1px 5px", borderRadius: 2,
+              background: t.impact === "high" ? "var(--signal-bg)" :
+                          t.impact === "med"  ? "var(--warn-bg)" : "var(--bg-2)",
+              color:      t.impact === "high" ? "var(--signal-ink)" :
+                          t.impact === "med"  ? "var(--warn)" : "var(--ink-3)",
+              letterSpacing: ".08em",
+            }}>{t.tag}</span>
+            <span style={{ color: "var(--ink-2)" }}>{t.text}</span>
+            <span style={{ color: "var(--ink-5)" }}>•</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// --- Topbar ---
+function TopBar({ onToggleTheme, theme, onRoute }) {
+  const u = RP_DATA.user;
+  const m = RP_DATA.market;
+  return (
+    <div style={{
+      height: 52, flexShrink: 0,
+      background: "var(--panel)",
+      borderBottom: "1px solid var(--line)",
+      display: "flex", alignItems: "center",
+      padding: "0 16px", gap: 16,
+    }}>
+      {/* Logo */}
+      <div onClick={() => onRoute("dashboard")} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{
+          width: 26, height: 26,
+          background: "var(--ink)", color: "var(--bg)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: 13,
+          borderRadius: 3, position: "relative",
+        }}>
+          <span>R</span>
+          <span className="live-dot" style={{
+            position: "absolute", top: -2, right: -2, width: 6, height: 6, background: "var(--signal)"
+          }} />
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", lineHeight: 1 }}>
+          <span style={{ fontWeight: 600, fontSize: 14, letterSpacing: "-0.01em" }}>RegPulse</span>
+          <span className="mono" style={{ fontSize: 9.5, color: "var(--ink-4)", letterSpacing: ".1em", marginTop: 2 }}>TERMINAL · v2.0</span>
+        </div>
+      </div>
+
+      <div style={{ width: 1, height: 24, background: "var(--line)" }} />
+
+      {/* Live market bar */}
+      <div style={{ display: "flex", gap: 18, alignItems: "center", fontSize: 11 }}>
+        <LiveStat label="REPO" value={m.rbiRate.repo.toFixed(2) + "%"} trend="flat" />
+        <LiveStat label="CRR"  value={m.rbiRate.crr.toFixed(2) + "%"} trend="flat" />
+        <LiveStat label="SLR"  value={m.rbiRate.slr.toFixed(2) + "%"} trend="flat" />
+        <LiveStat label="USD/INR" value={m.usdInr.toFixed(2)} trend="up" delta="+0.14"/>
+      </div>
+
+      <div style={{ flex: 1 }} />
+
+      {/* Command bar */}
+      <div
+        onClick={() => { window.dispatchEvent(new CustomEvent("rp:cmd")); }}
+        style={{
+          display: "flex", alignItems: "center", gap: 8,
+          height: 30, padding: "0 10px", minWidth: 300,
+          border: "1px solid var(--line)",
+          borderRadius: 3,
+          background: "var(--bg-1)",
+          color: "var(--ink-3)",
+          cursor: "pointer", fontSize: 12,
+        }}>
+        <Icon.Search style={{ opacity: 0.6 }} />
+        <span>Ask anything, or jump to a circular…</span>
+        <span style={{ flex: 1 }} />
+        <Kbd>⌘K</Kbd>
+      </div>
+
+      {/* Credits */}
+      <div
+        onClick={() => onRoute("upgrade")}
+        style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 12 }}>
+        <span className="mono up" style={{ color: "var(--ink-4)", fontSize: 10 }}>CREDITS</span>
+        <span className="mono tnum" style={{ fontWeight: 600 }}>{u.credits}</span>
+        <div style={{ width: 48 }}>
+          <div className="bar amber"><span style={{ width: `${Math.min(100, u.credits / 3)}%` }}/></div>
+        </div>
+      </div>
+
+      {/* Theme */}
+      <Btn variant="ghost" icon onClick={onToggleTheme} title="Toggle theme">
+        {theme === "dark" ? <Icon.Sun /> : <Icon.Moon />}
+      </Btn>
+
+      {/* Avatar */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <Avatar initials={u.initials} size={28} tone="signal" />
+        <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.2 }}>
+          <span style={{ fontSize: 12, fontWeight: 500 }}>{u.name}</span>
+          <span className="mono" style={{ fontSize: 9.5, color: "var(--ink-4)" }}>{u.org.toUpperCase()}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LiveStat({ label, value, trend, delta }) {
+  const color = trend === "up" ? "var(--good)" : trend === "down" ? "var(--bad)" : "var(--ink-3)";
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+      <span className="mono" style={{ fontSize: 9.5, color: "var(--ink-4)", letterSpacing: ".08em" }}>{label}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+        <span className="mono tnum" style={{ fontWeight: 600, fontSize: 12 }}>{value}</span>
+        {delta ? <span className="mono tnum" style={{ fontSize: 10, color }}>{delta}</span> : null}
+      </div>
+    </div>
+  );
+}
+
+// --- Sidebar ---
+function Sidebar({ current, onRoute }) {
+  return (
+    <aside style={{
+      width: 220, flexShrink: 0,
+      background: "var(--panel)",
+      borderRight: "1px solid var(--line)",
+      display: "flex", flexDirection: "column",
+      padding: "12px 0",
+      overflowY: "auto",
+    }}>
+      <SidebarGroup label="Workspace">
+        {NAV.map(item => (
+          <NavRow key={item.id} item={item} current={current} onRoute={onRoute} />
+        ))}
+      </SidebarGroup>
+
+      <div style={{ flex: 1 }} />
+
+      <SidebarGroup label="Account">
+        {NAV_BOTTOM.map(item => (
+          <NavRow key={item.id} item={item} current={current} onRoute={onRoute} />
+        ))}
+      </SidebarGroup>
+
+      {/* Live pulse mini */}
+      <div style={{ padding: "14px 16px 10px", borderTop: "1px solid var(--line)" }}>
+        <div className="mono" style={{ fontSize: 9.5, color: "var(--ink-4)", letterSpacing: ".12em", marginBottom: 8 }}>
+          <span className="live-dot" style={{ marginRight: 6, verticalAlign: "middle" }} />
+          LIVE · INDEX ACTIVE
+        </div>
+        <div style={{ fontSize: 11, color: "var(--ink-3)", lineHeight: 1.5 }}>
+          Crawler indexed <b style={{ color: "var(--ink)" }}>{RP_DATA.pulse.thisWeek}</b> new circulars this week. Last scan: <b style={{ color: "var(--ink)" }}>2m ago</b>.
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function SidebarGroup({ label, children }) {
+  return (
+    <div style={{ padding: "8px 0" }}>
+      <div className="mono" style={{
+        fontSize: 9.5, color: "var(--ink-4)", letterSpacing: ".12em",
+        padding: "4px 16px 8px",
+      }}>{label.toUpperCase()}</div>
+      {children}
+    </div>
+  );
+}
+
+function NavRow({ item, current, onRoute }) {
+  const active = current === item.id;
+  const Ic = item.icon;
+  return (
+    <div
+      onClick={() => onRoute(item.id)}
+      style={{
+        display: "flex", alignItems: "center", gap: 10,
+        padding: "7px 16px", cursor: "pointer",
+        color: active ? "var(--ink)" : "var(--ink-3)",
+        background: active ? "var(--panel-2)" : "transparent",
+        borderLeft: `2px solid ${active ? "var(--signal)" : "transparent"}`,
+        fontSize: 12.5,
+        fontWeight: active ? 600 : 400,
+        transition: "background .12s",
+      }}>
+      <Ic style={{ opacity: active ? 1 : 0.7 }} />
+      <span style={{ flex: 1 }}>{item.label}</span>
+      {item.kbd ? <Kbd>{item.kbd}</Kbd> : null}
+      {item.badge ? (
+        <span className="mono" style={{
+          fontSize: 10, fontWeight: 600,
+          background: item.signal ? "var(--signal)" : "var(--bg-2)",
+          color: item.signal ? "#fff" : "var(--ink-3)",
+          padding: "1px 5px", borderRadius: 2, minWidth: 18, textAlign: "center",
+        }}>{item.badge}</span>
+      ) : null}
+      {item.signal && !item.badge ? (
+        <span className="live-dot" style={{ width: 6, height: 6 }} />
+      ) : null}
+      {item.tag ? (
+        <span className="mono" style={{
+          fontSize: 9, padding: "1px 4px", background: "var(--bg-2)",
+          color: "var(--ink-4)", letterSpacing: ".1em", borderRadius: 2,
+        }}>{item.tag}</span>
+      ) : null}
+    </div>
+  );
+}
+
+Object.assign(window, { TopBar, Sidebar, Ticker, NAV, NAV_BOTTOM });
+</script>
+<script type="text/babel" data-presets="react">
+// Dashboard — executive command center for a CCO.
+
+function Dashboard({ onRoute }) {
+  const toast = useToast();
+  const u = RP_DATA.user;
+  const p = RP_DATA.pulse;
+
+  return (
+    <div style={{ padding: "20px 24px 40px", display: "flex", flexDirection: "column", gap: 20 }}>
+      <DashHero onRoute={onRoute} />
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12 }}>
+        <MetricTile label="CIRCULARS INDEXED"  value={p.totalCirculars.toLocaleString()} delta="+7 wk" trend="up" sparkline={p.sparkline} />
+        <MetricTile label="QUESTIONS ASKED"    value={p.questionsAsked.toLocaleString()} delta="+142 wk" trend="up" sparkline={[10,12,14,18,16,22,20,24,19,23,25,27,24,29]} />
+        <MetricTile label="TEAM LEARNINGS"     value={p.learningsCaptured} delta="+14 wk" trend="up" sparkline={[1,2,1,3,2,4,3,5,4,6,5,7,6,8]} signal />
+        <MetricTile label="AVG CONFIDENCE"     value="0.81" delta="+0.03" trend="up" sparkline={[0.72,0.74,0.78,0.77,0.8,0.79,0.83,0.82,0.84,0.81,0.82,0.85,0.83,0.86]} />
+      </div>
+
+      {/* Two-column below */}
+      <div style={{ display: "grid", gridTemplateColumns: "1.35fr 1fr", gap: 16 }}>
+        <ThisWeekBrief onRoute={onRoute} />
+        <HeatmapPanel />
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: 16 }}>
+        <ActivityStream />
+        <ExposurePanel onRoute={onRoute} />
+      </div>
+
+      <OpenDebates onRoute={onRoute} />
+    </div>
+  );
+}
+
+// --- Hero ---
+function DashHero({ onRoute }) {
+  const [q, setQ] = useState("");
+  const placeholder = "What does the April 20 SBR revision mean for our Tier-1 planning?";
+  return (
+    <div className="panel" style={{
+      padding: "22px 24px", position: "relative", overflow: "hidden",
+      display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 24,
+      borderColor: "var(--line-2)",
+    }}>
+      <div style={{
+        position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.35,
+      }} className="gridlines" />
+
+      <div style={{ position: "relative" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+          <span className="mono up" style={{ fontSize: 10, color: "var(--ink-4)" }}>
+            {RP_DATA.market.asOf}
+          </span>
+          <span style={{ width: 1, height: 10, background: "var(--line-2)" }} />
+          <span className="mono" style={{ fontSize: 10, color: "var(--signal)", display: "flex", alignItems: "center", gap: 5 }}>
+            <span className="live-dot" style={{ width: 6, height: 6 }} />LIVE
+          </span>
+        </div>
+        <h1 className="serif" style={{
+          fontSize: 30, fontWeight: 400, lineHeight: 1.15, letterSpacing: "-0.015em",
+          marginBottom: 6, color: "var(--ink)",
+        }}>
+          Good morning, Priya.
+        </h1>
+        <p className="serif" style={{
+          fontSize: 17, lineHeight: 1.5, color: "var(--ink-2)", fontStyle: "italic", maxWidth: 540,
+        }}>
+          Three circulars hit your desk this week. One <b style={{ color: "var(--signal)", fontStyle: "normal" }}>materially affects FY27 capital planning</b> — the rest can wait until after the board.
+        </p>
+
+        {/* Ask bar */}
+        <div style={{ marginTop: 18, display: "flex", gap: 8 }}>
+          <div style={{
+            flex: 1, display: "flex", alignItems: "center", gap: 10,
+            border: "1px solid var(--line-2)", background: "var(--bg)",
+            padding: "10px 14px", borderRadius: 3,
+          }}>
+            <Icon.Ask style={{ color: "var(--signal)" }} />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={placeholder}
+              onFocus={() => onRoute("ask")}
+              style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 14 }}
+            />
+            <Kbd>↵</Kbd>
+          </div>
+          <Btn variant="accent" onClick={() => onRoute("ask")}>
+            Ask <Icon.Arrow />
+          </Btn>
+        </div>
+
+        <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+          {["Tier-1 impact of SBR revision", "PSL climate-adaptive sub-target", "ECB — SOFR linkage deadline", "Video-KYC liveness for re-KYC"].map((s, i) => (
+            <button
+              key={i}
+              onClick={() => onRoute("ask")}
+              style={{
+                fontSize: 11, padding: "4px 9px",
+                border: "1px solid var(--line)", background: "var(--panel-2)",
+                color: "var(--ink-3)", borderRadius: 20, cursor: "pointer",
+                fontFamily: "var(--font-mono)", letterSpacing: ".02em",
+              }}>
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Right: the "nut graf" — what to read first */}
+      <div style={{ position: "relative", borderLeft: "1px solid var(--line-2)", paddingLeft: 24 }}>
+        <div className="tick" style={{ marginBottom: 12 }}>TOP OF MIND · CURATED</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <TopCard
+            tag="MATERIAL"
+            tone="amber"
+            title="SBR Revision — Tier-1 floor 10%, leverage cap 7×"
+            sub="2 actions, 3 teams · 14 pages · 6-min read"
+            onClick={() => onRoute("ask")}
+          />
+          <TopCard
+            tag="DEADLINE"
+            tone="warn"
+            title="PSL shortfall filing due in 9 days"
+            sub="Q4 FY26 · Reporting team · self-filing portal"
+            onClick={() => onRoute("actions")}
+          />
+          <TopCard
+            tag="DEBATE"
+            tone="blue"
+            title="Leverage cap — does securitised pool count?"
+            sub="2 replies from Risk and Treasury · unresolved"
+            onClick={() => onRoute("debate")}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TopCard({ tag, tone = "amber", title, sub, onClick }) {
+  return (
+    <div onClick={onClick} style={{
+      padding: "10px 12px", borderRadius: 3, cursor: "pointer",
+      border: "1px solid var(--line)", background: "var(--bg)",
+      display: "flex", alignItems: "flex-start", gap: 10,
+      transition: "border-color .15s, background .15s",
+    }} onMouseOver={e => e.currentTarget.style.borderColor = "var(--ink-4)"}
+       onMouseOut={e => e.currentTarget.style.borderColor = "var(--line)"}>
+      <Pill tone={tone} style={{ marginTop: 1 }}>{tag}</Pill>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 2, lineHeight: 1.3 }}>{title}</div>
+        <div className="mono" style={{ fontSize: 10.5, color: "var(--ink-4)" }}>{sub}</div>
+      </div>
+      <Icon.Arrow style={{ color: "var(--ink-4)", marginTop: 2 }} />
+    </div>
+  );
+}
+
+// --- Metric tile ---
+function MetricTile({ label, value, delta, trend = "up", sparkline, signal = false }) {
+  const color = trend === "up" ? "var(--good)" : "var(--bad)";
+  return (
+    <div className="panel" style={{ padding: 14, position: "relative", overflow: "hidden" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <span className="mono" style={{ fontSize: 10, color: "var(--ink-4)", letterSpacing: ".08em" }}>{label}</span>
+        {signal ? <span className="live-dot" style={{ width: 6, height: 6 }} /> : null}
+      </div>
+      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 10 }}>
+        <div>
+          <div className="tnum" style={{ fontSize: 24, fontWeight: 600, lineHeight: 1, letterSpacing: "-0.02em" }}>{value}</div>
+          {delta ? (
+            <div className="mono tnum" style={{ fontSize: 10.5, color, marginTop: 4, display: "flex", alignItems: "center", gap: 3 }}>
+              {trend === "up" ? <Icon.Up/> : <Icon.Down/>} {delta}
+            </div>
+          ) : null}
+        </div>
+        {sparkline ? <Sparkline data={sparkline} width={80} height={28} /> : null}
+      </div>
+    </div>
+  );
+}
+
+// --- This Week ---
+function ThisWeekBrief({ onRoute }) {
+  const circs = RP_DATA.circulars.filter(c => c.daysAgo <= 9 && c.status === "active");
+  return (
+    <div className="panel">
+      <div style={{
+        display: "flex", alignItems: "center", gap: 10,
+        padding: "12px 16px", borderBottom: "1px solid var(--line)",
+      }}>
+        <div className="tick">THIS WEEK · WHAT MOVED</div>
+        <div style={{ flex: 1 }} />
+        <Btn variant="ghost" size="sm" onClick={() => onRoute("updates")}>
+          All updates <Icon.Arrow/>
+        </Btn>
+      </div>
+      <div>
+        {circs.map((c, i) => (
+          <div key={c.id} onClick={() => onRoute("library")} style={{
+            display: "grid", gridTemplateColumns: "44px 80px 1fr auto",
+            gap: 12, padding: "14px 16px",
+            borderBottom: i === circs.length - 1 ? "none" : "1px solid var(--line)",
+            cursor: "pointer", transition: "background .12s",
+            alignItems: "start",
+          }} onMouseOver={e => e.currentTarget.style.background = "var(--panel-2)"}
+             onMouseOut={e => e.currentTarget.style.background = "transparent"}>
+            <div style={{ textAlign: "center" }}>
+              <div className="mono tnum" style={{ fontSize: 18, fontWeight: 600, lineHeight: 1 }}>
+                {c.date.split(" ")[0]}
+              </div>
+              <div className="mono up" style={{ fontSize: 9, color: "var(--ink-4)", marginTop: 2 }}>
+                {c.date.split(" ")[1]}
+              </div>
+            </div>
+
+            <div>
+              <Pill tone={c.impact === "high" ? "amber" : c.impact === "med" ? "warn" : "ghost"}>
+                {c.impact.toUpperCase()}
+              </Pill>
+            </div>
+
+            <div>
+              <div className="mono" style={{ fontSize: 10.5, color: "var(--ink-4)", marginBottom: 3 }}>
+                {c.num}
+              </div>
+              <div style={{ fontSize: 13.5, fontWeight: 500, lineHeight: 1.35, marginBottom: 5, color: "var(--ink)" }}>
+                {c.title}
+              </div>
+              {c.summary ? (
+                <div className="serif" style={{ fontSize: 13, color: "var(--ink-2)", fontStyle: "italic", marginBottom: 6, lineHeight: 1.45 }}>
+                  {c.summary}
+                </div>
+              ) : null}
+              <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                {c.tags.map(t => <Pill key={t} tone="ghost">{t}</Pill>)}
+                {c.deadline ? <Pill tone="warn">Due {c.deadline}</Pill> : null}
+              </div>
+            </div>
+
+            <Icon.Arrow style={{ color: "var(--ink-4)", marginTop: 4 }} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// --- Heatmap ---
+function HeatmapPanel() {
+  const h = RP_DATA.heatmap;
+  const max = Math.max(...h.rows.flatMap(r => r.vals));
+
+  const color = (v) => {
+    if (v === 0) return "var(--bg-2)";
+    const t = v / max;
+    // interpolate from paper to signal
+    return `color-mix(in oklab, var(--signal) ${Math.round(t * 85 + 10)}%, var(--bg-2))`;
+  };
+
+  return (
+    <div className="panel" style={{ padding: "14px 16px" }}>
+      <div className="tick" style={{ marginBottom: 12 }}>QUESTIONS BY DOMAIN · LAST 7 DAYS</div>
+      <div style={{ display: "grid", gridTemplateColumns: "120px repeat(7, 1fr)", gap: 3, alignItems: "center" }}>
+        <div />
+        {h.cols.map(c => (
+          <div key={c} className="mono up" style={{ fontSize: 9.5, color: "var(--ink-4)", textAlign: "center" }}>{c}</div>
+        ))}
+        {h.rows.map(r => (
+          <React.Fragment key={r.name}>
+            <div style={{ fontSize: 11.5, color: "var(--ink-2)" }}>{r.name}</div>
+            {r.vals.map((v, i) => (
+              <div key={i} title={`${v} questions`} style={{
+                height: 22, background: color(v), borderRadius: 1.5,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontFamily: "var(--font-mono)", fontSize: 10.5,
+                color: v / max > 0.5 ? "#fff" : "var(--ink-3)",
+                fontWeight: 500,
+                transition: "transform .12s",
+                cursor: "pointer",
+              }}
+              onMouseOver={e => e.currentTarget.style.transform = "scale(1.15)"}
+              onMouseOut={e => e.currentTarget.style.transform = "scale(1)"}>
+                {v || ""}
+              </div>
+            ))}
+          </React.Fragment>
+        ))}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 14, fontSize: 10.5, color: "var(--ink-4)" }} className="mono">
+        <span>LESS</span>
+        {[0.1, 0.25, 0.5, 0.75, 1].map(t => (
+          <div key={t} style={{
+            width: 14, height: 10, borderRadius: 1.5,
+            background: `color-mix(in oklab, var(--signal) ${Math.round(t * 85 + 10)}%, var(--bg-2))`
+          }}/>
+        ))}
+        <span>MORE</span>
+        <span style={{ flex: 1 }} />
+        <span>62 QUESTIONS</span>
+      </div>
+    </div>
+  );
+}
+
+// --- Activity ---
+function ActivityStream() {
+  const items = RP_DATA.activity;
+  const typeStyle = {
+    circ:   { color: "var(--signal)", label: "CIRC"  },
+    ask:    { color: "var(--accent-blue)", label: "ASK"   },
+    save:   { color: "var(--ink-3)",  label: "SAVE"  },
+    learn:  { color: "var(--good)",   label: "LEARN" },
+    debate: { color: "var(--warn)",   label: "DBATE" },
+  };
+  return (
+    <div className="panel">
+      <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", gap: 10 }}>
+        <div className="tick">ACTIVITY · LIVE STREAM</div>
+        <span className="live-dot" style={{ width: 6, height: 6 }} />
+      </div>
+      <div style={{ padding: "4px 0" }}>
+        {items.map((a, i) => {
+          const s = typeStyle[a.type];
+          return (
+            <div key={i} style={{
+              display: "grid", gridTemplateColumns: "44px 52px 1fr", gap: 10,
+              padding: "8px 16px", fontSize: 12,
+              borderBottom: i === items.length - 1 ? "none" : "1px solid var(--line)",
+              alignItems: "center",
+            }}>
+              <span className="mono tnum" style={{ fontSize: 11, color: "var(--ink-4)" }}>{a.when}</span>
+              <span className="mono" style={{ fontSize: 9.5, color: s.color, fontWeight: 600, letterSpacing: ".08em" }}>{s.label}</span>
+              <span style={{ color: "var(--ink-2)" }}>{a.text}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// --- Exposure panel (action items by team) ---
+function ExposurePanel({ onRoute }) {
+  const items = RP_DATA.actionItems;
+  const byTeam = items.reduce((acc, it) => {
+    acc[it.team] = acc[it.team] || { total: 0, done: 0, overdue: 0, high: 0 };
+    acc[it.team].total++;
+    if (it.status === "done") acc[it.team].done++;
+    if (it.priority === "high") acc[it.team].high++;
+    return acc;
+  }, {});
+  const teams = Object.entries(byTeam).sort((a,b) => b[1].high - a[1].high);
+
+  return (
+    <div className="panel">
+      <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", gap: 10 }}>
+        <div className="tick">EXPOSURE · BY TEAM</div>
+        <div style={{ flex: 1 }} />
+        <Btn variant="ghost" size="sm" onClick={() => onRoute("actions")}>Action items <Icon.Arrow/></Btn>
+      </div>
+      <table className="dtable">
+        <thead>
+          <tr>
+            <th>Team</th>
+            <th style={{ width: 60, textAlign: "right" }}>Open</th>
+            <th style={{ width: 70, textAlign: "right" }}>High</th>
+            <th style={{ width: 120 }}>Progress</th>
+          </tr>
+        </thead>
+        <tbody>
+          {teams.map(([name, s]) => (
+            <tr key={name}>
+              <td style={{ fontWeight: 500 }}>{name}</td>
+              <td className="mono tnum" style={{ textAlign: "right" }}>{s.total - s.done}</td>
+              <td className="mono tnum" style={{ textAlign: "right", color: s.high ? "var(--signal)" : "var(--ink-4)", fontWeight: s.high ? 600 : 400 }}>
+                {s.high || "—"}
+              </td>
+              <td>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <div className="bar amber" style={{ flex: 1 }}><span style={{ width: `${(s.done/s.total)*100}%` }}/></div>
+                  <span className="mono" style={{ fontSize: 10, color: "var(--ink-4)", minWidth: 30, textAlign: "right" }}>
+                    {Math.round(s.done/s.total*100)}%
+                  </span>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// --- Open debates ---
+function OpenDebates({ onRoute }) {
+  return (
+    <div className="panel" style={{ padding: "14px 16px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+        <div className="tick">OPEN DEBATES · YOUR TEAM IS DISAGREEING</div>
+        <div style={{ flex: 1 }} />
+        <Btn variant="ghost" size="sm" onClick={() => onRoute("debate")}>All debates <Icon.Arrow /></Btn>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <DebateCard
+          title="Leverage cap — does de-recognised securitised pool count?"
+          src="SBR Revision · DOR.CAP.REC.22"
+          lastReply="AS, Treasury — 1h ago"
+          stance={{ agree: 2, disagree: 2 }}
+          onClick={() => onRoute("debate")}
+        />
+        <DebateCard
+          title="Video-KYC liveness — applies to routine re-KYC or only OVD refresh?"
+          src="KYC Amendment · DOR.AML.REC.18"
+          lastReply="VN, Compliance — 18m ago"
+          stance={{ agree: 1, disagree: 3 }}
+          onClick={() => onRoute("debate")}
+        />
+      </div>
+    </div>
+  );
+}
+
+function DebateCard({ title, src, lastReply, stance, onClick }) {
+  const total = stance.agree + stance.disagree;
+  return (
+    <div onClick={onClick} style={{
+      padding: 12, border: "1px solid var(--line)", borderRadius: 3, cursor: "pointer",
+      background: "var(--bg)", transition: "border-color .15s",
+    }} onMouseOver={e => e.currentTarget.style.borderColor = "var(--ink-4)"}
+       onMouseOut={e => e.currentTarget.style.borderColor = "var(--line)"}>
+      <div style={{ fontSize: 13, fontWeight: 500, lineHeight: 1.35, marginBottom: 6 }}>{title}</div>
+      <div className="mono" style={{ fontSize: 10.5, color: "var(--ink-4)", marginBottom: 10 }}>{src}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{
+          flex: 1, height: 4, borderRadius: 2, overflow: "hidden",
+          background: "var(--line)", display: "flex",
+        }}>
+          <div style={{ width: `${stance.agree/total*100}%`, background: "var(--good)" }}/>
+          <div style={{ width: `${stance.disagree/total*100}%`, background: "var(--bad)" }}/>
+        </div>
+        <span className="mono" style={{ fontSize: 10, color: "var(--good)" }}>{stance.agree} agree</span>
+        <span className="mono" style={{ fontSize: 10, color: "var(--bad)" }}>{stance.disagree} disagree</span>
+      </div>
+      <div className="mono" style={{ fontSize: 10.5, color: "var(--ink-4)", marginTop: 8 }}>
+        Last: {lastReply}
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { Dashboard });
+</script>
+<script type="text/babel" data-presets="react">
+// Ask — editorial brief view with annotations, feedback, save-as-learning, debate
+
+function Ask({ onRoute }) {
+  const toast = useToast();
+  const a = RP_DATA.featuredAnswer;
+  const [q, setQ] = useState(a.question);
+  const [state, setState] = useState("answered"); // idle | streaming | answered
+  const [streamed, setStreamed] = useState(null);
+  const [selectedCitation, setSelectedCitation] = useState(0);
+  const [thumb, setThumb] = useState(null);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [savedAsLearning, setSavedAsLearning] = useState(false);
+  const [learningNote, setLearningNote] = useState("");
+  const [showLearningModal, setShowLearningModal] = useState(false);
+  const [annotations, setAnnotations] = useState([
+    { id: "a1", text: "10% effective 1 April 2027", note: "Board already assumed 9.5% — reconfirm with Vijay.", by: "PM", when: "12m" },
+  ]);
+  const [activeAnnot, setActiveAnnot] = useState(null);
+
+  const streaming = state === "streaming";
+
+  const submit = () => {
+    setState("streaming");
+    setStreamed("");
+    let i = 0;
+    const fullText = a.body.map(p => p.text).join("");
+    const id = setInterval(() => {
+      i += 8;
+      if (i >= fullText.length) { clearInterval(id); setState("answered"); setStreamed(null); return; }
+      setStreamed(fullText.slice(0, i));
+    }, 18);
+  };
+
+  const saveLearning = () => {
+    setSavedAsLearning(true);
+    setShowLearningModal(false);
+    toast.push({ tag: "LEARNING", text: "Saved to team library. Raghav & Anjali notified." });
+  };
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", height: "100%", overflow: "hidden" }}>
+      {/* Main column */}
+      <div style={{ overflowY: "auto", padding: "20px 28px 60px" }}>
+
+        {/* Question bar */}
+        <div className="panel" style={{ padding: "14px 16px", marginBottom: 20 }}>
+          <div className="tick" style={{ marginBottom: 8 }}>ASK · RETRIEVAL FROM 4,821 CIRCULARS · KG-EXPANSION ON</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <textarea
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              className="input"
+              style={{ flex: 1, minHeight: 54, fontFamily: "var(--font-serif)", fontSize: 15, lineHeight: 1.5 }}
+            />
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <Btn variant="accent" onClick={submit} disabled={streaming}>
+                {streaming ? "Thinking…" : "Ask"} <Icon.Arrow />
+              </Btn>
+              <div className="mono" style={{ fontSize: 10, color: "var(--ink-4)", textAlign: "center" }}>
+                1 credit
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Editorial answer */}
+        <div style={{ position: "relative" }}>
+          {/* Byline */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
+            <div className="mono up" style={{ fontSize: 10.5, color: "var(--ink-4)" }}>BRIEF · {a.id.toUpperCase()}</div>
+            <span style={{ width: 1, height: 10, background: "var(--line)" }} />
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <Avatar initials={RP_DATA.user.initials} size={20} tone="signal" />
+              <span style={{ fontSize: 12, color: "var(--ink-2)" }}>{a.askedBy}</span>
+              <span className="mono" style={{ fontSize: 10.5, color: "var(--ink-4)" }}>· {a.askedAt}</span>
+            </div>
+            <div style={{ flex: 1 }} />
+            <Pill tone="bad"><Icon.Flag style={{ width: 10, height: 10 }}/> RISK HIGH</Pill>
+            <ConfBadge score={a.confidence} />
+          </div>
+
+          {/* Question headline */}
+          <h2 className="serif" style={{ fontSize: 32, fontWeight: 400, lineHeight: 1.15, letterSpacing: "-0.015em", marginBottom: 18, color: "var(--ink)" }}>
+            {a.question}
+          </h2>
+
+          {/* Body */}
+          <div className="prose" style={{ maxWidth: 680 }}>
+            <p className="dek">{a.dek}</p>
+            {streaming ? (
+              <p>{streamed}<span className="live-dot" style={{ marginLeft: 6, verticalAlign: "middle" }} /></p>
+            ) : (
+              a.body.map((chunk, i) => chunk.annot ? (
+                <AnnotSpan key={i} id={chunk.annotId} text={chunk.text} annots={annotations} setActive={setActiveAnnot} />
+              ) : (
+                <span key={i}>{chunk.text}</span>
+              ))
+            )}
+          </div>
+
+          {/* Recommended actions */}
+          <div style={{ marginTop: 32 }}>
+            <div className="tick" style={{ marginBottom: 10 }}>RECOMMENDED ACTIONS</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {a.actions.map((ac, i) => (
+                <div key={i} style={{
+                  display: "grid", gridTemplateColumns: "56px 120px 1fr 70px auto", gap: 12,
+                  padding: "12px 14px", border: "1px solid var(--line)", background: "var(--bg)",
+                  borderRadius: 3, alignItems: "center",
+                }}>
+                  <Pill tone={ac.priority === "high" ? "bad" : ac.priority === "med" ? "warn" : "ghost"}>
+                    {ac.priority.toUpperCase()}
+                  </Pill>
+                  <div className="mono" style={{ fontSize: 11, color: "var(--ink-2)", fontWeight: 600 }}>{ac.team}</div>
+                  <div style={{ fontSize: 13, lineHeight: 1.4 }}>{ac.text}</div>
+                  <div className="mono tnum" style={{ fontSize: 11, color: "var(--ink-3)" }}>Due {ac.due}</div>
+                  <Btn size="sm" variant="ghost" onClick={() => toast.push({ tag: "ACTION", text: `Assigned to ${ac.team}.` })}>
+                    <Icon.Plus /> Task
+                  </Btn>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Feedback bar */}
+          <div style={{ marginTop: 32, padding: "14px 16px", border: "1px solid var(--line)", borderRadius: 3, background: "var(--panel-2)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+              <div style={{ fontSize: 12.5, color: "var(--ink-2)", flex: "0 0 auto" }}>
+                <b>Was this brief accurate and useful?</b>
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <Btn variant={thumb === "up" ? "accent" : ""} size="sm" onClick={() => { setThumb("up"); setShowFeedback(true); }}>
+                  <Icon.Thumb /> Accurate
+                </Btn>
+                <Btn variant={thumb === "down" ? "accent" : ""} size="sm" onClick={() => { setThumb("down"); setShowFeedback(true); }}>
+                  <Icon.ThumbD /> Needs work
+                </Btn>
+              </div>
+              <div style={{ flex: 1 }} />
+              <Btn
+                variant={savedAsLearning ? "" : "primary"}
+                size="sm"
+                onClick={() => setShowLearningModal(true)}>
+                <Icon.Spark /> {savedAsLearning ? "Saved as learning" : "Save as team learning"}
+              </Btn>
+              <Btn variant="ghost" size="sm"><Icon.Bookmark /> Save</Btn>
+              <Btn variant="ghost" size="sm" onClick={() => toast.push({ tag: "EXPORT", text: "PDF briefing queued for download." })}>
+                Export PDF
+              </Btn>
+            </div>
+            {showFeedback ? (
+              <FeedbackForm thumb={thumb} onClose={() => setShowFeedback(false)} onSubmit={() => { setShowFeedback(false); toast.push({ tag: "FEEDBACK", text: "Thanks — routed to the RegPulse review queue." }); }} />
+            ) : null}
+          </div>
+
+          <BriefFooter />
+        </div>
+      </div>
+
+      {/* Right rail — citations, confidence, debate */}
+      <aside style={{
+        borderLeft: "1px solid var(--line)",
+        background: "var(--panel)",
+        overflowY: "auto",
+        display: "flex", flexDirection: "column",
+      }}>
+        <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--line)" }}>
+          <div className="tick" style={{ marginBottom: 8 }}>CONFIDENCE</div>
+          <ConfidenceRadial score={a.confidence} />
+          <div style={{ marginTop: 10, fontSize: 11.5, color: "var(--ink-3)", lineHeight: 1.4 }}>
+            High-precision citations, no cross-jurisdiction conflicts, 3 supporting chunks from the canonical circular.
+          </div>
+        </div>
+
+        <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--line)" }}>
+          <div className="tick" style={{ marginBottom: 10 }}>CITATIONS · {a.citations.length}</div>
+          {a.citations.map((c, i) => (
+            <div key={i}
+              onClick={() => setSelectedCitation(i)}
+              style={{
+                padding: "10px 12px", marginBottom: 6, cursor: "pointer", borderRadius: 2,
+                border: `1px solid ${selectedCitation === i ? "var(--signal)" : "var(--line)"}`,
+                background: selectedCitation === i ? "var(--signal-bg)" : "var(--bg)",
+                transition: "border-color .12s, background .12s",
+              }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                <span className="mono" style={{ fontSize: 10, fontWeight: 600, color: "var(--signal)" }}>[{i+1}]</span>
+                <span className="mono" style={{ fontSize: 10.5, color: "var(--ink-3)" }}>{c.section}</span>
+              </div>
+              <div className="serif" style={{ fontSize: 12.5, fontStyle: "italic", color: "var(--ink-2)", lineHeight: 1.45 }}>
+                “{c.quote}”
+              </div>
+              <div className="mono" style={{ fontSize: 10, color: "var(--ink-4)", marginTop: 6 }}>{c.num}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--line)" }}>
+          <div className="tick" style={{ marginBottom: 10 }}>DEBATE · {a.debate.length}</div>
+          {a.debate.map((d, i) => (
+            <div key={i} style={{ padding: "10px 0", borderBottom: i === a.debate.length - 1 ? "none" : "1px solid var(--line)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                <Avatar initials={d.who} size={18} tone={d.who === "PM" ? "signal" : "default"} />
+                <span style={{ fontSize: 11.5, fontWeight: 600 }}>{d.who}</span>
+                <span className="mono" style={{ fontSize: 10, color: "var(--ink-4)" }}>{d.role}</span>
+                <span style={{ flex: 1 }} />
+                <span className="mono" style={{ fontSize: 10, color: "var(--ink-4)" }}>{d.when}</span>
+              </div>
+              <div style={{ fontSize: 12, color: "var(--ink-2)", lineHeight: 1.45 }}>{d.text}</div>
+            </div>
+          ))}
+          <div style={{ marginTop: 10, display: "flex", gap: 6 }}>
+            <input className="input" placeholder="Add to debate…" style={{ fontSize: 12 }} />
+            <Btn size="sm" variant="primary">Post</Btn>
+          </div>
+        </div>
+
+        <div style={{ padding: "14px 16px", background: "var(--bg-1)", marginTop: "auto" }}>
+          <div className="tick" style={{ marginBottom: 8 }}>ANNOTATIONS · {annotations.length}</div>
+          <div style={{ fontSize: 11.5, color: "var(--ink-3)", lineHeight: 1.5 }}>
+            Select any passage in the brief to annotate. Margin notes are visible only to your team.
+          </div>
+        </div>
+      </aside>
+
+      {showLearningModal ? (
+        <LearningModal
+          question={a.question}
+          note={learningNote}
+          setNote={setLearningNote}
+          onSave={saveLearning}
+          onClose={() => setShowLearningModal(false)}
+        />
+      ) : null}
+
+      {activeAnnot ? (
+        <AnnotPopover annot={annotations.find(x => x.id === activeAnnot)} onClose={() => setActiveAnnot(null)} />
+      ) : null}
+    </div>
+  );
+}
+
+function AnnotSpan({ id, text, annots, setActive }) {
+  const has = annots.some(a => a.id === id);
+  return (
+    <mark
+      className="annot"
+      onClick={() => setActive(id)}
+      style={{ position: "relative" }}>
+      {text}
+      {has ? <sup className="mono" style={{ marginLeft: 2, fontSize: 9, color: "var(--signal)", fontWeight: 700 }}>§</sup> : null}
+    </mark>
+  );
+}
+
+function AnnotPopover({ annot, onClose }) {
+  if (!annot) return null;
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 80, background: "rgba(0,0,0,0.2)" }}>
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          position: "absolute", top: "30%", left: "35%",
+          width: 360, background: "var(--panel)",
+          border: "1px solid var(--line-2)", boxShadow: "var(--shadow-lg)",
+          borderRadius: 4, padding: 16,
+        }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          <Avatar initials={annot.by} size={22} tone="signal" />
+          <div>
+            <div style={{ fontSize: 12.5, fontWeight: 600 }}>{annot.by}</div>
+            <div className="mono" style={{ fontSize: 10, color: "var(--ink-4)" }}>{annot.when} ago · on “{annot.text}”</div>
+          </div>
+          <div style={{ flex: 1 }} />
+          <Btn variant="ghost" icon onClick={onClose}><Icon.Close/></Btn>
+        </div>
+        <div className="serif" style={{ fontSize: 14, fontStyle: "italic", lineHeight: 1.5, color: "var(--ink-2)", borderLeft: "2px solid var(--signal)", paddingLeft: 10 }}>
+          {annot.note}
+        </div>
+        <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
+          <Btn size="sm"><Icon.Plus /> Reply</Btn>
+          <Btn variant="ghost" size="sm">Resolve</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ConfBadge({ score }) {
+  const pct = Math.round(score * 100);
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--ink-3)" }}>
+      <span className="mono up">CONF</span>
+      <span className="mono tnum" style={{ fontWeight: 600, color: "var(--ink)" }}>{pct}%</span>
+      <div style={{ width: 40 }}>
+        <div className="bar good"><span style={{ width: `${pct}%` }}/></div>
+      </div>
+    </div>
+  );
+}
+
+function ConfidenceRadial({ score }) {
+  const pct = Math.round(score * 100);
+  const r = 32;
+  const c = 2 * Math.PI * r;
+  const off = c - (c * pct) / 100;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+      <svg width="84" height="84" viewBox="0 0 84 84" style={{ transform: "rotate(-90deg)" }}>
+        <circle cx="42" cy="42" r={r} stroke="var(--line)" strokeWidth="6" fill="none" />
+        <circle cx="42" cy="42" r={r} stroke="var(--signal)" strokeWidth="6" fill="none" strokeLinecap="butt"
+                strokeDasharray={c} strokeDashoffset={off} />
+      </svg>
+      <div>
+        <div className="tnum" style={{ fontSize: 28, fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1 }}>{pct}<span style={{ fontSize: 14, color: "var(--ink-4)" }}>%</span></div>
+        <div className="mono up" style={{ fontSize: 10, color: "var(--ink-4)", marginTop: 4 }}>HIGH CONFIDENCE</div>
+      </div>
+    </div>
+  );
+}
+
+function FeedbackForm({ thumb, onClose, onSubmit }) {
+  const options = thumb === "down" ? [
+    "Missing a relevant circular",
+    "Misinterpreted a citation",
+    "Risk level too low",
+    "Risk level too high",
+    "Actions not aligned with our structure",
+    "Stale — superseded circular cited",
+  ] : [
+    "Exactly what I needed",
+    "Cited the right sections",
+    "Actions are actionable",
+    "Confidence feels right",
+  ];
+  const [checked, setChecked] = useState([]);
+  const [note, setNote] = useState("");
+  const toggle = (o) => setChecked(c => c.includes(o) ? c.filter(x => x !== o) : [...c, o]);
+  return (
+    <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--line)" }}>
+      <div style={{ fontSize: 11.5, color: "var(--ink-3)", marginBottom: 8 }}>
+        {thumb === "down" ? "What's wrong or missing?" : "What worked well?"}
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 10 }}>
+        {options.map(o => (
+          <label key={o} style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            padding: "4px 8px", fontSize: 11.5,
+            border: `1px solid ${checked.includes(o) ? "var(--signal)" : "var(--line)"}`,
+            background: checked.includes(o) ? "var(--signal-bg)" : "var(--bg)",
+            borderRadius: 2, cursor: "pointer",
+            color: checked.includes(o) ? "var(--signal-ink)" : "var(--ink-2)",
+          }}>
+            <input type="checkbox" checked={checked.includes(o)} onChange={() => toggle(o)} className="checkbox" />
+            {o}
+          </label>
+        ))}
+      </div>
+      <textarea value={note} onChange={e => setNote(e.target.value)} className="input"
+        placeholder="Optional: what should the brief have said?" style={{ minHeight: 60, fontSize: 12.5 }} />
+      <div style={{ display: "flex", gap: 6, marginTop: 8, justifyContent: "flex-end" }}>
+        <Btn variant="ghost" size="sm" onClick={onClose}>Cancel</Btn>
+        <Btn variant="primary" size="sm" onClick={onSubmit}>Send to review queue</Btn>
+      </div>
+    </div>
+  );
+}
+
+function LearningModal({ question, note, setNote, onSave, onClose }) {
+  const [title, setTitle] = useState("Tier-1 floor for UL NBFCs is 10%, not 9.5% — glide-path ends Q4 FY27.");
+  const [tags, setTags] = useState(["SBR", "Tier-1", "FY27"]);
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 90, background: "rgba(0,0,0,0.35)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        width: 560, background: "var(--panel)",
+        border: "1px solid var(--line-2)", boxShadow: "var(--shadow-lg)",
+        borderRadius: 4, overflow: "hidden",
+      }}>
+        <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", gap: 10 }}>
+          <Icon.Spark style={{ color: "var(--signal)" }} />
+          <h3 style={{ fontSize: 14, fontWeight: 600 }}>Save as team learning</h3>
+          <div style={{ flex: 1 }} />
+          <Btn variant="ghost" icon onClick={onClose}><Icon.Close /></Btn>
+        </div>
+        <div style={{ padding: 18 }}>
+          <div className="mono" style={{ fontSize: 10, color: "var(--ink-4)", marginBottom: 4, letterSpacing: ".08em" }}>SOURCE QUESTION</div>
+          <div className="serif" style={{ fontSize: 14, fontStyle: "italic", color: "var(--ink-2)", marginBottom: 16, lineHeight: 1.4 }}>
+            “{question}”
+          </div>
+          <div className="mono" style={{ fontSize: 10, color: "var(--ink-4)", marginBottom: 4, letterSpacing: ".08em" }}>LEARNING · ONE-LINE TAKEAWAY</div>
+          <input className="input" value={title} onChange={e => setTitle(e.target.value)} style={{ marginBottom: 12 }} />
+          <div className="mono" style={{ fontSize: 10, color: "var(--ink-4)", marginBottom: 4, letterSpacing: ".08em" }}>NOTES (OPTIONAL)</div>
+          <textarea className="input" value={note} onChange={e => setNote(e.target.value)}
+            placeholder="Context for the team — why this matters, what changed."
+            style={{ minHeight: 72, marginBottom: 12 }} />
+          <div className="mono" style={{ fontSize: 10, color: "var(--ink-4)", marginBottom: 6, letterSpacing: ".08em" }}>TAGS</div>
+          <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+            {tags.map(t => <Pill key={t} tone="amber">{t} <Icon.Close style={{ width: 9, height: 9, marginLeft: 4 }}/></Pill>)}
+            <Pill tone="ghost">+ add</Pill>
+          </div>
+        </div>
+        <div style={{ padding: "12px 18px", background: "var(--bg-1)", borderTop: "1px solid var(--line)", display: "flex", alignItems: "center", gap: 10 }}>
+          <label style={{ fontSize: 12, color: "var(--ink-3)", display: "flex", alignItems: "center", gap: 6 }}>
+            <input type="checkbox" className="checkbox" defaultChecked /> Notify team (5 members)
+          </label>
+          <div style={{ flex: 1 }} />
+          <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+          <Btn variant="accent" onClick={onSave}><Icon.Spark /> Save learning</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BriefFooter() {
+  return (
+    <div style={{ marginTop: 32, padding: "16px 0", borderTop: "1px solid var(--line)", fontSize: 11, color: "var(--ink-4)", lineHeight: 1.6 }}>
+      <div className="mono up" style={{ marginBottom: 4 }}>DISCLAIMER</div>
+      RegPulse is not a legal advisory service. Briefs are AI-generated from indexed RBI circulars and must be verified at rbi.org.in before action.
+    </div>
+  );
+}
+
+Object.assign(window, { Ask });
+</script>
+<script type="text/babel" data-presets="react">
+// Remaining pages — Updates, Library, Actions, History, Saved, Learnings, Debate, Upgrade, Account, Admin
+
+function Updates({ onRoute }) {
+  const [tab, setTab] = useState("circ");
+  const circ = RP_DATA.circulars.filter(c => c.status === "active");
+  const news = [
+    { src: "RBI Press", title: "Governor opens ECL consultation; banks given 60 days", when: "1h ago", relevance: 92 },
+    { src: "Business Standard", title: "Axis, HDFC brief RBI on digital lending guardrails", when: "3h ago", relevance: 81 },
+    { src: "LiveMint", title: "SBR Upper-Layer NBFCs get 3-quarter glide path for capital build-up", when: "6h ago", relevance: 88, linked: "c1" },
+    { src: "ET Banking", title: "Priority sector shortfall filings — 9 banks expected to miss FY26", when: "Yday", relevance: 75 },
+    { src: "RBI Press", title: "FEMA — ECB SOFR linkage deadline extended by 90 days", when: "Yday", relevance: 96, linked: "c3" },
+  ];
+  return (
+    <div style={{ padding: "20px 24px 60px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+        <h1 className="serif" style={{ fontSize: 28, fontWeight: 400, letterSpacing: "-0.01em" }}>Updates</h1>
+        <span className="live-dot" />
+        <span className="mono" style={{ fontSize: 11, color: "var(--ink-4)" }}>LAST SCAN · 2m AGO</span>
+        <div style={{ flex: 1 }} />
+        <Btn size="sm" variant="ghost">RSS feeds</Btn>
+        <Btn size="sm">Subscribe to digest</Btn>
+      </div>
+      <div style={{ display: "flex", gap: 2, borderBottom: "1px solid var(--line)", marginBottom: 14 }}>
+        {[["circ","RBI Circulars",circ.length],["news","Market News", news.length],["cons","Consultations", 3]].map(([id,l,n]) => (
+          <button key={id} onClick={() => setTab(id)} style={{
+            padding: "8px 14px", fontSize: 12.5, fontWeight: tab===id?600:500,
+            color: tab===id?"var(--ink)":"var(--ink-3)",
+            borderBottom: `2px solid ${tab===id?"var(--signal)":"transparent"}`, background: "transparent", cursor:"pointer"
+          }}>{l} <span className="mono" style={{ color: "var(--ink-4)", fontSize: 10, marginLeft: 4 }}>({n})</span></button>
+        ))}
+      </div>
+
+      {tab === "circ" && (
+        <div className="panel">
+          <table className="dtable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Circular</th>
+                <th>Dept</th>
+                <th>Impact</th>
+                <th>Deadline</th>
+                <th>Teams</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {circ.map(c => (
+                <tr key={c.id} onClick={() => onRoute("library")} style={{ cursor: "pointer" }}>
+                  <td className="mono tnum" style={{ whiteSpace: "nowrap", fontSize: 11 }}>{c.date}</td>
+                  <td>
+                    <div className="mono" style={{ fontSize: 10.5, color: "var(--ink-4)" }}>{c.num}</div>
+                    <div style={{ fontSize: 13, fontWeight: 500, marginTop: 2, maxWidth: 520 }}>{c.title}</div>
+                    {c.summary && <div className="serif" style={{ fontSize: 12.5, fontStyle: "italic", color: "var(--ink-3)", marginTop: 4, maxWidth: 520 }}>{c.summary}</div>}
+                  </td>
+                  <td style={{ fontSize: 11.5, color: "var(--ink-3)" }}>{c.dept}</td>
+                  <td><Pill tone={c.impact==="high"?"amber":c.impact==="med"?"warn":"ghost"}>{c.impact.toUpperCase()}</Pill></td>
+                  <td className="mono" style={{ fontSize: 11 }}>{c.deadline || "—"}</td>
+                  <td><div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>{(c.teams||[]).slice(0,2).map(t => <Pill key={t} tone="ghost">{t}</Pill>)}</div></td>
+                  <td><Icon.Arrow style={{ color: "var(--ink-4)" }} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {tab === "news" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {news.map((n, i) => (
+            <div key={i} className="panel" style={{ padding: 14, display: "grid", gridTemplateColumns: "1fr auto", gap: 14 }}>
+              <div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
+                  <Pill tone="blue">{n.src}</Pill>
+                  {n.linked && <Pill tone="amber">Linked to circular</Pill>}
+                  <span className="mono" style={{ fontSize: 10.5, color: "var(--ink-4)" }}>{n.when}</span>
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.3 }}>{n.title}</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div className="mono tnum" style={{ fontSize: 18, fontWeight: 600, color: "var(--signal)" }}>{n.relevance}</div>
+                <div className="mono up" style={{ fontSize: 9, color: "var(--ink-4)" }}>RELEVANCE</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tab === "cons" && (
+        <div className="panel" style={{ padding: 40, textAlign: "center" }}>
+          <Icon.Pulse style={{ color: "var(--ink-4)", width: 32, height: 32 }} />
+          <div style={{ marginTop: 10, fontSize: 13, color: "var(--ink-3)" }}>3 open consultations · <a style={{ color: "var(--signal)" }}>view on RBI site</a></div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Library({ onRoute }) {
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState("all");
+  const rows = RP_DATA.circulars.filter(c => (filter === "all" || c.impact === filter) && (query === "" || c.title.toLowerCase().includes(query.toLowerCase())));
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", height: "100%" }}>
+      <aside style={{ borderRight: "1px solid var(--line)", background: "var(--panel)", padding: "18px 16px", overflowY: "auto" }}>
+        <div className="tick" style={{ marginBottom: 10 }}>FILTERS</div>
+        <div className="mono up" style={{ fontSize: 10, color: "var(--ink-4)", marginBottom: 6 }}>IMPACT</div>
+        {[["all","All"],["high","High"],["med","Medium"],["low","Low"]].map(([k,l]) => (
+          <label key={k} style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0", fontSize: 12.5, cursor: "pointer" }}>
+            <input type="radio" checked={filter===k} onChange={() => setFilter(k)} className="checkbox" style={{ borderRadius: "50%" }} />
+            {l}
+          </label>
+        ))}
+        <div className="mono up" style={{ fontSize: 10, color: "var(--ink-4)", margin: "14px 0 6px" }}>DEPARTMENT</div>
+        {["Dept. of Regulation","Foreign Exchange","DPSS","Consumer Education"].map(d => (
+          <label key={d} style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0", fontSize: 12.5, cursor: "pointer" }}>
+            <input type="checkbox" className="checkbox" defaultChecked={d.startsWith("Dept")} /> {d}
+          </label>
+        ))}
+        <div className="mono up" style={{ fontSize: 10, color: "var(--ink-4)", margin: "14px 0 6px" }}>DATE</div>
+        {["Last 7 days","Last 30 days","FY26","FY25"].map(d => (
+          <label key={d} style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0", fontSize: 12.5, cursor: "pointer" }}>
+            <input type="checkbox" className="checkbox" /> {d}
+          </label>
+        ))}
+        <div className="mono up" style={{ fontSize: 10, color: "var(--ink-4)", margin: "14px 0 6px" }}>STATUS</div>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0", fontSize: 12.5, cursor: "pointer" }}>
+          <input type="checkbox" className="checkbox" defaultChecked /> Active only
+        </label>
+      </aside>
+      <div style={{ padding: "20px 24px", overflowY: "auto" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+          <h1 className="serif" style={{ fontSize: 26, fontWeight: 400 }}>Circular Library</h1>
+          <span className="mono" style={{ fontSize: 11, color: "var(--ink-4)" }}>{RP_DATA.pulse.totalCirculars.toLocaleString()} indexed · {RP_DATA.pulse.superseded} superseded this week</span>
+          <div style={{ flex: 1 }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 8, border: "1px solid var(--line)", background: "var(--panel)", padding: "6px 10px", borderRadius: 3, minWidth: 320 }}>
+            <Icon.Search style={{ color: "var(--ink-4)" }} />
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search circular number, title, section..."
+              style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 12.5 }} />
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          {rows.map(c => <CircCard key={c.id} c={c} onRoute={onRoute} />)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CircCard({ c, onRoute }) {
+  return (
+    <div onClick={() => onRoute("ask")} className="panel" style={{ padding: 14, cursor: "pointer", transition: "border-color .12s" }}
+      onMouseOver={e => e.currentTarget.style.borderColor = "var(--ink-4)"}
+      onMouseOut={e => e.currentTarget.style.borderColor = "var(--line)"}>
+      <div style={{ display: "flex", gap: 6, marginBottom: 8, alignItems: "center" }}>
+        <Pill tone={c.impact === "high" ? "amber" : c.impact === "med" ? "warn" : "ghost"}>{c.impact.toUpperCase()}</Pill>
+        {c.status === "superseded" && <Pill tone="bad">SUPERSEDED</Pill>}
+        <span style={{ flex: 1 }} />
+        <span className="mono tnum" style={{ fontSize: 10.5, color: "var(--ink-4)" }}>{c.date}</span>
+      </div>
+      <div className="mono" style={{ fontSize: 10.5, color: "var(--ink-4)", marginBottom: 4 }}>{c.num}</div>
+      <div style={{ fontSize: 13, fontWeight: 500, lineHeight: 1.3, marginBottom: 8, color: "var(--ink)" }}>{c.title}</div>
+      {c.summary && <div className="serif" style={{ fontSize: 12.5, fontStyle: "italic", color: "var(--ink-3)", lineHeight: 1.4, marginBottom: 10 }}>{c.summary}</div>}
+      <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+        {c.tags.map(t => <Pill key={t} tone="ghost">{t}</Pill>)}
+      </div>
+    </div>
+  );
+}
+
+function ActionItems() {
+  const toast = useToast();
+  const [items, setItems] = useState(RP_DATA.actionItems);
+  const [filter, setFilter] = useState("all");
+  const shown = items.filter(i => filter === "all" ? true : filter === "open" ? i.status !== "done" : i.status === filter);
+  const toggle = (id) => setItems(prev => prev.map(i => i.id === id ? { ...i, status: i.status === "done" ? "pending" : i.status === "pending" ? "in-progress" : "done" } : i));
+
+  const stats = {
+    total: items.length,
+    done: items.filter(i => i.status === "done").length,
+    high: items.filter(i => i.priority === "high" && i.status !== "done").length,
+    overdue: 1,
+  };
+
+  return (
+    <div style={{ padding: "20px 24px 60px" }}>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 14, marginBottom: 16 }}>
+        <div>
+          <h1 className="serif" style={{ fontSize: 28, fontWeight: 400 }}>Action Items</h1>
+          <p className="serif" style={{ fontSize: 14, fontStyle: "italic", color: "var(--ink-3)", marginTop: 4 }}>
+            Tasks extracted from briefs and circulars — assigned to teams, tracked to close.
+          </p>
+        </div>
+        <div style={{ flex: 1 }} />
+        <MiniStat label="OPEN" value={stats.total - stats.done} />
+        <MiniStat label="HIGH" value={stats.high} signal />
+        <MiniStat label="OVERDUE" value={stats.overdue} tone="bad" />
+        <Btn variant="primary"><Icon.Plus/> New action</Btn>
+      </div>
+
+      <div style={{ display: "flex", gap: 6, marginBottom: 14, borderBottom: "1px solid var(--line)" }}>
+        {[["all","All",items.length],["open","Open", items.filter(i=>i.status!=="done").length],["in-progress","In progress", items.filter(i=>i.status==="in-progress").length],["pending","Pending", items.filter(i=>i.status==="pending").length],["done","Done", items.filter(i=>i.status==="done").length]].map(([k,l,n]) => (
+          <button key={k} onClick={() => setFilter(k)} style={{
+            padding: "7px 12px", fontSize: 12, fontWeight: filter===k?600:400,
+            color: filter===k?"var(--ink)":"var(--ink-3)",
+            borderBottom: `2px solid ${filter===k?"var(--signal)":"transparent"}`,
+            background:"transparent", cursor:"pointer"
+          }}>{l} <span className="mono" style={{ color: "var(--ink-4)", fontSize: 10 }}>{n}</span></button>
+        ))}
+      </div>
+
+      <div className="panel">
+        <table className="dtable">
+          <thead>
+            <tr>
+              <th style={{ width: 32 }}></th>
+              <th style={{ width: 60 }}>Prio</th>
+              <th>Title</th>
+              <th style={{ width: 100 }}>Team</th>
+              <th style={{ width: 70 }}>Owner</th>
+              <th style={{ width: 100 }}>Due</th>
+              <th style={{ width: 120 }}>Source</th>
+              <th style={{ width: 80 }}>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {shown.map(i => (
+              <tr key={i.id}>
+                <td><input type="checkbox" className="checkbox" checked={i.status === "done"} onChange={() => toggle(i.id)} /></td>
+                <td><Pill tone={i.priority==="high"?"bad":i.priority==="med"?"warn":"ghost"}>{i.priority.toUpperCase()}</Pill></td>
+                <td style={{ fontSize: 13, fontWeight: 500, textDecoration: i.status === "done" ? "line-through" : "none", color: i.status === "done" ? "var(--ink-4)" : "var(--ink)" }}>{i.title}</td>
+                <td className="mono" style={{ fontSize: 11 }}>{i.team}</td>
+                <td><Avatar initials={i.owner} size={22} /></td>
+                <td className="mono tnum" style={{ fontSize: 11 }}>{i.due}</td>
+                <td><span className="mono" style={{ fontSize: 10.5, color: "var(--signal)" }}>{i.src}</span></td>
+                <td><Pill tone={i.status==="done"?"good":i.status==="in-progress"?"amber":"ghost"}>{i.status.replace("-"," ").toUpperCase()}</Pill></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function MiniStat({ label, value, signal, tone }) {
+  const color = tone === "bad" ? "var(--bad)" : signal ? "var(--signal)" : "var(--ink)";
+  return (
+    <div style={{ textAlign: "right", borderRight: "1px solid var(--line)", paddingRight: 14, paddingLeft: 14 }}>
+      <div className="tnum" style={{ fontSize: 22, fontWeight: 600, color, letterSpacing: "-0.02em", lineHeight: 1 }}>{value}</div>
+      <div className="mono up" style={{ fontSize: 9.5, color: "var(--ink-4)", marginTop: 3 }}>{label}</div>
+    </div>
+  );
+}
+
+function History({ onRoute }) {
+  const items = RP_DATA.history;
+  return (
+    <div style={{ padding: "20px 24px 60px" }}>
+      <h1 className="serif" style={{ fontSize: 28, fontWeight: 400, marginBottom: 4 }}>History</h1>
+      <p className="serif" style={{ fontSize: 14, fontStyle: "italic", color: "var(--ink-3)", marginBottom: 16 }}>
+        Every question you've asked — with confidence, risk, and teams affected.
+      </p>
+      <div className="panel">
+        <table className="dtable">
+          <thead>
+            <tr>
+              <th>Question</th>
+              <th style={{ width: 120 }}>When</th>
+              <th style={{ width: 70 }}>Risk</th>
+              <th style={{ width: 120 }}>Confidence</th>
+              <th style={{ width: 180 }}>Teams</th>
+              <th style={{ width: 80 }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map(i => (
+              <tr key={i.id} onClick={() => onRoute("ask")} style={{ cursor: "pointer" }}>
+                <td style={{ fontSize: 13, fontWeight: 500, maxWidth: 500 }}>{i.q}</td>
+                <td className="mono" style={{ fontSize: 11, color: "var(--ink-3)" }}>{i.when}</td>
+                <td><Pill tone={i.risk==="high"?"bad":i.risk==="med"?"warn":"good"}>{i.risk.toUpperCase()}</Pill></td>
+                <td>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <div className="bar" style={{ flex: 1 }}><span style={{ width: `${i.conf*100}%`, background: i.conf > 0.7 ? "var(--good)" : i.conf > 0.5 ? "var(--warn)" : "var(--bad)" }}/></div>
+                    <span className="mono tnum" style={{ fontSize: 10.5, color: "var(--ink-3)" }}>{Math.round(i.conf*100)}%</span>
+                  </div>
+                </td>
+                <td><div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>{i.teams.map(t => <Pill key={t} tone="ghost">{t}</Pill>)}</div></td>
+                <td><Icon.Arrow style={{ color: "var(--ink-4)" }} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function Saved({ onRoute }) {
+  const items = RP_DATA.saved;
+  return (
+    <div style={{ padding: "20px 24px 60px" }}>
+      <h1 className="serif" style={{ fontSize: 28, fontWeight: 400, marginBottom: 4 }}>Saved Interpretations</h1>
+      <p className="serif" style={{ fontSize: 14, fontStyle: "italic", color: "var(--ink-3)", marginBottom: 16 }}>
+        Briefs you've bookmarked for fast recall during board and regulator reviews.
+      </p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        {items.map(s => (
+          <div key={s.id} className="panel" style={{ padding: 14, cursor: "pointer" }} onClick={() => onRoute("ask")}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+              <Icon.Bookmark style={{ color: "var(--signal)" }} />
+              <span className="mono" style={{ fontSize: 10.5, color: "var(--ink-4)" }}>{s.when}</span>
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.3, marginBottom: 6 }}>{s.title}</div>
+            <div className="serif" style={{ fontSize: 12.5, fontStyle: "italic", color: "var(--ink-3)", marginBottom: 10 }}>"{s.q}"</div>
+            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+              {s.tags.map(t => <Pill key={t} tone="ghost">{t}</Pill>)}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Learnings() {
+  const items = RP_DATA.learnings;
+  return (
+    <div style={{ padding: "20px 24px 60px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+        <h1 className="serif" style={{ fontSize: 28, fontWeight: 400 }}>Team Learnings</h1>
+        <span className="live-dot" />
+      </div>
+      <p className="serif" style={{ fontSize: 14, fontStyle: "italic", color: "var(--ink-3)", marginBottom: 20 }}>
+        The institutional memory of your compliance team — one-line takeaways, pinned from briefs, shared with the team.
+      </p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 20 }}>
+        <MiniStat label="CAPTURED · TOTAL" value="96"/>
+        <MiniStat label="THIS WEEK" value="14" signal />
+        <MiniStat label="CONTRIBUTORS" value="5"/>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {items.map(l => (
+          <div key={l.id} className="panel" style={{ padding: 14, display: "grid", gridTemplateColumns: "60px 1fr auto", gap: 14, alignItems: "start" }}>
+            <div style={{ textAlign: "center" }}>
+              <Avatar initials={l.by} size={32} tone={l.by === "PM" ? "signal" : "default"} />
+              <div className="mono" style={{ fontSize: 9.5, color: "var(--ink-4)", marginTop: 4 }}>{l.when}</div>
+            </div>
+            <div>
+              <div className="serif" style={{ fontSize: 16, lineHeight: 1.35, color: "var(--ink)", marginBottom: 6 }}>
+                <Icon.Spark style={{ color: "var(--signal)", display: "inline", marginRight: 6, verticalAlign: "baseline" }} />
+                {l.title}
+              </div>
+              {l.note && <div className="serif" style={{ fontSize: 13, fontStyle: "italic", color: "var(--ink-3)", lineHeight: 1.5, marginBottom: 8 }}>{l.note}</div>}
+              <div style={{ display: "flex", gap: 5, alignItems: "center", flexWrap: "wrap" }}>
+                {l.tags.map(t => <Pill key={t} tone="ghost">#{t}</Pill>)}
+                <span style={{ color: "var(--ink-4)" }}>·</span>
+                <span className="mono" style={{ fontSize: 10.5, color: "var(--signal)" }}>Source: {l.src.toUpperCase()}</span>
+              </div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <Btn size="sm" variant="ghost"><Icon.Pin /> Pin</Btn>
+              <Btn size="sm" variant="ghost">Edit</Btn>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Debate() {
+  const threads = [
+    { title: "Leverage cap — does de-recognised securitised pool count?", src: "SBR Revision · DOR.CAP.REC.22", replies: 4, stance: { agree: 2, disagree: 2 }, open: true },
+    { title: "Video-KYC liveness — applies to routine re-KYC or only OVD refresh?", src: "KYC Amendment · DOR.AML.REC.18", replies: 5, stance: { agree: 1, disagree: 3 }, open: true },
+    { title: "PSL climate-adaptive — does cooperative lending qualify?", src: "PSL Targets · DOR.PSL.REC.07", replies: 3, stance: { agree: 3, disagree: 0 }, open: false },
+    { title: "ECB fallback — retro-execution of SOFR amendment", src: "ECB · FED.FE.REC.09", replies: 2, stance: { agree: 2, disagree: 0 }, open: false },
+  ];
+  return (
+    <div style={{ padding: "20px 24px 60px" }}>
+      <h1 className="serif" style={{ fontSize: 28, fontWeight: 400, marginBottom: 4 }}>Debates</h1>
+      <p className="serif" style={{ fontSize: 14, fontStyle: "italic", color: "var(--ink-3)", marginBottom: 20 }}>
+        Where your team's disagreements become a record — annotate briefs, argue the interpretation, let the strongest reading win.
+      </p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        {threads.map((t, i) => {
+          const tot = t.stance.agree + t.stance.disagree;
+          return (
+            <div key={i} className="panel" style={{ padding: 16 }}>
+              <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                <Pill tone={t.open ? "amber" : "good"}>{t.open ? "OPEN" : "RESOLVED"}</Pill>
+                <Pill tone="ghost">{t.replies} replies</Pill>
+              </div>
+              <div style={{ fontSize: 14.5, fontWeight: 500, lineHeight: 1.3, marginBottom: 6 }}>{t.title}</div>
+              <div className="mono" style={{ fontSize: 10.5, color: "var(--ink-4)", marginBottom: 12 }}>{t.src}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                <div style={{ flex: 1, height: 5, borderRadius: 3, overflow: "hidden", background: "var(--line)", display: "flex" }}>
+                  <div style={{ width: `${t.stance.agree/tot*100}%`, background: "var(--good)" }}/>
+                  <div style={{ width: `${t.stance.disagree/tot*100}%`, background: "var(--bad)" }}/>
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11 }}>
+                <span className="mono" style={{ color: "var(--good)" }}>▲ {t.stance.agree} agree</span>
+                <span className="mono" style={{ color: "var(--bad)" }}>▼ {t.stance.disagree} disagree</span>
+                <div style={{ flex: 1 }} />
+                <Btn size="sm" variant="ghost">Open thread <Icon.Arrow /></Btn>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function Upgrade() {
+  const plans = [
+    { name: "Free", price: "₹0", sub: "forever", features: ["5 questions / mo", "Basic citations", "Single user"], cta: "Current", current: true },
+    { name: "Pro", price: "₹2,400", sub: "/ user / mo", features: ["Unlimited questions", "PDF briefing exports", "Team learnings", "Debates & annotations", "Priority support"], cta: "Upgrade", featured: true },
+    { name: "Enterprise", price: "Custom", sub: "billed annually", features: ["Everything in Pro", "Workflow integrations", "Custom ingestion (internal memos)", "Dedicated reviewer", "SSO & SCIM", "DPDP deletion workflow"], cta: "Talk to sales" },
+  ];
+  return (
+    <div style={{ padding: "30px 24px 60px", maxWidth: 1100, margin: "0 auto" }}>
+      <div className="serif" style={{ fontSize: 36, fontWeight: 400, letterSpacing: "-0.02em", lineHeight: 1.1, marginBottom: 10, textAlign: "center" }}>
+        The fastest path from circular to board briefing.
+      </div>
+      <p className="serif" style={{ fontSize: 16, fontStyle: "italic", color: "var(--ink-3)", textAlign: "center", marginBottom: 36 }}>
+        Pro plans pay for themselves the first time you catch a 10 bps miss before the regulator does.
+      </p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+        {plans.map(p => (
+          <div key={p.name} className="panel" style={{ padding: 24, position: "relative", borderColor: p.featured ? "var(--signal)" : "var(--line)", borderWidth: p.featured ? 2 : 1, borderStyle: "solid" }}>
+            {p.featured && (
+              <div className="mono" style={{ position: "absolute", top: -10, left: 20, background: "var(--signal)", color: "#fff", padding: "3px 10px", fontSize: 10, fontWeight: 600, borderRadius: 2, letterSpacing: ".08em" }}>
+                MOST CHOSEN
+              </div>
+            )}
+            <div className="mono up" style={{ fontSize: 11, color: "var(--ink-4)", marginBottom: 8 }}>{p.name.toUpperCase()}</div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 20 }}>
+              <span className="tnum" style={{ fontSize: 38, fontWeight: 600, letterSpacing: "-0.02em" }}>{p.price}</span>
+              <span className="mono" style={{ fontSize: 11, color: "var(--ink-4)" }}>{p.sub}</span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+              {p.features.map(f => (
+                <div key={f} style={{ display: "flex", gap: 8, fontSize: 13, color: "var(--ink-2)", alignItems: "flex-start" }}>
+                  <Icon.Check style={{ color: "var(--good)", marginTop: 2, flexShrink: 0 }} /> {f}
+                </div>
+              ))}
+            </div>
+            <Btn variant={p.featured ? "accent" : p.current ? "" : "primary"} disabled={p.current} style={{ width: "100%", justifyContent: "center", padding: "10px" }}>
+              {p.cta}
+            </Btn>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Account() {
+  const u = RP_DATA.user;
+  return (
+    <div style={{ padding: "20px 24px 60px", maxWidth: 900 }}>
+      <h1 className="serif" style={{ fontSize: 28, fontWeight: 400, marginBottom: 20 }}>Account</h1>
+      <div className="panel" style={{ padding: 20, marginBottom: 16 }}>
+        <div className="tick" style={{ marginBottom: 14 }}>PROFILE</div>
+        <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 10, fontSize: 13 }}>
+          <div style={{ color: "var(--ink-4)" }}>Name</div><div>{u.name}</div>
+          <div style={{ color: "var(--ink-4)" }}>Email</div><div className="mono">{u.email}</div>
+          <div style={{ color: "var(--ink-4)" }}>Role</div><div>{u.role}</div>
+          <div style={{ color: "var(--ink-4)" }}>Organisation</div><div>{u.org}</div>
+          <div style={{ color: "var(--ink-4)" }}>Plan</div><div><Pill tone="amber">{u.plan.toUpperCase()}</Pill></div>
+        </div>
+      </div>
+      <div className="panel" style={{ padding: 20, marginBottom: 16 }}>
+        <div className="tick" style={{ marginBottom: 14 }}>TEAM · 5 MEMBERS</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {[
+            { i: "PM", n: "Priya Menon", r: "CCO" },
+            { i: "RK", n: "Raghav Krishnan", r: "Head, Risk" },
+            { i: "AS", n: "Anjali Shah", r: "Treasury" },
+            { i: "VN", n: "Vikram Nair", r: "Compliance Lead" },
+            { i: "DK", n: "Divya Kapoor", r: "Capital Strategy" },
+          ].map(m => (
+            <div key={m.i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <Avatar initials={m.i} size={26} tone={m.i === "PM" ? "signal" : "default"} />
+              <div style={{ fontSize: 13, fontWeight: 500 }}>{m.n}</div>
+              <div className="mono" style={{ fontSize: 10.5, color: "var(--ink-4)" }}>{m.r}</div>
+              <div style={{ flex: 1 }} />
+              <Btn size="sm" variant="ghost">Permissions</Btn>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="panel" style={{ padding: 20, marginBottom: 16 }}>
+        <div className="tick" style={{ marginBottom: 14 }}>DATA · DPDP COMPLIANCE</div>
+        <div style={{ display: "flex", gap: 10, fontSize: 12.5, color: "var(--ink-3)", marginBottom: 12 }}>
+          You have the right to export or delete your data at any time under the DPDP Act.
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Btn>Export my data</Btn>
+          <Btn variant="ghost" style={{ color: "var(--bad)" }}>Delete account</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Admin() {
+  const [sub, setSub] = useState("dashboard");
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "200px 1fr", height: "100%", overflow: "hidden" }}>
+      <aside style={{ borderRight: "1px solid var(--line)", background: "var(--panel)", padding: "16px 0" }}>
+        <div className="mono up" style={{ fontSize: 10, color: "var(--ink-4)", padding: "4px 16px 8px" }}>ADMIN</div>
+        {[["dashboard","Overview"],["review","Review Queue"],["prompts","Prompts"],["users","Users"],["circulars","Circulars"],["scraper","Scraper"],["heatmap","Clustering"]].map(([k,l]) => (
+          <div key={k} onClick={() => setSub(k)} style={{
+            padding: "7px 16px", fontSize: 12.5, cursor: "pointer",
+            color: sub === k ? "var(--ink)" : "var(--ink-3)",
+            background: sub === k ? "var(--panel-2)" : "transparent",
+            borderLeft: `2px solid ${sub === k ? "var(--signal)" : "transparent"}`,
+            fontWeight: sub === k ? 600 : 400,
+          }}>{l}</div>
+        ))}
+      </aside>
+      <div style={{ overflowY: "auto", padding: "20px 24px 60px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+          <h1 className="serif" style={{ fontSize: 26, fontWeight: 400 }}>Admin · Overview</h1>
+          <Pill tone="bad">ADMIN MODE</Pill>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 16 }}>
+          <MetricTile label="ACTIVE USERS" value="142" delta="+8" trend="up" sparkline={[120,125,130,128,134,138,140,142]} />
+          <MetricTile label="QUESTIONS · WK" value="1,842" delta="+142" trend="up" sparkline={[200,220,250,240,280,300,320,350]} />
+          <MetricTile label="REVIEW QUEUE" value="12" delta="-3" trend="down" sparkline={[18,16,14,13,15,13,12,12]} signal />
+          <MetricTile label="LLM COST · WK" value="$84.20" delta="+$6" trend="up" sparkline={[70,72,74,76,80,82,83,84]} />
+        </div>
+        <div className="panel">
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--line)" }}>
+            <div className="tick">SCRAPER · LAST 24H</div>
+          </div>
+          <div style={{ padding: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 10, alignItems: "center" }}>
+              <span className="live-dot" />
+              <span style={{ fontSize: 12.5 }}>Celery beat · running</span>
+              <span className="mono" style={{ fontSize: 11, color: "var(--ink-3)" }}>next run in 18m</span>
+              <div style={{ width: 8 }}/>
+              <div />
+              <div />
+              <Icon.Check style={{ color: "var(--good)" }} />
+              <span style={{ fontSize: 12.5 }}>Daily scrape · 14 new docs · 2 superseded</span>
+              <span className="mono" style={{ fontSize: 11, color: "var(--ink-3)" }}>2h ago</span>
+              <Icon.Check style={{ color: "var(--good)" }} />
+              <span style={{ fontSize: 12.5 }}>Embeddings · 1,204 chunks · 4.1s avg</span>
+              <span className="mono" style={{ fontSize: 11, color: "var(--ink-3)" }}>2h ago</span>
+              <Icon.Check style={{ color: "var(--good)" }} />
+              <span style={{ fontSize: 12.5 }}>KG expansion · 38 entities, 62 relationships</span>
+              <span className="mono" style={{ fontSize: 11, color: "var(--ink-3)" }}>2h ago</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { Updates, Library, ActionItems, History, Saved, Learnings, Debate, Upgrade, Account, Admin });
+</script>
+<script type="text/babel" data-presets="react">
+// Main app — routing, theme, tweaks, command palette
+
+const { useState: uState, useEffect: uEffect } = React;
+
+function App() {
+  const [route, setRoute] = uState(() => location.hash.slice(1) || localStorage.getItem("rp:route") || "dashboard");
+  const [theme, setTheme] = uState(() => localStorage.getItem("rp:theme") || "light");
+  const [tweaksOn, setTweaksOn] = uState(false);
+  const [cmdOpen, setCmdOpen] = uState(false);
+
+  uEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem("rp:theme", theme);
+  }, [theme]);
+
+  uEffect(() => {
+    localStorage.setItem("rp:route", route);
+    location.hash = route;
+  }, [route]);
+
+  uEffect(() => {
+    const h = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); setCmdOpen(o => !o); }
+      if (e.key === "Escape") setCmdOpen(false);
+    };
+    const c = () => setCmdOpen(o => !o);
+    window.addEventListener("keydown", h);
+    window.addEventListener("rp:cmd", c);
+    return () => { window.removeEventListener("keydown", h); window.removeEventListener("rp:cmd", c); };
+  }, []);
+
+  // Tweaks protocol
+  uEffect(() => {
+    const handler = (e) => {
+      const msg = e.data;
+      if (!msg || typeof msg !== "object") return;
+      if (msg.type === "__activate_edit_mode") setTweaksOn(true);
+      if (msg.type === "__deactivate_edit_mode") setTweaksOn(false);
+    };
+    window.addEventListener("message", handler);
+    try { window.parent.postMessage({ type: "__edit_mode_available" }, "*"); } catch(_) {}
+    return () => window.removeEventListener("message", handler);
+  }, []);
+
+  const Page = {
+    dashboard: Dashboard, ask: Ask, updates: Updates, library: Library,
+    actions: ActionItems, history: History, saved: Saved, learnings: Learnings,
+    debate: Debate, upgrade: Upgrade, account: Account, admin: Admin,
+  }[route] || Dashboard;
+
+  return (
+    <ToastProvider>
+      <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
+        <TopBar onToggleTheme={() => setTheme(t => t === "dark" ? "light" : "dark")} theme={theme} onRoute={setRoute} />
+        <Ticker />
+        <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+          <Sidebar current={route} onRoute={setRoute} />
+          <main style={{ flex: 1, overflow: "hidden", background: "var(--bg)" }}>
+            <div key={route} style={{ height: "100%", overflow: "auto", animation: "fadeIn .2s ease" }}>
+              <Page onRoute={setRoute} />
+            </div>
+          </main>
+        </div>
+      </div>
+
+      {cmdOpen ? <CommandPalette onClose={() => setCmdOpen(false)} onRoute={(r) => { setRoute(r); setCmdOpen(false); }} /> : null}
+
+      {tweaksOn ? <TweaksPanel theme={theme} setTheme={setTheme} /> : null}
+    </ToastProvider>
+  );
+}
+
+function CommandPalette({ onClose, onRoute }) {
+  const [q, setQ] = uState("");
+  const items = [
+    ...NAV.map(n => ({ ...n, group: "Navigate" })),
+    { id: "ask", label: "Ask: Tier-1 impact of SBR revision", icon: Icon.Ask, group: "Recent asks" },
+    { id: "ask", label: "Ask: PSL climate-adaptive sub-target", icon: Icon.Ask, group: "Recent asks" },
+    { id: "library", label: "DOR.CAP.REC.22 · SBR Revision", icon: Icon.Book, group: "Circulars" },
+    { id: "library", label: "DOR.AML.REC.18 · KYC Amendment", icon: Icon.Book, group: "Circulars" },
+  ];
+  const filtered = items.filter(i => q === "" || i.label.toLowerCase().includes(q.toLowerCase()));
+  const groups = filtered.reduce((acc, it) => { (acc[it.group] = acc[it.group] || []).push(it); return acc; }, {});
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,.35)", display: "flex", justifyContent: "center", paddingTop: 120 }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: 560, height: "fit-content", background: "var(--panel)", border: "1px solid var(--line-2)", borderRadius: 4, boxShadow: "var(--shadow-lg)", overflow: "hidden" }}>
+        <div style={{ padding: 12, borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", gap: 10 }}>
+          <Icon.Search style={{ color: "var(--ink-3)" }} />
+          <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Ask, search, or jump…"
+            style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 14 }} />
+          <Kbd>ESC</Kbd>
+        </div>
+        <div style={{ maxHeight: 400, overflowY: "auto", padding: "6px 0" }}>
+          {Object.entries(groups).map(([g, items]) => (
+            <div key={g}>
+              <div className="mono up" style={{ fontSize: 9.5, color: "var(--ink-4)", padding: "8px 14px 4px" }}>{g}</div>
+              {items.map((it, i) => {
+                const Ic = it.icon;
+                return (
+                  <div key={i} onClick={() => onRoute(it.id)} style={{
+                    padding: "8px 14px", fontSize: 13, cursor: "pointer",
+                    display: "flex", alignItems: "center", gap: 10,
+                  }} onMouseOver={e => e.currentTarget.style.background = "var(--panel-2)"}
+                     onMouseOut={e => e.currentTarget.style.background = "transparent"}>
+                    <Ic style={{ color: "var(--ink-4)" }} />
+                    {it.label}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TweaksPanel({ theme, setTheme }) {
+  const [density, setDensity] = uState("compact");
+  const [font, setFont] = uState("editorial");
+  const [accent, setAccent] = uState("amber");
+  uEffect(() => {
+    const r = document.documentElement;
+    const m = { amber: "#c25a11", emerald: "#12734f", crimson: "#a22020", cobalt: "#1c4ebc" };
+    if (m[accent]) r.style.setProperty("--signal", m[accent]);
+  }, [accent]);
+  return (
+    <div style={{
+      position: "fixed", bottom: 20, right: 20, width: 260,
+      background: "var(--panel)", border: "1px solid var(--line-2)",
+      boxShadow: "var(--shadow-lg)", zIndex: 150, borderRadius: 4,
+    }}>
+      <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", gap: 8 }}>
+        <Icon.Settings style={{ color: "var(--signal)" }} />
+        <span style={{ fontWeight: 600, fontSize: 12.5 }}>Tweaks</span>
+      </div>
+      <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 14 }}>
+        <TweakRow label="Theme" options={[["light","Light"],["dark","Dark"]]} value={theme} onChange={setTheme} />
+        <TweakRow label="Accent" options={[["amber","Amber"],["emerald","Emerald"],["crimson","Crimson"],["cobalt","Cobalt"]]} value={accent} onChange={setAccent} />
+        <TweakRow label="Density" options={[["compact","Compact"],["normal","Normal"]]} value={density} onChange={setDensity} />
+        <TweakRow label="Answer style" options={[["editorial","Editorial"],["memo","Memo"]]} value={font} onChange={setFont} />
+      </div>
+    </div>
+  );
+}
+
+function TweakRow({ label, options, value, onChange }) {
+  return (
+    <div>
+      <div className="mono up" style={{ fontSize: 10, color: "var(--ink-4)", marginBottom: 6 }}>{label}</div>
+      <div style={{ display: "flex", gap: 4 }}>
+        {options.map(([k, l]) => (
+          <button key={k} onClick={() => onChange(k)} style={{
+            flex: 1, fontSize: 11.5, padding: "5px 0",
+            border: `1px solid ${value === k ? "var(--signal)" : "var(--line)"}`,
+            background: value === k ? "var(--signal-bg)" : "var(--bg)",
+            color: value === k ? "var(--signal-ink)" : "var(--ink-2)",
+            borderRadius: 2, cursor: "pointer",
+          }}>{l}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
