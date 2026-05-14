@@ -26,8 +26,9 @@ class ScraperSettings(BaseSettings):
     LLM_SUMMARY_MODEL: str = "claude-haiku-4-5-20251001"
 
     # --- Embeddings ---
+    # Must match backend EMBEDDING_DIMS and DB vector(1536) column size.
     EMBEDDING_MODEL: str = "text-embedding-3-large"
-    EMBEDDING_DIMS: int = 3072
+    EMBEDDING_DIMS: int = 1536
 
     # --- SMTP (admin alerts) ---
     SMTP_HOST: str

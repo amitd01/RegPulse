@@ -18,7 +18,6 @@ services:
       - ./backend/migrations/003_sprint4_confidence.sql:/docker-entrypoint-initdb.d/003_sprint4_confidence.sql:ro
       - ./backend/migrations/004_sprint5.sql:/docker-entrypoint-initdb.d/004_sprint5.sql:ro
       - ./backend/migrations/005_sprint6_system_user.sql:/docker-entrypoint-initdb.d/005_sprint6_system_user.sql:ro
-      - ./backend/migrations/006_fix_vector_dims.sql:/docker-entrypoint-initdb.d/006_fix_vector_dims.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-regpulse}"]
       interval: 5s

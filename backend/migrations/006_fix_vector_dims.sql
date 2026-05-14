@@ -1,33 +1,23 @@
--- Migration 006: fix vector column dimensions to match EMBEDDING_DIMS=3072
+-- Migration 006: Ensure questions.question_embedding is vector(1536)
 --
--- Root cause: 001_initial_schema.sql defined both document_chunks.embedding
--- and questions.question_embedding as vector(1536), but the embedding service
--- has always used EMBEDDING_DIMS=3072 (text-embedding-3-large default).
--- This mismatch caused db.commit() to fail inside _stream_response after
--- a successful LLM token stream, emitting a spurious event:error to the
--- frontend and rolling back the question history + credit deduction.
+-- HISTORY
+-- -------
+-- An earlier version of this file incorrectly tried to ALTER both
+-- document_chunks.embedding and questions.question_embedding to vector(3072).
+-- That attempt:
+--   • Failed on document_chunks (existing 1536-dim rows cannot be recast).
+--   • Succeeded on questions (column was empty) — leaving it at vector(3072).
+--   • Failed to create IVFFlat indexes (IVFFlat max = 2000 dims, 3072 > limit).
 --
--- Re-running this migration on a DB that already has vector(3072) columns
--- is a no-op — pgvector allows ALTER COLUMN to the same type without error.
-
--- Drop the IVFFlat indexes first (required before altering column type)
-DROP INDEX IF EXISTS idx_chunks_embedding;
-DROP INDEX IF EXISTS idx_questions_embedding;
-
--- Alter column types
-ALTER TABLE document_chunks
-    ALTER COLUMN embedding TYPE vector(3072);
+-- This replacement migration reverts the damage done to questions and makes
+-- the schema consistent with EMBEDDING_DIMS=1536 everywhere.
+--
+-- Idempotency
+-- -----------
+-- • If question_embedding is already vector(1536) (fresh DB from 001, or
+--   already fixed) the ALTER is a trivial type-to-same-type operation and
+--   Postgres completes it without error.
+-- • All rows with NULL question_embedding require no USING clause.
 
 ALTER TABLE questions
-    ALTER COLUMN question_embedding TYPE vector(3072);
-
--- Recreate the IVFFlat indexes with the correct dimension
-CREATE INDEX IF NOT EXISTS idx_chunks_embedding
-    ON document_chunks
-    USING ivfflat (embedding vector_cosine_ops)
-    WITH (lists = 100);
-
-CREATE INDEX IF NOT EXISTS idx_questions_embedding
-    ON questions
-    USING ivfflat (question_embedding vector_cosine_ops)
-    WITH (lists = 100);
+    ALTER COLUMN question_embedding TYPE vector(1536);

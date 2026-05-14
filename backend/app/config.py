@@ -31,8 +31,10 @@ class Settings(BaseSettings):
     LLM_SUMMARY_MODEL: str = "claude-haiku-4-5-20251001"
 
     # --- Embeddings ---
+    # text-embedding-3-large supports 256–3072 dims; we use 1536 to match the
+    # existing DB schema (vector(1536) columns).  IVFFlat also caps at 2000.
     EMBEDDING_MODEL: str = "text-embedding-3-large"
-    EMBEDDING_DIMS: int = 3072
+    EMBEDDING_DIMS: int = 1536
 
     # --- RAG tuning ---
     RAG_COSINE_THRESHOLD: float = 0.4
