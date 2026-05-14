@@ -2,9 +2,26 @@
 
 import { RP_DATA } from "@/lib/mockData";
 import { Avatar, Btn, Icon, MiniStat, Pill } from "@/components/design/Primitives";
+import { useLearnings } from "@/hooks/useLearnings";
 
 export default function LearningsPage() {
-  const items = RP_DATA.learnings;
+  const { data: serverLearnings } = useLearnings();
+
+  const mockItems = RP_DATA.learnings;
+  
+  // Format server learnings to match UI needs
+  const liveItems = (serverLearnings || []).map(sl => ({
+    id: sl.id,
+    by: sl.user_initials || "U",
+    when: new Date(sl.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+    title: sl.title,
+    note: sl.note,
+    tags: sl.tags,
+    src: sl.source_ref || "SYSTEM"
+  }));
+
+  // Fallback to mock if DB is empty
+  const items = liveItems.length > 0 ? liveItems : mockItems;
 
   return (
     <div className="rp-route-fade" style={{ padding: "20px 24px 60px" }}>

@@ -56,6 +56,9 @@ class User(Base):
     questions: Mapped[list["Question"]] = relationship(  # noqa: F821
         back_populates="user", cascade="all, delete"
     )
+    learnings: Mapped[list["Learning"]] = relationship(  # noqa: F821
+        back_populates="user", cascade="all, delete"
+    )
 
 
 class Session(Base):

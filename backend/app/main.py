@@ -36,12 +36,13 @@ from app.routers.action_items import router as action_items_router
 from app.routers.admin import router as admin_router
 from app.routers.auth import router as auth_router
 from app.routers.circulars import router as circulars_router
+from app.routers.dashboard import router as dashboard_router
+from app.routers.learnings import router as learnings_router
 from app.routers.news import router as news_router
 from app.routers.questions import router as questions_router
 from app.routers.saved import router as saved_router
 from app.routers.snippets import router as snippets_router
 from app.routers.subscriptions import router as subscriptions_router
-from app.routers.dashboard import router as dashboard_router
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -286,6 +287,7 @@ app.include_router(saved_router, prefix="/api/v1/saved")
 app.include_router(snippets_router, prefix="/api/v1/snippets")
 app.include_router(news_router, prefix="/api/v1/news")
 app.include_router(dashboard_router, prefix="/api/v1/dashboard")
+app.include_router(learnings_router, prefix="/api/v1/learnings")
 app.include_router(admin_router, prefix="/api/v1/admin")
 
 
