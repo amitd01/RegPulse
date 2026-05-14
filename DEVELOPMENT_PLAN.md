@@ -334,6 +334,28 @@ gcloud scheduler jobs create http scraper-daily ...
 
 ---
 
+## Phase D: Frontend v2 Backend Integration
+
+**Goal:** Replace `RP_DATA` mock fixtures in the V2 frontend with live backend endpoints.
+
+### D.1 Pulse Dashboard API
+- **Endpoint:** `GET /api/v1/dashboard/pulse`
+- **Logic:** Aggregate global metrics (total circulars, superseded this week, questions asked), serve the semantic heatmap to regular users, and provide an activity stream (who asked what, what was recently saved).
+
+### D.2 Team Learnings API
+- **Endpoint:** `GET / POST / PUT / DELETE /api/v1/learnings`
+- **Logic:** New model `Learning` bridging a User, a Question or Circular, tags, and a one-line takeaway. Support "Notify Team" workflows.
+
+### D.3 Debate & Annotations API
+- **Endpoint:** `GET / POST /api/v1/debates`
+- **Logic:** New model `DebateThread` for threaded discussions linked to circulars or citations. Upvote/downvote tracking and OPEN/RESOLVED status.
+
+### D.4 Market Ticker Feed
+- **Endpoint:** `GET /api/v1/news/ticker`
+- **Logic:** Adapt the existing RSS news ingest items into a scrolling ticker format for the AppShell top bar.
+
+---
+
 ## Sprint 9: Post-Launch Hardening (Post-Launch, ~2 weeks)
 
 **Goal:** Address reliability gaps and tech debt surfaced by real usage.
