@@ -224,11 +224,22 @@ async def _stream_response(
     user: User,
     start_time: float,
 ):
-    """SSE generator for streaming responses."""
+    """SSE generator for streaming responses.
+
+    Two separate try/except regions:
+    1. LLM streaming — errors here emit event:error (nothing useful was sent yet).
+    2. Post-stream DB/cache work — errors here are logged with full traceback but
+       NEVER emit event:error; the client always receives event:done so it can
+       display the answer it already rendered.
+    """
     full_text = ""
-    metadata = {}
+    metadata: dict = {}
     model_used = None
 
+    # -----------------------------------------------------------------------
+    # Phase 1 — LLM streaming (token + citations events)
+    # Failure here → emit event:error (no answer was shown yet).
+    # -----------------------------------------------------------------------
     try:
         async for event_type, data in llm.generate_stream(question_text, chunks):
             if event_type == "token":
@@ -239,16 +250,44 @@ async def _stream_response(
                 metadata = json.loads(data)
                 model_used = metadata.get("model_used")
                 yield f"event: citations\ndata: {data}\n\n"
+    except Exception as e:
+        import traceback as _tb
 
-        # Save question + deduct credit
+        _tb.print_exc()
+        logger.exception("stream_llm_error", error=str(e))
+        error_data = json.dumps({"error": "An error occurred during streaming"})
+        yield f"event: error\ndata: {error_data}\n\n"
+        return
+
+    # -----------------------------------------------------------------------
+    # Phase 2 — persist to DB + deduct credit + emit done
+    # Failure here is logged with full traceback, but we STILL emit event:done
+    # so the frontend displays the answer it already received without an
+    # error banner.  question_id will be null when persistence failed.
+    # -----------------------------------------------------------------------
+    question_id: str | None = None
+    new_balance: int = user.credit_balance
+
+    try:
         latency_ms = int((time.perf_counter() - start_time) * 1000)
         question_embedding = await _maybe_embed_question(request, question_text)
+
+        # Extract detailed_interpretation from the raw-JSON token stream.
+        # The LLM streams the entire JSON object character-by-character, so
+        # full_text is a JSON string when parsing succeeds.  Fall back to
+        # storing full_text as-is if it is not valid JSON (e.g. fallback path).
+        try:
+            parsed_full = json.loads(full_text)
+            answer_text: str | None = parsed_full.get("detailed_interpretation") or full_text
+        except (json.JSONDecodeError, ValueError):
+            answer_text = full_text
+
         question = Question(
             id=uuid.uuid4(),
             user_id=user.id,
             question_text=question_text,
             question_embedding=question_embedding,
-            answer_text=full_text,
+            answer_text=answer_text,
             quick_answer=metadata.get("quick_answer"),
             risk_level=metadata.get("risk_level"),
             confidence_score=metadata.get("confidence_score"),
@@ -265,6 +304,9 @@ async def _stream_response(
         db.add(question)
         new_balance = await deduct_credit(db, user.id)
         await db.commit()
+        # Refresh so server-default columns (created_at, etc.) are populated.
+        await db.refresh(question)
+        question_id = str(question.id)
 
         # Low-credit notification at thresholds 5 or 2
         if new_balance in (5, 2):
@@ -274,41 +316,49 @@ async def _stream_response(
             except Exception:
                 logger.warning("low_credit_email_failed", user_id=str(user.id))
 
-        done_data = json.dumps(
-            {
-                "question_id": str(question.id),
-                "credit_balance": new_balance,
-            }
-        )
-        yield f"event: done\ndata: {done_data}\n\n"
+        # Cache — isolated so a Redis failure never prevents event:done
+        try:
+            await rag.cache_answer(
+                question_text,
+                {
+                    "id": question_id,
+                    "question_text": question.question_text,
+                    "answer_text": question.answer_text,
+                    "quick_answer": metadata.get("quick_answer"),
+                    "risk_level": metadata.get("risk_level"),
+                    "confidence_score": metadata.get("confidence_score"),
+                    "consult_expert": bool(metadata.get("consult_expert", False)),
+                    "affected_teams": metadata.get("affected_teams", []),
+                    "citations": metadata.get("citations", []),
+                    "recommended_actions": metadata.get("recommended_actions", []),
+                    "model_used": model_used,
+                    "credit_deducted": True,
+                    "streaming_completed": True,
+                    "latency_ms": latency_ms,
+                    "feedback": None,
+                    "created_at": question.created_at.isoformat(),
+                },
+            )
+        except Exception:
+            logger.warning("stream_cache_failed", exc_info=True)
 
-        # Cache
-        await rag.cache_answer(
-            question_text,
-            {
-                "id": str(question.id),
-                "question_text": question.question_text,
-                "answer_text": question.answer_text,
-                "quick_answer": metadata.get("quick_answer"),
-                "risk_level": metadata.get("risk_level"),
-                "confidence_score": metadata.get("confidence_score"),
-                "consult_expert": bool(metadata.get("consult_expert", False)),
-                "affected_teams": metadata.get("affected_teams", []),
-                "citations": metadata.get("citations", []),
-                "recommended_actions": metadata.get("recommended_actions", []),
-                "model_used": model_used,
-                "credit_deducted": True,
-                "streaming_completed": True,
-                "latency_ms": latency_ms,
-                "feedback": None,
-                "created_at": question.created_at.isoformat(),
-            },
-        )
+    except Exception as e:
+        import traceback as _tb
 
-    except Exception:
-        logger.error("stream_error", exc_info=True)
-        error_data = json.dumps({"error": "An error occurred during streaming"})
-        yield f"event: error\ndata: {error_data}\n\n"
+        _tb.print_exc()
+        logger.exception("post_stream_db_error", error=str(e))
+        # Do NOT emit event:error — the answer was already rendered.
+        # Fall through to emit event:done with null question_id so the
+        # frontend can still update the credit balance display and stop the
+        # spinner.  The question history row will be missing for this request.
+
+    done_data = json.dumps(
+        {
+            "question_id": question_id,
+            "credit_balance": new_balance,
+        }
+    )
+    yield f"event: done\ndata: {done_data}\n\n"
 
 
 # ---------------------------------------------------------------------------

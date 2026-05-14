@@ -294,15 +294,22 @@ export default function AskPage() {
             }
 
             case "error":
+              // Ignore late error events that arrive AFTER event:done — the
+              // answer was already rendered successfully and only the
+              // background DB/cache work failed. The user should not see an
+              // error banner when they received a complete answer.
+              // Only show the error banner when the stream terminated before
+              // the answer completed (status is still "streaming").
               stopFlushInterval();
-              // Flush any tokens received before the error so partial answers
-              // stay visible alongside the error banner.
               flushTokens();
-              setState((prev) => ({
-                ...prev,
-                status: "error",
-                errorMessage: (data.error as string) ?? "Streaming error",
-              }));
+              setState((prev) => {
+                if (prev.status === "done") return prev; // swallow late error
+                return {
+                  ...prev,
+                  status: "error",
+                  errorMessage: (data.error as string) ?? "Streaming error",
+                };
+              });
               break;
 
             default:
