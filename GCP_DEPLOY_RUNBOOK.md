@@ -29,6 +29,7 @@ Live, resumable record of the GCP deployment. If you're picking this up in a new
     - One-shot entrypoint: `python -m scraper.run_oneshot daily` (eager-mode bypasses broker)
 - [ ] Phase 5 — Custom domain + TLS
 - [ ] Phase 6 — GitHub Actions auto-deploy via WIF
+- [x] Phase 6.2 — Observability: Scraper Dashboard & Log-based metrics deployed (`scripts/gcp/phase6_setup_observability.sh`)
 - [ ] Phase 7 — Smoke test + v1.0.0 cut
 
 ## Open items
