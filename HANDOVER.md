@@ -115,8 +115,8 @@ gcloud billing budgets list --billing-account=0130B1-10E7BB-34EF9C --filter='dis
 
 | # | What | Severity | How to do it |
 |---|---|---|---|
-| **1** | Rotate OpenAI + Anthropic API keys (they were pasted into chat — transcript-exposed) | **High** | Revoke at console.anthropic.com and platform.openai.com → generate fresh → `export OPENAI_KEY=… ANTHROPIC_KEY=… && bash scripts/gcp/phase3b_external_secrets.sh`. Cloud Run picks up new versions automatically (no redeploy). |
-| **2** | Confirm or revoke `shubhamkadam1802@gmail.com` Editor+DevOps access | **Medium** | Ask IT who they are. If not Think360 → `gcloud projects remove-iam-policy-binding regpulse-495309 --member="user:shubhamkadam1802@gmail.com" --role="roles/editor"` (and same for `roles/iam.devOps`). |
+| **1** | Rotate OpenAI + Anthropic API keys (they were pasted into chat — transcript-exposed) | **High** | 🗓️ **Deferred to 2026-05-16**: Revoke at console.anthropic.com and platform.openai.com → generate fresh → `export OPENAI_KEY=… ANTHROPIC_KEY=… && bash scripts/gcp/phase3b_external_secrets.sh`. Cloud Run picks up new versions automatically. |
+| **2** | Confirm or revoke `shubhamkadam1802@gmail.com` Editor+DevOps access | **Medium** | 🗓️ **Deferred to 2026-05-16**: Ask IT who they are. If not Think360 → `gcloud projects remove-iam-policy-binding regpulse-495309 --member="user:shubhamkadam1802@gmail.com" --role="roles/editor"` (and same for `roles/iam.devOps`). |
 | **3** | Check the in-flight scraper execution finished cleanly | ✅ **Done** | The initial scraper run failed with a `ModuleNotFoundError`. This was fixed by updating `WORKDIR /app` in `scraper/Dockerfile`. The scraper is now successfully running, and a real-time Cloud Monitoring Dashboard ("RegPulse Scraper Observability") was deployed. |
 
 ---
