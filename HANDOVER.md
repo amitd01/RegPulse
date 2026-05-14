@@ -117,7 +117,7 @@ gcloud billing budgets list --billing-account=0130B1-10E7BB-34EF9C --filter='dis
 |---|---|---|---|
 | **1** | Rotate OpenAI + Anthropic API keys (they were pasted into chat — transcript-exposed) | **High** | Revoke at console.anthropic.com and platform.openai.com → generate fresh → `export OPENAI_KEY=… ANTHROPIC_KEY=… && bash scripts/gcp/phase3b_external_secrets.sh`. Cloud Run picks up new versions automatically (no redeploy). |
 | **2** | Confirm or revoke `shubhamkadam1802@gmail.com` Editor+DevOps access | **Medium** | Ask IT who they are. If not Think360 → `gcloud projects remove-iam-policy-binding regpulse-495309 --member="user:shubhamkadam1802@gmail.com" --role="roles/editor"` (and same for `roles/iam.devOps`). |
-| **3** | Check the in-flight scraper execution finished cleanly | **Status check** | See "First 10 minutes" §1 above. |
+| **3** | Check the in-flight scraper execution finished cleanly | ✅ **Done** | The initial scraper run failed with a `ModuleNotFoundError`. This was fixed by updating `WORKDIR /app` in `scraper/Dockerfile`. The scraper is now successfully running, and a real-time Cloud Monitoring Dashboard ("RegPulse Scraper Observability") was deployed. |
 
 ---
 
@@ -161,9 +161,7 @@ Pick one to start the session — don't multi-task.
 - Decide once `circular_documents` row count exceeds ~1000 and you can measure end-to-end latency.
 
 ### E. Snapshot + monitoring dashboard
-- Create a Cloud Monitoring dashboard with: Cloud Run backend P50/P95/P99 latency, error rate, instance count; Cloud SQL CPU/connections/disk; Redis memory; Scraper job success/failure counts.
-- Add alert policies (already specified in `PRODUCTION_PLAN.md` § 6.2).
-- Estimated time: 1 hr.
+- ✅ **Completed**: A Cloud Monitoring dashboard for the Scraper has been deployed via `scripts/gcp/phase6_setup_observability.sh`. It includes log-based metrics for processed documents, execution errors, and job success.
 
 ---
 

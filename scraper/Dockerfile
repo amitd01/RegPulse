@@ -12,8 +12,8 @@ RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
 RUN python -c "import nltk; nltk.download('punkt_tab', quiet=True)"
 
-COPY . /scraper/
+COPY . /app/scraper/
 
-WORKDIR /scraper
+WORKDIR /app
 
-CMD ["celery", "-A", "celery_app", "worker", "--loglevel=info", "--concurrency=2"]
+CMD ["celery", "-A", "scraper.celery_app", "worker", "--loglevel=info", "--concurrency=2"]
