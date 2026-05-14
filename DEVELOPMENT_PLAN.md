@@ -484,6 +484,10 @@ Sprint 8 (UX gaps) ── can start ──────────┤
 | G-10 | pybreaker circuit breaker | Sprint 9 | Planned |
 | G-11 | Query expansion | Deferred | KG expansion serves same purpose |
 | G-12 | Action items overdue | Sprint 8 | ✅ Complete |
+| D.1 | Pulse Dashboard API | Phase D | ✅ Complete |
+| D.2 | Team Learnings API | Phase D | ✅ Complete |
+| D.3 | Debate & Annotations API | Phase D | Planned |
+| D.4 | Market Ticker Feed | Phase D | Planned |
 
 ---
 
