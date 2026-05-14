@@ -334,6 +334,46 @@
 
 ---
 
+## GCP Deployment — Phase 2 (2026-05-14)
+
+### LGCP.1 — Multi-line `gcloud` commands get mangled when pasted into macOS zsh
+**What bit us:** Phase 2A reserved the private-services IP range successfully but the follow-up `vpc-peerings connect` (second command in the same paste) silently never executed. Result: Cloud SQL creation later failed with `NETWORK_NOT_PEERED` because the address range was `RESERVED` but no peering connection existed. Took two failed SQL attempts to diagnose.
+**Root cause:** When you paste a multi-line shell command (with `\` line continuations) into Terminal/iTerm with zsh, the paste buffer can drop the trailing `\` or split the command at newlines. Each fragment runs as its own command, and gcloud only sees the first line's arguments.
+**Fix:** Write all multi-step provisioning commands to a shell script in `scripts/gcp/` and have the user run `bash scripts/gcp/<script>.sh`. Single-line `gcloud` commands also work but become unreadably long for >5 flags.
+**Prevention:** Never document a multi-line `gcloud` command for the user to paste. Either (a) single-line, or (b) script file. The runbook (`GCP_DEPLOY_RUNBOOK.md`) now references scripts rather than inline command blocks for all multi-line gcloud.
+
+### LGCP.2 — `set -u` + `$NNN` in echo strings = unbound variable error
+**What bit us:** `phase2_resume.sh` had `echo "==> 2E. Budget alert ($300/mo, ...)"`. With `set -u` (nounset), bash parsed `$300` as `${3}00` — i.e. positional arg 3, which is unset — and aborted the script just before the budget creation. Redis had already dispatched but the budget alert never ran.
+**Root cause:** `set -u` is correct discipline (catches typos in variable names), but it makes dollar signs in literal strings dangerous. Bash's `$NNN` form is positional-arg expansion, not "the number $300".
+**Fix:** Use single quotes for literals: `echo '==> 2E. Budget alert ($300/mo...)'`. Or escape: `\$300`.
+**Prevention:** When writing any bash script with `set -u`, audit `echo` statements for unescaped `$` followed by digits. CI lint with `shellcheck` would catch this — worth adding when we have more scripts.
+
+### LGCP.3 — Cloud SQL on new projects defaults to Enterprise Plus edition
+**What bit us:** First Cloud SQL create attempt returned `Invalid Tier (db-custom-2-4096) for (ENTERPRISE_PLUS) Edition`. The project's Cloud SQL default is now Enterprise Plus (introduced 2023), which only accepts predefined `db-perf-optimized-N-*` tiers, not custom machine types.
+**Root cause:** Cloud SQL Enterprise Plus is the new premium tier (~3-4x cost). New projects/instances may default to it depending on org policy or project age. `PRODUCTION_PLAN.md` specifies `db-custom-2-4096` which is an Enterprise-edition tier.
+**Fix:** Add `--edition=ENTERPRISE` explicitly to the SQL instance create command. Baked into `phase2_resume.sh` and `phase2_retry_sql.sh`.
+**Prevention:** Always specify `--edition` explicitly on `gcloud sql instances create` — never rely on the project default. Cost difference between editions is significant ($75/mo vs $300+/mo for the same workload).
+
+### LGCP.5 — Cloud SQL Postgres 16 ships pgvector that caps both ivfflat AND hnsw at 2000 dimensions
+**What bit us:** Migration 001 has `CREATE INDEX ... USING ivfflat (embedding vector_cosine_ops)` on `document_chunks.embedding` which is `vector(3072)` (text-embedding-3-large dimensions). Cloud SQL rejected with `column cannot have more than 2000 dimensions for ivfflat index`. Swapped to hnsw — same 2000-dim limit error. Migration partially applied; subsequent migrations chained on partial state. Had to drop the `regpulse` database, comment out the two ANN indexes, and re-run.
+**Root cause:** pgvector lifted the 2000-dim limit on hnsw in v0.7.0 (May 2024). Cloud SQL Postgres 16 (as of this deploy, May 2026) still ships an older pgvector that has the cap. Local Docker uses `pgvector/pgvector:pg16` which has a newer pgvector — that's why local works.
+**Fix:** Commented out both ANN indexes in `001_initial_schema.sql`. Vector similarity queries now sequential-scan, which is acceptable for the R&D corpus size. Three forward paths when scale matters: (a) wait for Cloud SQL pgvector upgrade; (b) migrate column to `halfvec(3072)` (ivfflat allows 4000-dim on halfvec); (c) reduce embeddings to 1536-dim via text-embedding-3-small (quality regression).
+**Prevention:** Before deploying schemas that depend on Postgres extension features, check the target host's extension version with `SELECT extversion FROM pg_extension WHERE extname='vector';`. Cloud-managed Postgres lags upstream by 6-18 months on extension versions.
+
+### LGCP.6 — Cloud SQL Auth Proxy can't connect to private-IP-only instances from outside the VPC
+**What bit us:** Created `regpulse-db` with `--no-assign-ip` (private IP only — best practice for fintech). Tried to run migrations from laptop via Cloud SQL Auth Proxy. Proxy authenticated successfully but every connection attempt failed: `instance does not have IP of type "PUBLIC"`. The proxy from outside the VPC needs the instance to have a public endpoint, even though it then uses IAM auth (not network auth) to connect.
+**Root cause:** The Cloud SQL Auth Proxy v2 connects via the instance's public IP through Google's edge, with IAM-based TLS at the transport layer. With `--no-assign-ip`, there's no public endpoint to connect to. `--private-ip` flag on the proxy doesn't help — it only changes which IP the proxy returns; the connection still needs network reachability, and a laptop isn't in the VPC.
+**Fix:** `gcloud sql instances patch regpulse-db --assign-ip` to add a public endpoint while keeping the private IP. Cloud Run still uses the private IP via VPC Connector. Public IP is safe because Cloud SQL Auth Proxy enforces IAM-based auth — no IP allowlist needed for security.
+**Prevention:** Either (a) provision Cloud SQL with public IP from the start (and accept the IAM-auth-only security model), or (b) plan migrations as Cloud Run Jobs that run from inside the VPC. For R&D, (a) is the pragmatic default — public IP + IAM auth is not the same as "publicly accessible Postgres." Document the public IP as "admin path, IAM-gated" in the runbook.
+
+### LGCP.4 — `--labels` is not in the `gcloud sql` GA track
+**What bit us:** First SQL create attempt failed with `unrecognized arguments: --labels=...` even though `--labels` is documented on `gcloud sql instances create`.
+**Root cause:** The flag is only exposed on the `gcloud beta sql instances create` command, not GA. Other resource types (Redis, Compute) have `--labels` in GA. Inconsistent surface.
+**Fix:** Use `gcloud beta sql instances create` for all Cloud SQL provisioning. Beta in gcloud is well-supported, not experimental — the resource created is identical to GA.
+**Prevention:** When adding labels (now standard governance on every resource), reach for `gcloud beta` for SQL specifically; GA is fine for everything else.
+
+---
+
 ## Process Learnings
 
 ### LP.1 — `git push` is not implicit

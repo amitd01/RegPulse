@@ -200,3 +200,32 @@ docker compose up --build -d
 | ~~TD-10~~ | ~~Broad `except Exception` in LLM service~~ | ✅ Fixed (Sprint 6) — Typed Anthropic/OpenAI exception tuples |
 | ~~TD-11~~ | ~~Golden eval doesn't exercise retrieval~~ | ✅ Fixed (Sprint 6) — `test_retrieval.py` with real embeddings + Postgres |
 | ~~TD-12~~ | ~~pytest not in runtime image~~ | ✅ Fixed (Sprint 6) — `requirements-dev.txt` + Dockerfile `dev` target |
+
+---
+
+## GCP Deployment State
+
+MVP live in DEMO_MODE as of 2026-05-14. **Source of truth: `GCP_DEPLOY_RUNBOOK.md`.** Project `regpulse-495309` (asia-south1, billing `0130B1-10E7BB-34EF9C`).
+
+**Live URLs (Cloud Run auto-generated; custom domain deferred to Phase 5):**
+- Frontend: `https://regpulse-frontend-yvigu4ssea-el.a.run.app`
+- Backend: `https://regpulse-backend-yvigu4ssea-el.a.run.app`
+- API docs: `https://regpulse-backend-yvigu4ssea-el.a.run.app/api/v1/docs`
+
+**Infra summary:**
+- Cloud SQL `regpulse-db` (Postgres 16 Enterprise, HA, public+private IPs), Memorystore Redis `regpulse-redis` (Basic 1GB), VPC Connector `regpulse-connector`, 13 secrets in Secret Manager, runtime SA `regpulse-runtime@`.
+- Backend deployed from `regpulse/backend:rc2`, frontend from `regpulse/frontend:rc1`. Both at `min-instances=1`.
+- Mode: `ENVIRONMENT=staging, DEMO_MODE=true, FREE_CREDIT_GRANT=999999`. OTP fixed `123456`, payments/SMTP disabled.
+
+**Scraper (Phase 4I) — running:**
+- Job `regpulse-scraper` executing first scrape (started 2026-05-14T15:35:17Z, ~30-60 min).
+- Daily Cloud Scheduler `regpulse-scraper-daily` set for 20:30 UTC / 02:00 IST.
+- Monitor: `gcloud run jobs executions describe regpulse-scraper-n2tf9 --region=asia-south1`.
+
+**Deferred for later sessions:**
+- Phase 4H (Celery GCE) — only needed when leaving DEMO_MODE (auto-renewal, low-credit emails).
+- Phase 5 (custom domain), Phase 6 (GitHub Actions auto-deploy via WIF), Phase 7 (full smoke test + v1.0.0 cut).
+- ANN indexes on embeddings (pgvector 2000-dim cap on Cloud SQL — see LEARNINGS LGCP.5).
+- Rotate OpenAI + Anthropic API keys (exposed in chat transcript during Phase 3B).
+
+**Open IAM item:** `shubhamkadam1802@gmail.com` has Editor+DevOps on the project — confirm Think360 or revoke.

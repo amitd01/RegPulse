@@ -22,3 +22,10 @@ COPY requirements-dev.txt .
 RUN pip install --no-cache-dir -r requirements-dev.txt
 
 CMD ["pytest", "tests/", "-v"]
+
+# ---------------------------------------------------------------------------
+# Production target — explicitly LAST so `docker build` without --target
+# produces the prod image (uvicorn CMD), not the dev image (pytest CMD).
+# Build with: docker build --target=production -t backend:prod .
+# ---------------------------------------------------------------------------
+FROM base AS production

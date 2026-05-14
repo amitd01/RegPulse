@@ -127,3 +127,4 @@ Sprint 7 resolved G-01 (DPDP deletion), G-02 (DPDP export), G-04 (auto-renewal),
 | `UAT_RESULTS.md` | Automated UAT results — 81/81 passed (2026-04-14) |
 | `HANDOVER.md` | Session handover — what was done, what's next, environment state |
 | `HANDOVER_DESIGN_V2.md` | Frontend v2 redesign handover — chunks, design source, constraints |
+| `GCP_DEPLOY_RUNBOOK.md` | Live GCP deployment state — phase status, resource IDs, resumable scripts |
