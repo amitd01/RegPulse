@@ -1,125 +1,200 @@
 # RegPulse — Session Handover
 
-> **From:** Frontend v2 redesign session (2026-04-22)
-> **To:** Next development session
-> **Branch:** `main`
+> **From:** GCP first-deploy session (2026-05-14)
+> **To:** Next session
+> **Branch:** `main` @ `83b10a9`
+> **Live URLs:** [Frontend](https://regpulse-frontend-yvigu4ssea-el.a.run.app) · [Backend](https://regpulse-backend-yvigu4ssea-el.a.run.app) · [API docs](https://regpulse-backend-yvigu4ssea-el.a.run.app/api/v1/docs)
 
 ---
 
-## What Was Done This Session
+## 🟢 Open this file first when you sit down
 
-### Frontend v2 — Terminal-Modern Redesign (5 chunks)
+The MVP is live on GCP in DEMO_MODE. A scraper Cloud Run Job was kicked off at the end of last session and is still running (or finished by now). **First thing to do: check whether the scrape finished and whether circulars landed in Cloud SQL.** Commands in the next section.
 
-Full UI redesign from Tailwind utility-class layout to a terminal-modern design system ("Bloomberg terminal meets editorial print"). All 12 app pages rewritten while preserving every live API hook.
-
-| Chunk | Commit | What |
-|-------|--------|------|
-| 1/5 | `80e6b06` | Design tokens (`globals.css`), Primitives.tsx (Pill, Btn, Icon, Avatar, Toast, etc.), AppShell (TopBar + Sidebar + Ticker + CommandPalette + TweaksPanel), Dashboard, mockData.ts |
-| 2/5 | `aa4749e` | Ask page editorial brief: 2-col grid, question bar, byline, serif headline, rp-prose body with annotations, recommended actions, feedback bar, learning modal, right rail (confidence radial, citations, debate) |
-| 3/5 | `b63a734` | Library (240px filter aside + 2-col cards), Updates (dtable + news relevance cards + 3 tabs), History (dtable with confidence bars), Saved (2-col cards), Action Items (MiniStats + dtable) |
-| 4/5 | `124dbcb` | New routes: /learnings (team learnings with MiniStats + card list), /debate (2-col debate cards with agree/disagree bars). Mock data only. |
-| 5/5 | `49cde9c` | Upgrade (3-col plan cards with MOST CHOSEN ribbon), Account (PROFILE + TEAM + PAYMENT HISTORY + DPDP panels with live export/delete/auto-renew) |
-
-### Doc Updates
-- Updated CLAUDE.md, context.md, spec.md, README.md, MEMORY.md for Frontend v2
-
-### Housekeeping
-- Branch `claude/implement-regpulse-frontend-7pNk8` merged to `main`, pushed
-- Design source bundle preserved in `files/design-v2/` (tokens, JSX, mock data, chat transcript)
-- `HANDOVER_DESIGN_V2.md` kept for reference
+If the scrape succeeded, the demo has real RBI circulars and you can ask questions end-to-end. If it failed, we'll have to read logs and decide whether to retry or shorten scope.
 
 ---
 
-## What To Do Next
+## 📋 First 10 minutes — status checks
 
-### Immediate — PRD/FSD v4.0
-The Frontend v2 redesign introduced UI concepts not covered in PRD v3.0 / FSD v3.0:
-- Team Learnings (capture, tag, pin, notify — no backend yet)
-- Debates (threaded disagreements with agree/disagree voting — no backend yet)
-- Annotations (inline brief annotations with margin notes — no backend yet)
-- Feedback structured form (checkbox chips + review queue — no backend yet)
-- Save-as-learning flow (from Ask page — no backend yet)
+Paste these into a terminal at the repo root. Each is read-only.
 
-A PRD v4.0 / FSD v4.0 should formalise these as product requirements and functional specs, with backend API design and schema changes.
-
-### GCP Phases A–C (unchanged)
-| Phase | Work |
-|-------|------|
-| Phase A | GCP infra provisioning: Cloud SQL, Memorystore, Artifact Registry, Secret Manager |
-| Phase B | CI/CD hardening: WIF, staging env, security baseline, integration tests |
-| Phase C | Data migration (full RBI scrape), observability, pre-launch testing, v1.0.0 launch |
-
-### Sprint 9+ (unchanged)
-| Phase | Work |
-|-------|------|
-| Sprint 9 | pybreaker circuit breaker, TD-01/TD-03/TD-09, mobile responsive polish |
-| Sprint 10–12 | Conversational Q&A, team seats, shared interpretations |
-
-### New Backend Work (from Frontend v2 design)
-| Feature | Backend needed |
-|---------|---------------|
-| Learnings | CRUD endpoints, `learnings` table, team notification |
-| Debates | Thread CRUD, voting, resolution, `debates`/`debate_replies` tables |
-| Annotations | CRUD on question annotations, `annotations` table |
-| Structured feedback | Expand `/questions/{id}/feedback` to accept checkbox categories |
-| Save-as-learning | `POST /learnings` from Ask page context |
-
----
-
-## Key Files to Read First
-
-| File | Why |
-|------|-----|
-| `LEARNINGS.md` | **Mandatory.** L1–L8 gotchas. Prevents repeat mistakes. |
-| `CLAUDE.md` | Rules, build progress, localhost demo state |
-| `HANDOVER_DESIGN_V2.md` | Frontend v2 chunk status, design source paths, hard constraints |
-| `DEVELOPMENT_PLAN.md` | Sprint 8+ detailed spec |
-| `PRODUCTION_PLAN.md` | GCP deploy steps |
-| `context.md` | Current inventory, tech debt, gap status |
-
----
-
-## Environment State
-
-| Component | State |
-|-----------|-------|
-| Docker | 6 containers running, images need rebuild for Frontend v2 |
-| `.venv` | Python 3.11 venv at project root (for local test runs) |
-| Database | 10 circulars, 128 chunks (all with embeddings), 6 users, 69 news items |
-| Git | `main` only, clean working tree (except `.venv/` and `regpulse_enhanced_mockup_v2.html`) |
-| CI | Green (lint + test + build) |
-| Frontend | 27 routes, terminal-modern v2 design, build green |
-
----
-
-## Quick Commands
+### 1. Scraper job — did the first scrape finish?
 
 ```bash
-# Start everything
-docker compose up --build -d
+# Most recent execution + state
+gcloud run jobs executions list --job=regpulse-scraper --region=asia-south1 --limit=3 --format='table(name,status.startTime,status.completionTime,status.runningCount,status.succeededCount,status.failedCount)'
 
-# Frontend dev
-cd frontend && npm run dev
+# Live tail of scraper logs (last 50 events, last 2h)
+gcloud logging read 'resource.type=cloud_run_job AND resource.labels.job_name=regpulse-scraper' --limit=50 --freshness=2h --format='value(timestamp,severity,jsonPayload.event,jsonPayload.message,textPayload)'
+```
 
-# Frontend build check
-cd frontend && npx next build
+**Expected good state**: latest execution `succeededCount=1, failedCount=0`. Logs end with `oneshot_done mode=daily` and a `daily_scrape_completed new_documents=N` event.
+**If still running**: leave it. Daily scrape can take 30–90 min for the full RBI crawl.
+**If failed**: read the last 100 log lines, look for stack traces. Most likely failure modes: (a) Cloud SQL connection (verify VPC connector still attached), (b) OpenAI rate limit on embeddings (~3072-dim × hundreds of chunks), (c) Anthropic rate limit on summaries.
 
-# Run unit tests locally
-source .venv/bin/activate && cd /tmp && \
-  DATABASE_URL="sqlite+aiosqlite:///:memory:" REDIS_URL="redis://localhost:6379/0" \
-  JWT_PRIVATE_KEY="test" JWT_PUBLIC_KEY="test" OPENAI_API_KEY="test" ANTHROPIC_API_KEY="test" \
-  RAZORPAY_KEY_ID="test" RAZORPAY_KEY_SECRET="test" RAZORPAY_WEBHOOK_SECRET="test" \
-  SMTP_HOST="localhost" SMTP_PORT="587" SMTP_USER="test" SMTP_PASS="test" SMTP_FROM="test@test.com" \
-  FRONTEND_URL="http://localhost:3000" \
-  PYTHONPATH=/path/to/RegPulse/backend pytest /path/to/RegPulse/backend/tests/unit/ -v
+### 2. Cloud SQL — did circulars actually land?
 
-# Lint
-ruff check backend/ && black --check --line-length 100 backend/
+```bash
+# Public API hit (no auth needed for list)
+curl -s https://regpulse-backend-yvigu4ssea-el.a.run.app/api/v1/circulars | python3 -m json.tool | head -30
 
-# Seed demo data
-docker exec regpulse-backend python scripts/seed_demo.py
+# OR via Cloud SQL Auth Proxy (more direct)
+cloud-sql-proxy --port=5433 regpulse-495309:asia-south1:regpulse-db &
+PROXY=$!
+sleep 5
+PGPASSWORD=$(cat /tmp/regpulse_db_pw) psql -h localhost -p 5433 -U postgres -d regpulse -c "SELECT count(*) AS circulars, max(indexed_at) AS latest FROM circular_documents;"
+PGPASSWORD=$(cat /tmp/regpulse_db_pw) psql -h localhost -p 5433 -U postgres -d regpulse -c "SELECT count(*) AS chunks FROM document_chunks;"
+kill $PROXY
+```
+
+**Expected**: count > 0, chunks > 0, `latest` recent. If empty even though the scraper succeeded, the eager-mode pipeline may not have committed — check `scraper_runs` table for the run's final status.
+
+### 3. Backend health + live error rate
+
+```bash
+curl -s -o /dev/null -w "Health: HTTP %{http_code} in %{time_total}s\n" https://regpulse-backend-yvigu4ssea-el.a.run.app/api/v1/health
+
+# Last 50 backend errors (filtered)
+gcloud logging read 'resource.type=cloud_run_revision AND resource.labels.service_name=regpulse-backend AND severity>=ERROR' --limit=50 --freshness=6h --format='value(timestamp,jsonPayload.event,jsonPayload.message,textPayload)'
+
+# Backend revision currently serving traffic
+gcloud run services describe regpulse-backend --region=asia-south1 --format='value(status.url,status.traffic[].revisionName,status.traffic[].percent)'
+```
+
+### 4. Frontend serving check
+
+```bash
+curl -s -o /dev/null -w "Frontend: HTTP %{http_code} in %{time_total}s\n" https://regpulse-frontend-yvigu4ssea-el.a.run.app/
+
+# Confirm Next.js bundle baked the right API URL
+curl -s https://regpulse-frontend-yvigu4ssea-el.a.run.app/ | grep -oE 'regpulse-backend-[a-z0-9-]+\.run\.app' | head -1
+```
+
+Should match the backend URL exactly. If it shows `localhost:8000` or a placeholder, the frontend was built against the wrong env — rebuild with `bash scripts/gcp/phase4f_build_frontend.sh` and redeploy.
+
+### 5. Scheduler — daily trigger configured?
+
+```bash
+gcloud scheduler jobs describe regpulse-scraper-daily --location=asia-south1 --format='table(state,schedule,timeZone,scheduleTime,lastAttemptTime)'
+```
+
+`state=ENABLED`, next `scheduleTime` is upcoming. If `state=DISABLED`, re-enable: `gcloud scheduler jobs resume regpulse-scraper-daily --location=asia-south1`.
+
+### 6. Budget — anything anomalous?
+
+```bash
+gcloud billing budgets list --billing-account=0130B1-10E7BB-34EF9C --filter='displayName:"RegPulse monthly cap"' --format='value(displayName,amount.specifiedAmount.units,thresholdRules[].thresholdPercent)'
 ```
 
 ---
 
-*Handover created 2026-04-22.*
+## 🌐 What's live (one-screen summary)
+
+| Resource | Identifier | Notes |
+|---|---|---|
+| **Project** | `regpulse-495309` | asia-south1, billing `0130B1-10E7BB-34EF9C` |
+| **Cloud SQL** | `regpulse-db` | Postgres 16 Enterprise, HA, public IP `34.100.234.6` + private `10.81.0.2`, db `regpulse`, 19 tables, no ANN indexes (pgvector 2000-dim cap) |
+| **Memorystore Redis** | `regpulse-redis` | Basic 1GB, private `10.45.36.187:6379`, AUTH enabled |
+| **VPC Connector** | `regpulse-connector` | /28 at `10.8.0.0/28`, attached to default VPC |
+| **Artifact Registry** | `asia-south1-docker.pkg.dev/regpulse-495309/regpulse` | Repo holding `backend:rc2`, `frontend:rc1`, `scraper:rc1` |
+| **Secret Manager** | 13 × `REGPULSE_*` | API keys + DB/Redis creds + JWT pem files |
+| **Runtime SA** | `regpulse-runtime@regpulse-495309.iam.gserviceaccount.com` | secretAccessor, cloudsql.client, run.invoker, logWriter, metricWriter |
+| **Backend** | Cloud Run `regpulse-backend` rev 00004 | `https://regpulse-backend-yvigu4ssea-el.a.run.app` |
+| **Frontend** | Cloud Run `regpulse-frontend` rev 00001 | `https://regpulse-frontend-yvigu4ssea-el.a.run.app` |
+| **Scraper Job** | Cloud Run Job `regpulse-scraper` | 2 vCPU, 2Gi, 1h timeout, eager-mode one-shot |
+| **Scheduler** | `regpulse-scraper-daily` | `30 20 * * *` UTC (= 02:00 IST) |
+
+**Mode**: `ENVIRONMENT=staging, DEMO_MODE=true, FREE_CREDIT_GRANT=999999`. OTP fixed `123456`. Payments/SMTP disabled (placeholders).
+
+**Resource labels on every service**: `app=regpulse,env=production,owner=amit,managed-by=manual`.
+
+---
+
+## ⚠️ Three things still pending from last session
+
+| # | What | Severity | How to do it |
+|---|---|---|---|
+| **1** | Rotate OpenAI + Anthropic API keys (they were pasted into chat — transcript-exposed) | **High** | Revoke at console.anthropic.com and platform.openai.com → generate fresh → `export OPENAI_KEY=… ANTHROPIC_KEY=… && bash scripts/gcp/phase3b_external_secrets.sh`. Cloud Run picks up new versions automatically (no redeploy). |
+| **2** | Confirm or revoke `shubhamkadam1802@gmail.com` Editor+DevOps access | **Medium** | Ask IT who they are. If not Think360 → `gcloud projects remove-iam-policy-binding regpulse-495309 --member="user:shubhamkadam1802@gmail.com" --role="roles/editor"` (and same for `roles/iam.devOps`). |
+| **3** | Check the in-flight scraper execution finished cleanly | **Status check** | See "First 10 minutes" §1 above. |
+
+---
+
+## 🛠️ Suggested next dev activities (ranked)
+
+Pick one to start the session — don't multi-task.
+
+### A. Phase 4H — Celery worker on GCE *(only if leaving DEMO_MODE)*
+- Provision an `e2-small` instance in the default VPC (asia-south1-a).
+- Install Docker + pull `regpulse/scraper:rc1`.
+- Run `celery -A celery_app worker -B --loglevel=info --concurrency=2 -Q celery,scraper` as a systemd service.
+- Inject the same 6 secrets as the scraper job (DATABASE_URL, REDIS_URL, OPENAI_KEY, ANTHROPIC_KEY, SMTP_USER, SMTP_PASS) via Secret Manager.
+- **Why**: enables auto-renewal reminders, low-credit notifications, RSS news ingest (every 30 min), question clustering. None of these matter while `DEMO_MODE=true`, so this is a real-launch prerequisite, not an R&D one.
+- Estimated time: 1–1.5 hr.
+
+### B. Phase 5 — Custom domain + TLS
+- Requires: a domain you own (e.g. `regpulse.in`) and access to its DNS.
+- Steps:
+  1. `gcloud beta run domain-mappings create --service=regpulse-frontend --domain=regpulse.in --region=asia-south1`
+  2. `gcloud beta run domain-mappings create --service=regpulse-backend --domain=api.regpulse.in --region=asia-south1`
+  3. Update DNS at registrar with the CNAME/A records GCP returns
+  4. Wait ~15–60 min for Google-managed SSL provisioning
+  5. Update backend env: `gcloud run services update regpulse-backend --update-env-vars="FRONTEND_URL=https://regpulse.in,BACKEND_PUBLIC_URL=https://api.regpulse.in"`
+  6. Rebuild + redeploy frontend with `NEXT_PUBLIC_API_URL=https://api.regpulse.in/api/v1` baked in
+- Estimated time: 30 min active work + provisioning wait.
+
+### C. Phase 6 — GitHub Actions auto-deploy via Workload Identity Federation
+- Configure WIF pool + provider on the project: `gcloud iam workload-identity-pools create github --location=global` etc.
+- Bind the existing GitHub repo identity (`amitd01/RegPulse`) so it can impersonate a deploy SA.
+- Create a `regpulse-deploy` SA with `roles/run.admin`, `roles/artifactregistry.writer`, `roles/iam.serviceAccountUser`.
+- Wire `.github/workflows/deploy.yml` (already stubbed) to fire on `v*` tags. Use `google-github-actions/auth@v2` with `workload_identity_provider` input.
+- **Why**: today every deploy requires you to `gcloud builds submit` from your laptop. WIF makes it `git tag v0.1.0 && git push --tags` → CI builds + deploys automatically. No long-lived service-account keys to leak.
+- Estimated time: 1.5–2 hr.
+
+### D. ANN-index recovery for vector search
+- Symptoms today: every RAG question does a sequential scan over `document_chunks.embedding` — fine for <500 chunks, slow at 5000+.
+- Options (pick one):
+  1. **`halfvec(3072)` migration** — pgvector supports half-precision vectors with ivfflat up to 4000 dims. Cleanest forward path. Requires an `ALTER COLUMN` + new index migration.
+  2. **Wait for Cloud SQL pgvector upgrade** to 0.7+, which lifts the HNSW limit. No code change but no ETA.
+  3. **Downgrade to `text-embedding-3-small`** (1536-dim). Quality regression; not recommended.
+- Decide once `circular_documents` row count exceeds ~1000 and you can measure end-to-end latency.
+
+### E. Snapshot + monitoring dashboard
+- Create a Cloud Monitoring dashboard with: Cloud Run backend P50/P95/P99 latency, error rate, instance count; Cloud SQL CPU/connections/disk; Redis memory; Scraper job success/failure counts.
+- Add alert policies (already specified in `PRODUCTION_PLAN.md` § 6.2).
+- Estimated time: 1 hr.
+
+---
+
+## 🗺️ Where things live
+
+| Need | Path |
+|---|---|
+| Run any GCP-deploy step | `scripts/gcp/phase{N}*.sh` (10 scripts, named per phase) |
+| Full deploy state + checklist | `GCP_DEPLOY_RUNBOOK.md` |
+| Production architecture spec | `PRODUCTION_PLAN.md` |
+| Codebase invariants + business rules | `MEMORY.md` |
+| Phase 2 gotchas (Phase 1 of project) | `LEARNINGS.md` § Sprint 1–8 |
+| GCP deploy gotchas | `LEARNINGS.md` § LGCP.1–LGCP.6 |
+| What product features exist (PRD v4) | `RegPulse_PRD_v4.md` |
+| Backend code | `backend/app/` (FastAPI), `backend/migrations/` (SQL) |
+| Scraper code | `scraper/` (sync Celery + one-shot wrapper) |
+| Frontend code | `frontend/src/` (Next.js 14, terminal-modern v2) |
+| Cloud SQL root password (temp) | `/tmp/regpulse_db_pw` on your laptop (also versioned in Secret Manager) |
+| Cloud Run logs | `gcloud logging read 'resource.type=cloud_run_revision'` |
+| Cloud Run Job logs | `gcloud logging read 'resource.type=cloud_run_job'` |
+
+---
+
+## 🚪 To resume cold (no context from this session)
+
+If a different person (or a fresh Claude session) is picking this up:
+
+1. `git pull origin main`
+2. Read `GCP_DEPLOY_RUNBOOK.md` § "Status" — shows which phases are done
+3. Read this file's "First 10 minutes" — run the diagnostic commands
+4. Read `LEARNINGS.md` § LGCP.1–LGCP.6 — the deploy gotchas you'll repeat without these
+5. Skim `MEMORY.md` § "GCP Deployment State" — live URLs and current mode
+
+That's enough context to be productive. The full deploy is captured in scripts/gcp/, so nothing requires reverse-engineering.
