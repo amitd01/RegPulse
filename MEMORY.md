@@ -218,9 +218,13 @@ MVP live in DEMO_MODE as of 2026-05-14. **Source of truth: `GCP_DEPLOY_RUNBOOK.m
 - Mode: `ENVIRONMENT=staging, DEMO_MODE=true, FREE_CREDIT_GRANT=999999`. OTP fixed `123456`, payments/SMTP disabled.
 
 **Scraper (Phase 4I) — running:**
-- Job `regpulse-scraper` executing first scrape (started 2026-05-14T15:35:17Z, ~30-60 min).
+- Job `regpulse-scraper` fixed `ModuleNotFoundError` by updating `WORKDIR /app` in Dockerfile.
+- Successfully executing first scrape (~30-60 min).
 - Daily Cloud Scheduler `regpulse-scraper-daily` set for 20:30 UTC / 02:00 IST.
-- Monitor: `gcloud run jobs executions describe regpulse-scraper-n2tf9 --region=asia-south1`.
+- Monitor: `gcloud run jobs executions describe regpulse-scraper --region=asia-south1`.
+
+**Observability (Phase 6):**
+- Log-based metrics (`regpulse_scraper_documents`, `regpulse_scraper_errors`, `regpulse_scraper_success`) and Cloud Monitoring Dashboard deployed via `scripts/gcp/phase6_setup_observability.sh`.
 
 **Deferred for later sessions:**
 - Phase 4H (Celery GCE) — only needed when leaving DEMO_MODE (auto-renewal, low-credit emails).

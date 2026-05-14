@@ -36,7 +36,7 @@
 | Frontend v2 | Terminal-modern redesign: design tokens, AppShell, editorial Ask, list pages, Learnings, Debate routes | ✅ Complete (`49cde9c`) |
 | Phase A | GCP infra provisioning (Cloud SQL, Memorystore, Artifact Registry, Secret Manager) | ⏳ Next |
 | Phase B | CI/CD hardening (WIF, staging env, security baseline, integration tests) | ⏳ Planned |
-| Phase C | Data migration + observability + v1.0.0 launch | ⏳ Planned |
+| Phase C | Data migration + observability (✅ done) + v1.0.0 launch | ⏳ In Progress |
 | Sprint 9 | Circuit breaker (G-10), TD-01/03/09, mobile responsive polish | ⏳ Post-launch |
 
 ---

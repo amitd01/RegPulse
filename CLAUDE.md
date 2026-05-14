@@ -55,7 +55,7 @@
 | Sprint 7 | DPDP Compliance (account deletion + data export), subscription auto-renewal, low-credit notifications | ✅ Complete |
 | Sprint 8 | Updates feed tracking, action items stats/overdue, admin Q&A sandbox, question suggestions, PDF export w/ QR codes | ✅ Complete |
 | Frontend v2 | Terminal-modern redesign — design tokens, AppShell, editorial Ask, list pages, Learnings, Debate, Upgrade, Account | ✅ Complete (`49cde9c`) |
-| Post-Build | Real data migration, GCP deployment, Beta launch | ⏳ Planned |
+| Post-Build | Real data migration, GCP deployment, Beta launch | ⏳ In Progress |
 
 ## Localhost Demo
 
@@ -81,7 +81,7 @@ Sprint 7 resolved G-01 (DPDP deletion), G-02 (DPDP export), G-04 (auto-renewal),
 |-------|------|
 | Phase A | GCP infra provisioning: Cloud SQL, Memorystore, Artifact Registry, Secret Manager |
 | Phase B | CI/CD hardening: WIF, staging env, security baseline, integration tests |
-| Phase C | Data migration (full RBI scrape), observability, pre-launch testing, v1.0.0 launch |
+| Phase C | Data migration (in-progress), observability (✅ done), pre-launch testing, v1.0.0 launch |
 
 ### Post-Launch (Sprint 9+)
 | Phase | Work |

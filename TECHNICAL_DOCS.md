@@ -617,6 +617,7 @@ See `PRODUCTION_PLAN.md` for full roadmap.
 | Registry | Artifact Registry |
 | Secrets | Secret Manager |
 | CI/CD | GitHub Actions with Workload Identity Federation |
+| Observability | Cloud Monitoring Dashboard & Log-based metrics (deployed via `phase6_setup_observability.sh`) |
 
 Estimated cost: ~$173/month.
 
