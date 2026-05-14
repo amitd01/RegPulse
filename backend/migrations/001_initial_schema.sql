@@ -283,12 +283,15 @@ CREATE INDEX idx_action_items_created_at ON action_items(created_at);
 CREATE INDEX idx_analytics_events_created_at ON analytics_events(created_at);
 CREATE INDEX idx_subscription_events_created_at ON subscription_events(created_at);
 
--- pgvector ANN indexes (ivfflat)
-CREATE INDEX idx_document_chunks_embedding ON document_chunks
-    USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
-
-CREATE INDEX idx_questions_embedding ON questions
-    USING ivfflat (question_embedding vector_cosine_ops) WITH (lists = 100);
+-- pgvector ANN indexes — DEFERRED until pgvector >=0.7.0 on the Postgres host.
+-- text-embedding-3-large is 3072-dim; current Cloud SQL Postgres 16 ships pgvector that caps
+-- both ivfflat AND hnsw at 2000 dimensions. Sequential scan is acceptable for first deploy
+-- (small corpus). Upgrade path: switch to `halfvec(3072)` + ivfflat, or wait for pgvector 0.7.
+-- See LEARNINGS.md LGCP.5.
+-- CREATE INDEX idx_document_chunks_embedding ON document_chunks
+--     USING hnsw (embedding vector_cosine_ops);
+-- CREATE INDEX idx_questions_embedding ON questions
+--     USING hnsw (question_embedding vector_cosine_ops);
 
 -- Full-text search (BM25 hybrid retrieval)
 CREATE INDEX idx_circular_documents_fts ON circular_documents
