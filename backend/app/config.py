@@ -70,6 +70,11 @@ class Settings(BaseSettings):
     DEMO_MODE: bool = False
     SENTRY_DSN: str | None = None
 
+    # --- Auth cookie (set None+Secure for cross-site deployments like *.run.app;
+    #     lax+Secure for same-registrable-domain prod with custom domains) ---
+    COOKIE_SECURE: bool = False
+    COOKIE_SAMESITE: Literal["lax", "none", "strict"] = "lax"
+
     # --- Sprint 3: Knowledge Graph ---
     KG_EXTRACTION_ENABLED: bool = True
     RAG_KG_EXPANSION_ENABLED: bool = True

@@ -66,19 +66,20 @@ def _set_refresh_cookie(response: Response, token: str, settings: Settings) -> N
         key="refresh_token",
         value=token,
         httponly=True,
-        secure=settings.ENVIRONMENT == "prod",
-        samesite="lax",
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
         max_age=30 * 24 * 3600,
         path="/",
     )
 
 
 def _clear_refresh_cookie(response: Response) -> None:
+    settings = get_settings()
     response.delete_cookie(
         key="refresh_token",
         httponly=True,
-        secure=True,  # Always secure on clear
-        samesite="lax",
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
         path="/",
     )
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -96,12 +96,12 @@ async def update_learning(
     return {**learning.__dict__, "user_initials": initials}
 
 
-@router.delete("/{learning_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{learning_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
 async def delete_learning(
     learning_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> None:
+) -> Response:
     """Delete a team learning."""
     learning = await db.get(Learning, learning_id)
     if not learning:
@@ -112,3 +112,4 @@ async def delete_learning(
 
     await db.delete(learning)
     await db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

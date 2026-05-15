@@ -15,7 +15,7 @@ SERVICE=regpulse-backend
 IMAGE_TAG=${1:-rc1}
 IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/regpulse/backend:${IMAGE_TAG}"
 SA="regpulse-runtime@${PROJECT}.iam.gserviceaccount.com"
-FRONTEND_URL_PLACEHOLDER="https://regpulse-frontend-822716875639.${REGION}.run.app"  # updated after frontend deploys
+FRONTEND_URL_PLACEHOLDER="https://regpulse-frontend-yvigu4ssea-el.a.run.app"  # actual hash-form URL of regpulse-frontend Cloud Run service
 
 # Non-secret env vars (KEY=VALUE pairs; no commas inside values)
 ENV_VARS=(
@@ -31,6 +31,10 @@ ENV_VARS=(
   "LLM_MODEL=claude-sonnet-4-20250514"
   "LLM_FALLBACK_MODEL=gpt-4o"
   "EMBEDDING_MODEL=text-embedding-3-large"
+  # Cross-site cookies needed while frontend + backend are on different *.run.app
+  # subdomains (PSL-separated). Switch to lax+secure once custom domains land in Phase 5.
+  "COOKIE_SECURE=true"
+  "COOKIE_SAMESITE=none"
 )
 ENV_CSV=$(IFS=,; echo "${ENV_VARS[*]}")
 
