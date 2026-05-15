@@ -53,6 +53,9 @@ class ScraperSettings(BaseSettings):
     # --- Sprint 3: Knowledge graph ---
     KG_EXTRACTION_ENABLED: bool = True
 
+    # --- PDF extraction ---
+    OCR_MAX_PAGES: int = 10  # max pages to OCR per PDF (bounds runtime)
+
     # ------------------------------------------------------------------
     # Validators
     # ------------------------------------------------------------------
@@ -81,15 +84,11 @@ class ScraperSettings(BaseSettings):
         ]
         missing = [k for k in _required if not getattr(self, k, None)]
         if missing:
-            raise RuntimeError(
-                f"Missing required environment variables: {', '.join(missing)}"
-            )
+            raise RuntimeError(f"Missing required environment variables: {', '.join(missing)}")
 
         # (2) DEMO_MODE blocked in production
         if self.DEMO_MODE and self.ENVIRONMENT == "prod":
-            raise RuntimeError(
-                "DEMO_MODE=true is not allowed when ENVIRONMENT=prod"
-            )
+            raise RuntimeError("DEMO_MODE=true is not allowed when ENVIRONMENT=prod")
 
 
 @lru_cache
