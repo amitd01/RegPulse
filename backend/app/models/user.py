@@ -9,6 +9,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models import Base
+from app.models.debate import DebateReply, DebateThread
 
 
 class OrgType(enum.StrEnum):
@@ -44,36 +45,26 @@ class User(Base):
     last_seen_updates: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     deletion_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     password_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default="now()"
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default="now()"
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default="now()")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default="now()")
 
     # Relationships
     sessions: Mapped[list["Session"]] = relationship(back_populates="user", cascade="all, delete")
-    questions: Mapped[list["Question"]] = relationship(  # noqa: F821
-        back_populates="user", cascade="all, delete"
-    )
-    learnings: Mapped[list["Learning"]] = relationship(  # noqa: F821
-        back_populates="user", cascade="all, delete"
-    )
+    questions: Mapped[list["Question"]] = relationship(back_populates="user", cascade="all, delete")  # noqa: F821
+    learnings: Mapped[list["Learning"]] = relationship(back_populates="user", cascade="all, delete")  # noqa: F821
+    debates: Mapped[list["DebateThread"]] = relationship(back_populates="user", cascade="all, delete")
+    debate_replies: Mapped[list["DebateReply"]] = relationship(back_populates="user", cascade="all, delete")
 
 
 class Session(Base):
     __tablename__ = "sessions"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     token_hash: Mapped[str] = mapped_column(String(512), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revoked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default="now()"
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default="now()")
 
     # Relationships
     user: Mapped["User"] = relationship(back_populates="sessions")
@@ -88,9 +79,5 @@ class PendingDomainReview(Base):
     mx_valid: Mapped[bool | None] = mapped_column(Boolean)
     reviewed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     approved: Mapped[bool | None] = mapped_column(Boolean)
-    reviewed_by: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default="now()"
-    )
+    reviewed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default="now()")

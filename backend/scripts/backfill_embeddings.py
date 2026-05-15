@@ -29,9 +29,7 @@ async def main() -> None:
 
     # Fetch chunks without embeddings
     async with engine.begin() as conn:
-        rows = await conn.execute(
-            text("SELECT id, chunk_text FROM document_chunks WHERE embedding IS NULL ORDER BY id")
-        )
+        rows = await conn.execute(text("SELECT id, chunk_text FROM document_chunks WHERE embedding IS NULL ORDER BY id"))
         chunks = rows.fetchall()
 
     print(f"Found {len(chunks)} chunks without embeddings")

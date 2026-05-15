@@ -165,9 +165,7 @@ class OTPService:
 
         if count >= self._max_sends_per_hour:
             logger.warning("otp_rate_limited", domain=domain, count=count)
-            raise OTPRateLimitError(
-                f"Maximum {self._max_sends_per_hour} OTP requests per hour; try again later"
-            )
+            raise OTPRateLimitError(f"Maximum {self._max_sends_per_hour} OTP requests per hour; try again later")
 
         # Record this send
         await redis.zadd(rate_key, {str(now): now})

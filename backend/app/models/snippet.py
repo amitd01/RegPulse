@@ -31,9 +31,7 @@ class PublicSnippet(Base):
     view_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     revoked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default="now()", nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default="now()", nullable=False)
 
     question = relationship("Question")
     user = relationship("User")

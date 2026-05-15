@@ -31,11 +31,7 @@ router = APIRouter(tags=["action-items"])
 def _with_overdue(item: ActionItem) -> ActionItemResponse:
     """Serialise an ActionItem, computing ``is_overdue`` on the fly."""
     data = ActionItemResponse.model_validate(item)
-    data.is_overdue = bool(
-        item.due_date is not None
-        and item.due_date < date.today()
-        and str(item.status) != "COMPLETED"
-    )
+    data.is_overdue = bool(item.due_date is not None and item.due_date < date.today() and str(item.status) != "COMPLETED")
     return data
 
 
@@ -64,9 +60,7 @@ async def list_action_items(
         count_base = count_base.where(ActionItem.priority == priority)
 
     total = (await db.execute(count_base)).scalar() or 0
-    stmt = (
-        base.order_by(desc(ActionItem.created_at)).offset((page - 1) * page_size).limit(page_size)
-    )
+    stmt = base.order_by(desc(ActionItem.created_at)).offset((page - 1) * page_size).limit(page_size)
     result = await db.execute(stmt)
     items = list(result.scalars().all())
 
@@ -85,11 +79,7 @@ async def action_item_stats(
 ) -> ActionItemStatsResponse:
     """Aggregate counts by status for the current user, plus overdue."""
     # Status counts — one row per distinct status.
-    status_stmt = (
-        select(ActionItem.status, func.count(ActionItem.id))
-        .where(ActionItem.user_id == user.id)
-        .group_by(ActionItem.status)
-    )
+    status_stmt = select(ActionItem.status, func.count(ActionItem.id)).where(ActionItem.user_id == user.id).group_by(ActionItem.status)
     counts: dict[str, int] = {}
     for status_value, n in (await db.execute(status_stmt)).all():
         counts[str(status_value)] = int(n)

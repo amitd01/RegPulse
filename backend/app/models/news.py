@@ -26,14 +26,10 @@ class NewsStatus(enum.StrEnum):
 
 class NewsItem(Base):
     __tablename__ = "news_items"
-    __table_args__ = (
-        UniqueConstraint("source", "external_id", name="uq_news_items_source_external"),
-    )
+    __table_args__ = (UniqueConstraint("source", "external_id", name="uq_news_items_source_external"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    source: Mapped[NewsSource] = mapped_column(
-        Enum(NewsSource, name="news_source_enum"), nullable=False
-    )
+    source: Mapped[NewsSource] = mapped_column(Enum(NewsSource, name="news_source_enum"), nullable=False)
     external_id: Mapped[str] = mapped_column(String(500), nullable=False)
     title: Mapped[str] = mapped_column(Text, nullable=False)
     url: Mapped[str] = mapped_column(Text, nullable=False)
@@ -44,17 +40,13 @@ class NewsItem(Base):
         UUID(as_uuid=True),
         ForeignKey("circular_documents.id", ondelete="SET NULL"),
     )
-    linked_entity_ids: Mapped[list] = mapped_column(
-        JSONB, nullable=False, server_default="'[]'::jsonb"
-    )
+    linked_entity_ids: Mapped[list] = mapped_column(JSONB, nullable=False, server_default="'[]'::jsonb")
     relevance_score: Mapped[float | None] = mapped_column(Float)
     status: Mapped[NewsStatus] = mapped_column(
         Enum(NewsStatus, name="news_status_enum"),
         nullable=False,
         default=NewsStatus.NEW,
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default="now()", nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default="now()", nullable=False)
 
     linked_circular = relationship("CircularDocument", foreign_keys=[linked_circular_id])

@@ -39,9 +39,7 @@ async def create_snippet(
     user: User = Depends(require_verified_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    snippet = await snippet_service.create_snippet(
-        db, question_id=body.question_id, user_id=user.id
-    )
+    snippet = await snippet_service.create_snippet(db, question_id=body.question_id, user_id=user.id)
     return snippet_service.to_owner_response(snippet)
 
 
@@ -52,9 +50,7 @@ async def list_my_snippets(
     user: User = Depends(require_verified_user),
     db: AsyncSession = Depends(get_db),
 ) -> SnippetListResponse:
-    items, total = await snippet_service.list_snippets_for_user(
-        db, user_id=user.id, page=page, page_size=page_size
-    )
+    items, total = await snippet_service.list_snippets_for_user(db, user_id=user.id, page=page, page_size=page_size)
     return SnippetListResponse(
         items=[SnippetListItem.model_validate(i) for i in items],
         total=total,

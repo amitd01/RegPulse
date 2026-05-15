@@ -37,6 +37,7 @@ from app.routers.admin import router as admin_router
 from app.routers.auth import router as auth_router
 from app.routers.circulars import router as circulars_router
 from app.routers.dashboard import router as dashboard_router
+from app.routers.debates import router as debates_router
 from app.routers.learnings import router as learnings_router
 from app.routers.news import router as news_router
 from app.routers.questions import router as questions_router
@@ -115,9 +116,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     try:
         async with engine.begin() as conn:
             await conn.execute(text("SELECT 1"))
-            result = await conn.execute(
-                text("SELECT extname FROM pg_extension WHERE extname = 'vector'")
-            )
+            result = await conn.execute(text("SELECT extname FROM pg_extension WHERE extname = 'vector'"))
             pgvector_loaded = result.scalar() is not None
         log.info("db_connected", pgvector=pgvector_loaded)
     except Exception:
@@ -288,6 +287,7 @@ app.include_router(snippets_router, prefix="/api/v1/snippets")
 app.include_router(news_router, prefix="/api/v1/news")
 app.include_router(dashboard_router, prefix="/api/v1/dashboard")
 app.include_router(learnings_router, prefix="/api/v1/learnings")
+app.include_router(debates_router, prefix="/api/v1/debates")
 app.include_router(admin_router, prefix="/api/v1/admin")
 
 

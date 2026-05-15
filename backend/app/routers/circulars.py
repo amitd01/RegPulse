@@ -42,9 +42,7 @@ router = APIRouter(tags=["circulars"])
 # ---------------------------------------------------------------------------
 
 
-def _get_service(
-    request: Request, db: AsyncSession = Depends(get_db)
-) -> CircularLibraryService:  # noqa: B008
+def _get_service(request: Request, db: AsyncSession = Depends(get_db)) -> CircularLibraryService:  # noqa: B008
     embedding_svc = getattr(request.app.state, "embedding_service", None)
     return CircularLibraryService(db=db, embedding_service=embedding_svc)
 
@@ -264,11 +262,7 @@ async def list_updates(
 
     total = int((await db.execute(count_stmt)).scalar() or 0)
 
-    list_stmt = (
-        base.order_by(desc(CircularDocument.indexed_at))
-        .offset((page - 1) * page_size)
-        .limit(page_size)
-    )
+    list_stmt = base.order_by(desc(CircularDocument.indexed_at)).offset((page - 1) * page_size).limit(page_size)
     circulars = list((await db.execute(list_stmt)).scalars().all())
 
     # Unread count: indexed after user.last_seen_updates (no cutoff limit).

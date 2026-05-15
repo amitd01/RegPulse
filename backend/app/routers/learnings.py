@@ -43,10 +43,7 @@ async def create_learning(
 
     initials = "".join([n[0] for n in current_user.full_name.split() if n]) if current_user.full_name else "U"
 
-    return {
-        **learning.__dict__,
-        "user_initials": initials
-    }
+    return {**learning.__dict__, "user_initials": initials}
 
 
 @router.get("", response_model=list[LearningResponse])
@@ -56,18 +53,13 @@ async def list_learnings(
 ) -> list[dict]:
     """List all team learnings (for demo, just all learnings in system)."""
     # In a full implementation, we'd filter by team. For now we return all learnings.
-    result = await db.execute(
-        select(Learning).options(joinedload(Learning.user)).order_by(Learning.created_at.desc())
-    )
+    result = await db.execute(select(Learning).options(joinedload(Learning.user)).order_by(Learning.created_at.desc()))
     learnings = result.scalars().all()
 
     response = []
     for l in learnings:
         initials = "".join([n[0] for n in l.user.full_name.split() if n]) if l.user and l.user.full_name else "U"
-        response.append({
-            **l.__dict__,
-            "user_initials": initials
-        })
+        response.append({**l.__dict__, "user_initials": initials})
     return response
 
 
@@ -101,10 +93,7 @@ async def update_learning(
     user_q = await db.get(User, learning.user_id)
     initials = "".join([n[0] for n in user_q.full_name.split() if n]) if user_q and user_q.full_name else "U"
 
-    return {
-        **learning.__dict__,
-        "user_initials": initials
-    }
+    return {**learning.__dict__, "user_initials": initials}
 
 
 @router.delete("/{learning_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -104,19 +104,14 @@ async def delete_account(
             "RegPulse — Account deleted",
             "<p>Your RegPulse account has been deleted and your personal data has been "
             "anonymised as per the DPDP Act. This action cannot be undone.</p>",
-            "Your RegPulse account has been deleted and your personal data has been "
-            "anonymised as per the DPDP Act. This action cannot be undone.",
+            "Your RegPulse account has been deleted and your personal data has been " "anonymised as per the DPDP Act. This action cannot be undone.",
         )
 
     # 3. Delete user-owned records: saved_interpretations, action_items
     await db.execute(
-        select(SavedInterpretation)
-        .where(SavedInterpretation.user_id == user.id)
-        .execution_options(synchronize_session="fetch"),
+        select(SavedInterpretation).where(SavedInterpretation.user_id == user.id).execution_options(synchronize_session="fetch"),
     )
-    await db.execute(
-        SavedInterpretation.__table__.delete().where(SavedInterpretation.user_id == user.id)
-    )
+    await db.execute(SavedInterpretation.__table__.delete().where(SavedInterpretation.user_id == user.id))
     await db.execute(ActionItem.__table__.delete().where(ActionItem.user_id == user.id))
 
     # 4. Nullify user_id on questions (preserve for analytics, remove ownership)
@@ -159,25 +154,17 @@ async def export_data(
 ) -> JSONResponse:
     """Export all user data as a downloadable JSON file (DPDP right to portability)."""
     # Questions
-    result = await db.execute(
-        select(Question).where(Question.user_id == user.id).order_by(Question.created_at.desc())
-    )
+    result = await db.execute(select(Question).where(Question.user_id == user.id).order_by(Question.created_at.desc()))
     questions = result.scalars().all()
 
     # Saved interpretations
     result = await db.execute(
-        select(SavedInterpretation)
-        .where(SavedInterpretation.user_id == user.id)
-        .order_by(SavedInterpretation.created_at.desc())
+        select(SavedInterpretation).where(SavedInterpretation.user_id == user.id).order_by(SavedInterpretation.created_at.desc())
     )
     saved = result.scalars().all()
 
     # Action items
-    result = await db.execute(
-        select(ActionItem)
-        .where(ActionItem.user_id == user.id)
-        .order_by(ActionItem.created_at.desc())
-    )
+    result = await db.execute(select(ActionItem).where(ActionItem.user_id == user.id).order_by(ActionItem.created_at.desc()))
     actions = result.scalars().all()
 
     export = {

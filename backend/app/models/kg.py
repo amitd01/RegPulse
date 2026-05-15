@@ -33,25 +33,15 @@ class KGRelationType(enum.StrEnum):
 
 class KGEntity(Base):
     __tablename__ = "kg_entities"
-    __table_args__ = (
-        UniqueConstraint("entity_type", "canonical_name", name="uq_kg_entities_type_name"),
-    )
+    __table_args__ = (UniqueConstraint("entity_type", "canonical_name", name="uq_kg_entities_type_name"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    entity_type: Mapped[KGEntityType] = mapped_column(
-        Enum(KGEntityType, name="kg_entity_type_enum"), nullable=False
-    )
+    entity_type: Mapped[KGEntityType] = mapped_column(Enum(KGEntityType, name="kg_entity_type_enum"), nullable=False)
     canonical_name: Mapped[str] = mapped_column(String(500), nullable=False)
     aliases: Mapped[list] = mapped_column(JSONB, nullable=False, server_default="'[]'::jsonb")
-    entity_metadata: Mapped[dict] = mapped_column(
-        "metadata", JSONB, nullable=False, server_default="'{}'::jsonb"
-    )
-    first_seen_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default="now()", nullable=False
-    )
-    last_seen_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default="now()", nullable=False
-    )
+    entity_metadata: Mapped[dict] = mapped_column("metadata", JSONB, nullable=False, server_default="'{}'::jsonb")
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default="now()", nullable=False)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default="now()", nullable=False)
 
 
 class KGRelationship(Base):
@@ -77,17 +67,13 @@ class KGRelationship(Base):
         ForeignKey("kg_entities.id", ondelete="CASCADE"),
         nullable=False,
     )
-    relation_type: Mapped[KGRelationType] = mapped_column(
-        Enum(KGRelationType, name="kg_relation_type_enum"), nullable=False
-    )
+    relation_type: Mapped[KGRelationType] = mapped_column(Enum(KGRelationType, name="kg_relation_type_enum"), nullable=False)
     source_document_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("circular_documents.id", ondelete="CASCADE"),
     )
     confidence: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default="now()", nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default="now()", nullable=False)
 
     source_entity: Mapped["KGEntity"] = relationship(foreign_keys=[source_entity_id])
     target_entity: Mapped["KGEntity"] = relationship(foreign_keys=[target_entity_id])

@@ -172,9 +172,7 @@ def seeded_circulars(async_engine, embedding_service, event_loop):
                 embeddings = await embedding_service.generate(circ["chunks"])
 
                 # Insert document_chunks with embeddings
-                for idx, (chunk_text, embedding) in enumerate(
-                    zip(circ["chunks"], embeddings, strict=True)
-                ):
+                for idx, (chunk_text, embedding) in enumerate(zip(circ["chunks"], embeddings, strict=True)):
                     emb_str = "[" + ",".join(str(x) for x in embedding) + "]"
                     await conn.execute(
                         sa_text("""
@@ -300,10 +298,7 @@ class TestRetrieval:
         returned_circulars = {c.circular_number for c in chunks if c.circular_number}
         overlap = returned_circulars & query["expected_circulars"]
 
-        assert overlap, (
-            f"Expected at least one of {query['expected_circulars']} in results, "
-            f"got {returned_circulars}"
-        )
+        assert overlap, f"Expected at least one of {query['expected_circulars']} in results, " f"got {returned_circulars}"
 
     @pytest.mark.asyncio
     async def test_out_of_scope_returns_few_or_no_chunks(
@@ -328,9 +323,7 @@ class TestRetrieval:
             chunks = await rag.retrieve("What is the recipe for chicken tikka masala?")
 
         # Should return very few chunks or empty
-        assert (
-            len(chunks) <= 2
-        ), f"Out-of-scope question returned {len(chunks)} chunks — expected ≤2"
+        assert len(chunks) <= 2, f"Out-of-scope question returned {len(chunks)} chunks — expected ≤2"
 
     @pytest.mark.asyncio
     async def test_embeddings_populated(self, seeded_circulars, async_engine):

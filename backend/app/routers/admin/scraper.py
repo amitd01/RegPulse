@@ -24,12 +24,7 @@ async def list_scraper_runs(
 ) -> ScraperRunListResponse:
     """List scraper runs (newest first)."""
     total = (await db.execute(select(func.count(ScraperRun.id)))).scalar() or 0
-    stmt = (
-        select(ScraperRun)
-        .order_by(desc(ScraperRun.started_at))
-        .offset((page - 1) * page_size)
-        .limit(page_size)
-    )
+    stmt = select(ScraperRun).order_by(desc(ScraperRun.started_at)).offset((page - 1) * page_size).limit(page_size)
     result = await db.execute(stmt)
     runs = list(result.scalars().all())
 

@@ -228,11 +228,7 @@ class CircularLibraryService:
 
     async def get_detail(self, circular_id: UUID) -> CircularDocument | None:
         """Get a single circular with its chunks."""
-        stmt = (
-            select(CircularDocument)
-            .options(selectinload(CircularDocument.chunks))
-            .where(CircularDocument.id == circular_id)
-        )
+        stmt = select(CircularDocument).options(selectinload(CircularDocument.chunks)).where(CircularDocument.id == circular_id)
         result = await self._db.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -270,10 +266,7 @@ class CircularLibraryService:
     async def get_doc_types(self) -> list[str]:
         """Return distinct doc_type values."""
         stmt = (
-            select(CircularDocument.doc_type)
-            .where(CircularDocument.pending_admin_review.is_(False))
-            .distinct()
-            .order_by(CircularDocument.doc_type)
+            select(CircularDocument.doc_type).where(CircularDocument.pending_admin_review.is_(False)).distinct().order_by(CircularDocument.doc_type)
         )
         result = await self._db.execute(stmt)
         return [row[0] for row in result.all()]
@@ -351,9 +344,7 @@ class CircularLibraryService:
                 ORDER BY dc.document_id,
                     dc.embedding <=> cast(:emb AS vector)
             """)
-            snippet_result = await self._db.execute(
-                snippet_stmt, {"doc_ids": doc_ids, "emb": embedding_str}
-            )
+            snippet_result = await self._db.execute(snippet_stmt, {"doc_ids": doc_ids, "emb": embedding_str})
             snippet_map = {row[0]: row[1] for row in snippet_result.all()}
 
             for rank, doc_id in enumerate(doc_ids):
@@ -584,11 +575,7 @@ class CircularLibraryService:
         if tags:
             # Check if any of the requested tags are in the JSONB array
             for tag in tags:
-                conditions.append(
-                    CircularDocument.tags.op("@>")(
-                        func.cast(f'["{tag}"]', CircularDocument.tags.type)
-                    )
-                )
+                conditions.append(CircularDocument.tags.op("@>")(func.cast(f'["{tag}"]', CircularDocument.tags.type)))
         if date_from:
             conditions.append(CircularDocument.issued_date >= date_from)
         if date_to:

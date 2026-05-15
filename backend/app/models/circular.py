@@ -58,36 +58,22 @@ class CircularDocument(Base):
         nullable=False,
         default=CircularStatus.ACTIVE,
     )
-    superseded_by: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("circular_documents.id", ondelete="SET NULL")
-    )
+    superseded_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("circular_documents.id", ondelete="SET NULL"))
     ai_summary: Mapped[str | None] = mapped_column(Text)
     pending_admin_review: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    impact_level: Mapped[ImpactLevel | None] = mapped_column(
-        Enum(ImpactLevel, name="impact_level_enum")
-    )
+    impact_level: Mapped[ImpactLevel | None] = mapped_column(Enum(ImpactLevel, name="impact_level_enum"))
     action_deadline: Mapped[date | None] = mapped_column(Date)
     affected_teams: Mapped[dict | None] = mapped_column(JSONB, server_default="'[]'::jsonb")
     tags: Mapped[dict | None] = mapped_column(JSONB, server_default="'[]'::jsonb")
     regulator: Mapped[str] = mapped_column(String(20), default="RBI", nullable=False)
     upload_source: Mapped[str] = mapped_column(String(20), nullable=False, server_default="scraper")
-    scraper_run_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("scraper_runs.id", ondelete="SET NULL")
-    )
-    indexed_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default="now()"
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default="now()"
-    )
+    scraper_run_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("scraper_runs.id", ondelete="SET NULL"))
+    indexed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default="now()")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default="now()")
 
     # Relationships
-    chunks: Mapped[list["DocumentChunk"]] = relationship(
-        back_populates="document", cascade="all, delete"
-    )
-    superseding_doc: Mapped["CircularDocument | None"] = relationship(
-        remote_side="CircularDocument.id"
-    )
+    chunks: Mapped[list["DocumentChunk"]] = relationship(back_populates="document", cascade="all, delete")
+    superseding_doc: Mapped["CircularDocument | None"] = relationship(remote_side="CircularDocument.id")
 
 
 class DocumentChunk(Base):
@@ -103,9 +89,7 @@ class DocumentChunk(Base):
     chunk_text: Mapped[str] = mapped_column(Text, nullable=False)
     embedding = mapped_column(Vector(3072))
     token_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default="now()"
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default="now()")
 
     # Relationships
     document: Mapped["CircularDocument"] = relationship(back_populates="chunks")

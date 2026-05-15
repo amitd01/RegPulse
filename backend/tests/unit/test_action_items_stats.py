@@ -21,11 +21,7 @@ from app.models.question import ActionItem
 from app.models.user import User
 from app.routers.action_items import router as action_items_router
 
-_TABLES = [
-    Base.metadata.tables[t]
-    for t in ("users", "questions", "circular_documents", "action_items")
-    if t in Base.metadata.tables
-]
+_TABLES = [Base.metadata.tables[t] for t in ("users", "questions", "circular_documents", "action_items") if t in Base.metadata.tables]
 
 
 @pytest.fixture

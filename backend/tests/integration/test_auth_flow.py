@@ -68,9 +68,7 @@ async def test_invalid_token_returns_401(client: AsyncClient):
 # ---------------------------------------------------------------------------
 
 
-async def test_token_revoked_jti_blacklisted(
-    client: AsyncClient, test_user: User, make_access_token, fake_redis
-):
+async def test_token_revoked_jti_blacklisted(client: AsyncClient, test_user: User, make_access_token, fake_redis):
     """jti blacklist is checked on every request — blacklisted jti → 401."""
     token, jti = make_access_token(test_user)
 
@@ -94,20 +92,14 @@ async def test_token_revoked_jti_blacklisted(
 # ---------------------------------------------------------------------------
 
 
-async def test_injection_guard_iat_before_password_change(
-    client: AsyncClient, test_user: User, make_access_token, db_session
-):
+async def test_injection_guard_iat_before_password_change(client: AsyncClient, test_user: User, make_access_token, db_session):
     """Token issued before password_changed_at is rejected."""
     token, _jti = make_access_token(test_user)
 
     # Set password_changed_at to the future (simulating a security reset)
     from sqlalchemy import update
 
-    await db_session.execute(
-        update(User)
-        .where(User.id == test_user.id)
-        .values(password_changed_at=datetime.now(UTC) + timedelta(seconds=60))
-    )
+    await db_session.execute(update(User).where(User.id == test_user.id).values(password_changed_at=datetime.now(UTC) + timedelta(seconds=60)))
     await db_session.commit()
 
     # Token was issued before password_changed_at → 401
@@ -123,9 +115,7 @@ async def test_injection_guard_iat_before_password_change(
 # ---------------------------------------------------------------------------
 
 
-async def test_deactivated_user_returns_401(
-    client: AsyncClient, test_user: User, make_access_token, db_session
-):
+async def test_deactivated_user_returns_401(client: AsyncClient, test_user: User, make_access_token, db_session):
     token, _jti = make_access_token(test_user)
 
     from sqlalchemy import update
@@ -144,16 +134,12 @@ async def test_deactivated_user_returns_401(
 # ---------------------------------------------------------------------------
 
 
-async def test_unverified_user_returns_403(
-    client: AsyncClient, test_user: User, make_access_token, db_session
-):
+async def test_unverified_user_returns_403(client: AsyncClient, test_user: User, make_access_token, db_session):
     token, _jti = make_access_token(test_user)
 
     from sqlalchemy import update
 
-    await db_session.execute(
-        update(User).where(User.id == test_user.id).values(email_verified=False)
-    )
+    await db_session.execute(update(User).where(User.id == test_user.id).values(email_verified=False))
     await db_session.commit()
 
     resp = await client.get("/test/verified", headers={"Authorization": f"Bearer {token}"})
@@ -194,9 +180,7 @@ async def test_admin_user_returns_200(client: AsyncClient, admin_user: User, mak
 # ---------------------------------------------------------------------------
 
 
-async def test_zero_credits_returns_402(
-    client: AsyncClient, test_user: User, make_access_token, db_session
-):
+async def test_zero_credits_returns_402(client: AsyncClient, test_user: User, make_access_token, db_session):
     token, _jti = make_access_token(test_user)
 
     from sqlalchemy import update

@@ -60,9 +60,7 @@ class SubscriptionService:
 
         import razorpay
 
-        client = razorpay.Client(
-            auth=(self._settings.RAZORPAY_KEY_ID, self._settings.RAZORPAY_KEY_SECRET)
-        )
+        client = razorpay.Client(auth=(self._settings.RAZORPAY_KEY_ID, self._settings.RAZORPAY_KEY_SECRET))
 
         order = client.order.create(
             {
@@ -200,9 +198,7 @@ class SubscriptionService:
             return
 
         # Check idempotency
-        existing = await self._db.execute(
-            select(SubscriptionEvent).where(SubscriptionEvent.razorpay_event_id == payment_id)
-        )
+        existing = await self._db.execute(select(SubscriptionEvent).where(SubscriptionEvent.razorpay_event_id == payment_id))
         if existing.scalar_one_or_none():
             logger.info("webhook_already_processed", payment_id=payment_id)
             return
@@ -253,11 +249,7 @@ class SubscriptionService:
 
     async def get_payment_history(self, user: User) -> list[SubscriptionEvent]:
         """Get payment history for user."""
-        stmt = (
-            select(SubscriptionEvent)
-            .where(SubscriptionEvent.user_id == user.id)
-            .order_by(SubscriptionEvent.created_at.desc())
-        )
+        stmt = select(SubscriptionEvent).where(SubscriptionEvent.user_id == user.id).order_by(SubscriptionEvent.created_at.desc())
         result = await self._db.execute(stmt)
         return list(result.scalars().all())
 
@@ -265,9 +257,7 @@ class SubscriptionService:
         """Toggle the user's auto-renewal preference."""
         from sqlalchemy import update
 
-        await self._db.execute(
-            update(User).where(User.id == user.id).values(plan_auto_renew=auto_renew)
-        )
+        await self._db.execute(update(User).where(User.id == user.id).values(plan_auto_renew=auto_renew))
         await self._db.commit()
         logger.info(
             "auto_renew_toggled",

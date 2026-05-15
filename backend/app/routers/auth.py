@@ -141,9 +141,7 @@ async def register(
 
         # Flag domain for admin review if MX was inconclusive
         if validation.requires_review:
-            exists = await db.execute(
-                select(PendingDomainReview).where(PendingDomainReview.domain == domain)
-            )
+            exists = await db.execute(select(PendingDomainReview).where(PendingDomainReview.domain == domain))
             if not exists.scalar_one_or_none():
                 db.add(PendingDomainReview(domain=domain, email=email, mx_valid=None))
                 await db.commit()
@@ -245,9 +243,7 @@ async def verify_otp(
         if not user or not user.is_active:
             raise OTPVerificationError("Account not found or deactivated")
         # Update last_login_at
-        await db.execute(
-            update(User).where(User.id == user.id).values(last_login_at=datetime.now(UTC))
-        )
+        await db.execute(update(User).where(User.id == user.id).values(last_login_at=datetime.now(UTC)))
         await db.commit()
         await db.refresh(user)
 
@@ -421,9 +417,7 @@ async def _issue_tokens(
     settings: Settings,
 ) -> tuple[TokenResponse, Session]:
     """Create access + refresh tokens and persist the refresh session."""
-    access_token, _access_jti, expires_in = create_access_token(
-        user.id, is_admin=user.is_admin, settings=settings
-    )
+    access_token, _access_jti, expires_in = create_access_token(user.id, is_admin=user.is_admin, settings=settings)
     refresh_token, _refresh_jti, expires_at = create_refresh_token(user.id, settings=settings)
 
     # Store refresh token hash in sessions table

@@ -36,9 +36,7 @@ async def list_prompts(
     stmt = select(PromptVersion).order_by(desc(PromptVersion.created_at))
     result = await db.execute(stmt)
     prompts = list(result.scalars().all())
-    return PromptVersionListResponse(
-        data=[PromptVersionResponse.model_validate(p) for p in prompts]
-    )
+    return PromptVersionListResponse(data=[PromptVersionResponse.model_validate(p) for p in prompts])
 
 
 @router.post("", response_model=PromptVersionResponse)
@@ -81,9 +79,7 @@ async def create_prompt(
 async def test_question_sandbox(
     request: Request,
     q: str = Query(..., min_length=5, max_length=500, description="Question text"),
-    prompt_id: uuid.UUID | None = Query(
-        default=None, description="Optional prompt version to test against"
-    ),
+    prompt_id: uuid.UUID | None = Query(default=None, description="Optional prompt version to test against"),
     admin: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
     redis: object = Depends(get_redis),
@@ -99,9 +95,7 @@ async def test_question_sandbox(
     start = time.perf_counter()
 
     if prompt_id is not None:
-        prompt = (
-            await db.execute(select(PromptVersion).where(PromptVersion.id == prompt_id))
-        ).scalar_one_or_none()
+        prompt = (await db.execute(select(PromptVersion).where(PromptVersion.id == prompt_id))).scalar_one_or_none()
         if prompt is None:
             return {
                 "success": False,

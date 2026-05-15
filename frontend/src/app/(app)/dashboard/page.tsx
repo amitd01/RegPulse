@@ -13,6 +13,7 @@ import {
 import { useAuthStore } from "@/stores/authStore";
 import { RP_DATA, type ActionMock } from "@/lib/mockData";
 import { useDashboardPulse } from "@/hooks/useDashboard";
+import { useDebates } from "@/hooks/useDebates";
 
 // <Link> rendering a <button> child is invalid HTML, so we use a router push
 // inside Btn's onClick. Keeps a11y (real <button>) and the ghost/sm styling.
@@ -788,6 +789,24 @@ function ExposurePanel() {
 
 /* ------------------------------- Open debates ----------------------------- */
 function OpenDebates() {
+  const { data: serverDebates } = useDebates();
+  const debates = serverDebates && serverDebates.length > 0 ? serverDebates.slice(0, 2) : [
+    {
+      title: "Leverage cap — does de-recognised securitised pool count?",
+      source_ref: "SBR Revision · DOR.CAP.REC.22",
+      replies: [{ who: "AS", role: "Treasury" }],
+      stance_agree: 2,
+      stance_disagree: 2,
+    },
+    {
+      title: "Video-KYC liveness — applies to routine re-KYC or only OVD refresh?",
+      source_ref: "KYC Amendment · DOR.AML.REC.18",
+      replies: [{ who: "VN", role: "Compliance" }],
+      stance_agree: 1,
+      stance_disagree: 3,
+    }
+  ];
+
   return (
     <div className="panel" style={{ padding: "14px 16px" }}>
       <div
@@ -800,18 +819,20 @@ function OpenDebates() {
         </LinkBtn>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <DebateCard
-          title="Leverage cap — does de-recognised securitised pool count?"
-          src="SBR Revision · DOR.CAP.REC.22"
-          lastReply="AS, Treasury — 1h ago"
-          stance={{ agree: 2, disagree: 2 }}
-        />
-        <DebateCard
-          title="Video-KYC liveness — applies to routine re-KYC or only OVD refresh?"
-          src="KYC Amendment · DOR.AML.REC.18"
-          lastReply="VN, Compliance — 18m ago"
-          stance={{ agree: 1, disagree: 3 }}
-        />
+        {debates.map((d, i) => {
+          const lastReply = d.replies && d.replies.length > 0 
+            ? `${d.replies[d.replies.length-1].who}, ${d.replies[d.replies.length-1].role || 'Team'} — 1h ago` 
+            : "No replies yet";
+          return (
+            <DebateCard
+              key={i}
+              title={d.title}
+              src={d.source_ref || "SYSTEM"}
+              lastReply={lastReply}
+              stance={{ agree: d.stance_agree, disagree: d.stance_disagree }}
+            />
+          );
+        })}
       </div>
     </div>
   );

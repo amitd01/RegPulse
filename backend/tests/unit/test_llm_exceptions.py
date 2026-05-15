@@ -258,9 +258,7 @@ class TestStreamingExceptions:
         chunks = _make_chunks()
 
         events = []
-        async for event_type, data in service.generate_stream(
-            question="What is KYC?", chunks=chunks
-        ):
+        async for event_type, data in service.generate_stream(question="What is KYC?", chunks=chunks):
             events.append((event_type, json.loads(data)))
 
         # Should have token event(s) + a citations event with safe fallback

@@ -1,6 +1,7 @@
 "use client";
 
 import { Btn, Icon, Pill } from "@/components/design/Primitives";
+import { useDebates } from "@/hooks/useDebates";
 
 const THREADS = [
   {
@@ -34,6 +35,18 @@ const THREADS = [
 ];
 
 export default function DebatePage() {
+  const { data: serverDebates } = useDebates();
+  
+  const liveItems = (serverDebates || []).map(d => ({
+    title: d.title,
+    src: d.source_ref || "SYSTEM",
+    replies: d.replies.length,
+    stance: { agree: d.stance_agree, disagree: d.stance_disagree },
+    open: d.status === "OPEN"
+  }));
+  
+  const items = liveItems.length > 0 ? liveItems : THREADS;
+
   return (
     <div className="rp-route-fade" style={{ padding: "20px 24px 60px" }}>
       <h1
@@ -62,7 +75,7 @@ export default function DebatePage() {
           gap: 12,
         }}
       >
-        {THREADS.map((t, i) => {
+        {items.map((t, i) => {
           const tot = t.stance.agree + t.stance.disagree;
           const agreePct = tot > 0 ? (t.stance.agree / tot) * 100 : 50;
           const disagreePct = tot > 0 ? (t.stance.disagree / tot) * 100 : 50;

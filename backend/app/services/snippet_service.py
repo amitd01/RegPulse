@@ -186,9 +186,7 @@ async def create_snippet(
             logger.warning("snippet_slug_collision", attempt=attempt)
             continue
 
-    raise RegPulseException(
-        f"Failed to generate unique snippet slug after {MAX_SLUG_RETRIES} attempts"
-    ) from last_error
+    raise RegPulseException(f"Failed to generate unique snippet slug after {MAX_SLUG_RETRIES} attempts") from last_error
 
 
 async def get_snippet_by_slug(
@@ -216,11 +214,7 @@ async def get_snippet_by_slug(
 
 async def increment_view_count(db: AsyncSession, slug: str) -> None:
     """Bump the view counter (best-effort, no SELECT FOR UPDATE)."""
-    await db.execute(
-        PublicSnippet.__table__.update()
-        .where(PublicSnippet.slug == slug)
-        .values(view_count=PublicSnippet.view_count + 1)
-    )
+    await db.execute(PublicSnippet.__table__.update().where(PublicSnippet.slug == slug).values(view_count=PublicSnippet.view_count + 1))
     await db.commit()
 
 

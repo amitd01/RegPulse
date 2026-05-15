@@ -60,10 +60,7 @@ def main() -> int:
         try:
             with get_db_session() as db:
                 chunks = db.execute(
-                    text(
-                        "SELECT chunk_text FROM document_chunks "
-                        "WHERE document_id = CAST(:id AS uuid) ORDER BY chunk_index"
-                    ),
+                    text("SELECT chunk_text FROM document_chunks " "WHERE document_id = CAST(:id AS uuid) ORDER BY chunk_index"),
                     {"id": doc_id},
                 ).fetchall()
                 full_text = "\n\n".join(r[0] for r in chunks if r[0])
@@ -79,10 +76,7 @@ def main() -> int:
                 )
 
                 if args.dry_run:
-                    print(
-                        f"  [{idx}/{len(rows)}] {circular_number}: "
-                        f"{len(entities)} entities, {len(triples)} triples (dry-run)"
-                    )
+                    print(f"  [{idx}/{len(rows)}] {circular_number}: " f"{len(entities)} entities, {len(triples)} triples (dry-run)")
                     continue
 
                 inserted_e, inserted_r = persist_kg(
@@ -94,10 +88,7 @@ def main() -> int:
                 db.commit()
                 total_entities += inserted_e
                 total_edges += inserted_r
-                print(
-                    f"  [{idx}/{len(rows)}] {circular_number}: "
-                    f"+{inserted_e} entities, +{inserted_r} edges"
-                )
+                print(f"  [{idx}/{len(rows)}] {circular_number}: " f"+{inserted_e} entities, +{inserted_r} edges")
         except Exception as exc:  # noqa: BLE001
             failed += 1
             print(f"  [{idx}/{len(rows)}] FAILED: {exc}", file=sys.stderr)

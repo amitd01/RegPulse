@@ -39,9 +39,7 @@ class PublicSnippetView(BaseModel):
     snippet_text: str
     top_citation: SnippetCitation | None = None
     consult_expert: bool
-    register_cta: str = (
-        "Register on RegPulse to access the full anti-hallucination compliance answer."
-    )
+    register_cta: str = "Register on RegPulse to access the full anti-hallucination compliance answer."
     og_image_url: str
     created_at: datetime
 

@@ -34,12 +34,7 @@ async def main() -> None:
     emb_svc = EmbeddingService(openai_client=client, redis=redis)
 
     async with engine.begin() as conn:
-        rows = await conn.execute(
-            text(
-                "SELECT id, question_text FROM questions "
-                "WHERE question_embedding IS NULL ORDER BY created_at"
-            )
-        )
+        rows = await conn.execute(text("SELECT id, question_text FROM questions " "WHERE question_embedding IS NULL ORDER BY created_at"))
         questions = rows.fetchall()
 
     print(f"Found {len(questions)} questions without embeddings")
@@ -61,10 +56,7 @@ async def main() -> None:
             for qid, emb in zip(ids, embeddings, strict=False):
                 vec_str = "[" + ",".join(str(x) for x in emb) + "]"
                 await conn.execute(
-                    text(
-                        "UPDATE questions SET question_embedding = CAST(:emb AS vector) "
-                        "WHERE id = :id"
-                    ),
+                    text("UPDATE questions SET question_embedding = CAST(:emb AS vector) " "WHERE id = :id"),
                     {"emb": vec_str, "id": str(qid)},
                 )
 

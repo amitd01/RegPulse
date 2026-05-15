@@ -55,9 +55,7 @@ class EmailService:
 
         expiry = self._settings.OTP_EXPIRY_MINUTES
         html = self._render(template_name, otp=otp, expiry_minutes=expiry)
-        plain = (
-            f"Your RegPulse verification code is: {otp}\n" f"This code expires in {expiry} minutes."
-        )
+        plain = f"Your RegPulse verification code is: {otp}\n" f"This code expires in {expiry} minutes."
 
         await self.send_html_email(to_email, subject, html, plain)
 
@@ -89,10 +87,7 @@ class EmailService:
     ) -> None:
         """Send low-credits warning email."""
         html = self._render("low_credits.html", remaining_credits=remaining_credits)
-        plain = (
-            f"You have {remaining_credits} credit(s) remaining on RegPulse. "
-            "Upgrade to continue asking questions."
-        )
+        plain = f"You have {remaining_credits} credit(s) remaining on RegPulse. " "Upgrade to continue asking questions."
         await self.send_html_email(to_email, "RegPulse — Low credit balance", html, plain)
 
     async def send_staleness_alert_email(
@@ -107,13 +102,8 @@ class EmailService:
             circular_number=circular_number,
             interpretation_name=interpretation_name,
         )
-        plain = (
-            f'Your saved interpretation "{interpretation_name}" references circular '
-            f"{circular_number}, which has been updated. Please review."
-        )
-        await self.send_html_email(
-            to_email, "RegPulse — Saved interpretation needs review", html, plain
-        )
+        plain = f'Your saved interpretation "{interpretation_name}" references circular ' f"{circular_number}, which has been updated. Please review."
+        await self.send_html_email(to_email, "RegPulse — Saved interpretation needs review", html, plain)
 
     async def send_html_email(
         self,

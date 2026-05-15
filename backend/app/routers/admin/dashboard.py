@@ -35,28 +35,14 @@ async def get_dashboard(
     thirty_days_ago = now - timedelta(days=30)
 
     total_users = (await db.execute(select(func.count(User.id)))).scalar() or 0
-    active_30d = (
-        await db.execute(select(func.count(User.id)).where(User.last_login_at >= thirty_days_ago))
-    ).scalar() or 0
+    active_30d = (await db.execute(select(func.count(User.id)).where(User.last_login_at >= thirty_days_ago))).scalar() or 0
     total_questions = (await db.execute(select(func.count(Question.id)))).scalar() or 0
     questions_today = (
-        await db.execute(
-            select(func.count(Question.id)).where(
-                Question.created_at >= now.replace(hour=0, minute=0, second=0)
-            )
-        )
+        await db.execute(select(func.count(Question.id)).where(Question.created_at >= now.replace(hour=0, minute=0, second=0)))
     ).scalar() or 0
     total_circulars = (await db.execute(select(func.count(CircularDocument.id)))).scalar() or 0
-    pending_reviews = (
-        await db.execute(
-            select(func.count(Question.id)).where(
-                Question.feedback == -1, Question.reviewed.is_(False)
-            )
-        )
-    ).scalar() or 0
-    avg_feedback = (
-        await db.execute(select(func.avg(Question.feedback)).where(Question.feedback.is_not(None)))
-    ).scalar()
+    pending_reviews = (await db.execute(select(func.count(Question.id)).where(Question.feedback == -1, Question.reviewed.is_(False)))).scalar() or 0
+    avg_feedback = (await db.execute(select(func.avg(Question.feedback)).where(Question.feedback.is_not(None)))).scalar()
     credits_30d = (
         await db.execute(
             select(func.count(Question.id)).where(
@@ -92,11 +78,7 @@ async def get_cluster_heatmap(
     start_date = now - timedelta(days=period_days)
 
     # Fetch clusters for the period
-    stmt = (
-        select(QuestionCluster)
-        .where(QuestionCluster.period_end >= start_date.date())
-        .order_by(QuestionCluster.cluster_label)
-    )
+    stmt = select(QuestionCluster).where(QuestionCluster.period_end >= start_date.date()).order_by(QuestionCluster.cluster_label)
     result = await db.execute(stmt)
     clusters = list(result.scalars().all())
 

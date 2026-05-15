@@ -197,9 +197,7 @@ async def get_payment_history(
 ) -> PaymentHistoryResponse:
     """Get payment history for the current user."""
     events = await svc.get_payment_history(user)
-    return PaymentHistoryResponse(
-        data=[SubscriptionEventResponse.model_validate(e) for e in events]
-    )
+    return PaymentHistoryResponse(data=[SubscriptionEventResponse.model_validate(e) for e in events])
 
 
 # ---------------------------------------------------------------------------

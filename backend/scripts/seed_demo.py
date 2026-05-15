@@ -148,10 +148,7 @@ async def main() -> None:
             if reseed:
                 # Delete existing circular + cascading chunks
                 await conn.execute(
-                    text(
-                        "DELETE FROM document_chunks WHERE document_id IN "
-                        "(SELECT id FROM circular_documents WHERE circular_number = :cn)"
-                    ),
+                    text("DELETE FROM document_chunks WHERE document_id IN " "(SELECT id FROM circular_documents WHERE circular_number = :cn)"),
                     {"cn": cn},
                 )
                 await conn.execute(
@@ -191,16 +188,8 @@ async def main() -> None:
                     "title": circ["title"],
                     "url": circ["rbi_url"],
                     "impact_level": meta.get("impact_level", "MEDIUM"),
-                    "issued_date": (
-                        datetime.date.fromisoformat(meta["issued_date"])
-                        if meta.get("issued_date")
-                        else None
-                    ),
-                    "effective_date": (
-                        datetime.date.fromisoformat(meta["effective_date"])
-                        if meta.get("effective_date")
-                        else None
-                    ),
+                    "issued_date": (datetime.date.fromisoformat(meta["issued_date"]) if meta.get("issued_date") else None),
+                    "effective_date": (datetime.date.fromisoformat(meta["effective_date"]) if meta.get("effective_date") else None),
                     "department": meta.get("department"),
                     "affected_teams": json.dumps(meta.get("affected_teams", [])),
                     "tags": json.dumps(meta.get("tags", [])),
@@ -217,9 +206,7 @@ async def main() -> None:
             )
             embeddings = [d.embedding for d in response.data]
 
-            for idx, (chunk_text, embedding) in enumerate(
-                zip(chunk_texts, embeddings, strict=True)
-            ):
+            for idx, (chunk_text, embedding) in enumerate(zip(chunk_texts, embeddings, strict=True)):
                 emb_str = "[" + ",".join(str(x) for x in embedding) + "]"
                 await conn.execute(
                     text("""

@@ -328,13 +328,7 @@ async def list_questions(
     total_result = await db.execute(count_stmt)
     total = total_result.scalar() or 0
 
-    stmt = (
-        select(Question)
-        .where(Question.user_id == user.id)
-        .order_by(desc(Question.created_at))
-        .offset((page - 1) * page_size)
-        .limit(page_size)
-    )
+    stmt = select(Question).where(Question.user_id == user.id).order_by(desc(Question.created_at)).offset((page - 1) * page_size).limit(page_size)
     result = await db.execute(stmt)
     questions = list(result.scalars().all())
 
@@ -482,15 +476,11 @@ async def export_question(
     url_map: dict[str, str] = {}
     if nums:
         url_rows = await db.execute(
-            select(CircularDocument.circular_number, CircularDocument.rbi_url).where(
-                CircularDocument.circular_number.in_(nums)
-            )
+            select(CircularDocument.circular_number, CircularDocument.rbi_url).where(CircularDocument.circular_number.in_(nums))
         )
         url_map = {row[0]: row[1] for row in url_rows.all() if row[0]}
 
-    citations_with_urls = [
-        {**c, "rbi_url": url_map.get(c.get("circular_number") or "")} for c in raw_citations
-    ]
+    citations_with_urls = [{**c, "rbi_url": url_map.get(c.get("circular_number") or "")} for c in raw_citations]
 
     pdf_bytes = PDFExportService.generate_pdf_brief(
         question_text=question.question_text,

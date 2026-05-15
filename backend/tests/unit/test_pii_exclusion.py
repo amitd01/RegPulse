@@ -73,9 +73,7 @@ class TestPIIExclusion:
 
         pii_keywords = ["user_name", "user_email", "org_name", "full_name", "{email}", "{name}"]
         for keyword in pii_keywords:
-            assert (
-                keyword not in _SYSTEM_PROMPT
-            ), f"System prompt contains PII placeholder '{keyword}'"
+            assert keyword not in _SYSTEM_PROMPT, f"System prompt contains PII placeholder '{keyword}'"
 
     def test_sanitise_wraps_in_xml(self):
         """sanitise_for_llm wraps user input — no PII injected."""

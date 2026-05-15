@@ -86,9 +86,7 @@ class EmbeddingService:
 
         # 2. Batch uncached texts and call API
         all_embeddings: list[list[float]] = []
-        batches = [
-            uncached_texts[i : i + _BATCH_SIZE] for i in range(0, len(uncached_texts), _BATCH_SIZE)
-        ]
+        batches = [uncached_texts[i : i + _BATCH_SIZE] for i in range(0, len(uncached_texts), _BATCH_SIZE)]
 
         # Log estimated cost
         total_tokens = sum(len(self._encoding.encode(t)) for t in uncached_texts)

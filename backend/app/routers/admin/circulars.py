@@ -29,16 +29,10 @@ async def list_pending_summaries(
     import math
 
     base = select(CircularDocument).where(CircularDocument.pending_admin_review.is_(True))
-    count_base = select(func.count(CircularDocument.id)).where(
-        CircularDocument.pending_admin_review.is_(True)
-    )
+    count_base = select(func.count(CircularDocument.id)).where(CircularDocument.pending_admin_review.is_(True))
 
     total = (await db.execute(count_base)).scalar() or 0
-    stmt = (
-        base.order_by(desc(CircularDocument.indexed_at))
-        .offset((page - 1) * page_size)
-        .limit(page_size)
-    )
+    stmt = base.order_by(desc(CircularDocument.indexed_at)).offset((page - 1) * page_size).limit(page_size)
     result = await db.execute(stmt)
     circulars = list(result.scalars().all())
 

@@ -32,9 +32,7 @@ async def list_saved(
     db: AsyncSession = Depends(get_db),
 ) -> SavedInterpretationListResponse:
     """List saved interpretations for the current user."""
-    count_base = select(func.count(SavedInterpretation.id)).where(
-        SavedInterpretation.user_id == user.id
-    )
+    count_base = select(func.count(SavedInterpretation.id)).where(SavedInterpretation.user_id == user.id)
     total = (await db.execute(count_base)).scalar() or 0
 
     stmt = (
@@ -110,9 +108,7 @@ async def update_saved(
     db: AsyncSession = Depends(get_db),
 ) -> SavedInterpretationResponse | dict:
     """Update a saved interpretation."""
-    stmt = select(SavedInterpretation).where(
-        SavedInterpretation.id == saved_id, SavedInterpretation.user_id == user.id
-    )
+    stmt = select(SavedInterpretation).where(SavedInterpretation.id == saved_id, SavedInterpretation.user_id == user.id)
     result = await db.execute(stmt)
     saved = result.scalar_one_or_none()
 
@@ -135,9 +131,7 @@ async def delete_saved(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Delete a saved interpretation."""
-    stmt = select(SavedInterpretation).where(
-        SavedInterpretation.id == saved_id, SavedInterpretation.user_id == user.id
-    )
+    stmt = select(SavedInterpretation).where(SavedInterpretation.id == saved_id, SavedInterpretation.user_id == user.id)
     result = await db.execute(stmt)
     saved = result.scalar_one_or_none()
 

@@ -35,13 +35,7 @@ async def get_pulse(
 
     # 1. Pulse Metrics
     total_circs = (await db.execute(select(func.count(CircularDocument.id)))).scalar() or 0
-    this_week_circs = (
-        await db.execute(
-            select(func.count(CircularDocument.id)).where(
-                CircularDocument.indexed_at >= seven_days_ago
-            )
-        )
-    ).scalar() or 0
+    this_week_circs = (await db.execute(select(func.count(CircularDocument.id)).where(CircularDocument.indexed_at >= seven_days_ago))).scalar() or 0
     superseded = (
         await db.execute(
             select(func.count(CircularDocument.id)).where(
@@ -51,9 +45,7 @@ async def get_pulse(
         )
     ).scalar() or 0
 
-    questions_asked = (
-        await db.execute(select(func.count(Question.id)).where(Question.user_id == current_user.id))
-    ).scalar() or 0
+    questions_asked = (await db.execute(select(func.count(Question.id)).where(Question.user_id == current_user.id))).scalar() or 0
 
     # Mock learnings captured since we don't have the table yet
     learnings_captured = 0
@@ -87,22 +79,14 @@ async def get_pulse(
     # 3. Activity Stream
     activity_items = []
 
-    circs_query = await db.execute(
-        select(CircularDocument).order_by(CircularDocument.indexed_at.desc()).limit(3)
-    )
+    circs_query = await db.execute(select(CircularDocument).order_by(CircularDocument.indexed_at.desc()).limit(3))
     for c in circs_query.scalars():
-        impact_str = (
-            "high" if c.impact_level == "HIGH" else "med" if c.impact_level == "MEDIUM" else "low"
-        )
+        impact_str = "high" if c.impact_level == "HIGH" else "med" if c.impact_level == "MEDIUM" else "low"
         activity_items.append(
             {
                 "when": c.indexed_at,
                 "item": ActivityItem(
-                    when=(
-                        c.indexed_at.strftime("%H:%M")
-                        if c.indexed_at.date() == now.date()
-                        else c.indexed_at.strftime("%d %b")
-                    ),
+                    when=(c.indexed_at.strftime("%H:%M") if c.indexed_at.date() == now.date() else c.indexed_at.strftime("%d %b")),
                     type="circ",
                     text=f"{c.circular_number} indexed — {c.title}",
                     impact=impact_str,
@@ -110,23 +94,14 @@ async def get_pulse(
             }
         )
 
-    qs_query = await db.execute(
-        select(Question)
-        .where(Question.user_id == current_user.id)
-        .order_by(Question.created_at.desc())
-        .limit(3)
-    )
+    qs_query = await db.execute(select(Question).where(Question.user_id == current_user.id).order_by(Question.created_at.desc()).limit(3))
     for q in qs_query.scalars():
         name = current_user.full_name.split()[0] if current_user.full_name else "You"
         activity_items.append(
             {
                 "when": q.created_at,
                 "item": ActivityItem(
-                    when=(
-                        q.created_at.strftime("%H:%M")
-                        if q.created_at.date() == now.date()
-                        else q.created_at.strftime("%d %b")
-                    ),
+                    when=(q.created_at.strftime("%H:%M") if q.created_at.date() == now.date() else q.created_at.strftime("%d %b")),
                     type="ask",
                     text=f"{name} asked: '{q.question_text[:40]}...'",
                 ),
@@ -134,10 +109,7 @@ async def get_pulse(
         )
 
     saved_query = await db.execute(
-        select(SavedInterpretation)
-        .where(SavedInterpretation.user_id == current_user.id)
-        .order_by(SavedInterpretation.created_at.desc())
-        .limit(2)
+        select(SavedInterpretation).where(SavedInterpretation.user_id == current_user.id).order_by(SavedInterpretation.created_at.desc()).limit(2)
     )
     for s in saved_query.scalars():
         name = current_user.full_name.split()[0] if current_user.full_name else "You"
@@ -145,11 +117,7 @@ async def get_pulse(
             {
                 "when": s.created_at,
                 "item": ActivityItem(
-                    when=(
-                        s.created_at.strftime("%H:%M")
-                        if s.created_at.date() == now.date()
-                        else s.created_at.strftime("%d %b")
-                    ),
+                    when=(s.created_at.strftime("%H:%M") if s.created_at.date() == now.date() else s.created_at.strftime("%d %b")),
                     type="save",
                     text=f"{name} saved an interpretation: '{s.name[:40]}...'",
                 ),

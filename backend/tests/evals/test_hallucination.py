@@ -169,9 +169,7 @@ class TestConfidenceComputation:
         chunks_many = [object()] * 5
         score_many = _compute_confidence(response2, chunks_many)
 
-        assert (
-            score_few < score_many
-        ), f"Fewer chunks should reduce confidence: {score_few} vs {score_many}"
+        assert score_few < score_many, f"Fewer chunks should reduce confidence: {score_few} vs {score_many}"
 
 
 class TestConsultExpertResponse:
@@ -310,9 +308,7 @@ class TestGoldenDatasetStructure:
     def test_all_oos_expect_consult_expert(self):
         for tc in DATASET["test_cases"]:
             if tc["category"] == "out_of_scope":
-                assert (
-                    tc.get("expected_consult_expert") is True
-                ), f"{tc['id']} should expect consult_expert"
+                assert tc.get("expected_consult_expert") is True, f"{tc['id']} should expect consult_expert"
 
     def test_all_injection_expect_error(self):
         for tc in DATASET["test_cases"]:
@@ -322,14 +318,10 @@ class TestGoldenDatasetStructure:
     def test_all_multi_have_multiple_circulars(self):
         for tc in DATASET["test_cases"]:
             if tc["category"] == "multi_circular":
-                assert (
-                    len(tc.get("expected_circulars", [])) >= 2
-                ), f"{tc['id']} should reference multiple circulars"
+                assert len(tc.get("expected_circulars", [])) >= 2, f"{tc['id']} should reference multiple circulars"
 
     def test_total_test_cases(self):
-        assert (
-            len(DATASET["test_cases"]) >= 25
-        ), f"Expected at least 25 test cases, got {len(DATASET['test_cases'])}"
+        assert len(DATASET["test_cases"]) >= 25, f"Expected at least 25 test cases, got {len(DATASET['test_cases'])}"
 
     def test_category_coverage(self):
         categories = {tc["category"] for tc in DATASET["test_cases"]}

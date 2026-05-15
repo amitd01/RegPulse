@@ -38,9 +38,7 @@ _ACCOUNT_TABLE_NAMES = [
     "action_items",
 ]
 
-_ACCOUNT_TABLES = [
-    Base.metadata.tables[t] for t in _ACCOUNT_TABLE_NAMES if t in Base.metadata.tables
-]
+_ACCOUNT_TABLES = [Base.metadata.tables[t] for t in _ACCOUNT_TABLE_NAMES if t in Base.metadata.tables]
 
 
 @pytest.fixture
@@ -168,9 +166,7 @@ async def account_client(account_app, account_test_user):
 
 
 @pytest.mark.asyncio
-async def test_delete_account_anonymises_pii(
-    account_client, account_test_user, account_session_factory
-):
+async def test_delete_account_anonymises_pii(account_client, account_test_user, account_session_factory):
     """DPDP deletion: PII is anonymised, is_active=False, deletion_requested_at set."""
     with (
         patch(
@@ -193,9 +189,7 @@ async def test_delete_account_anonymises_pii(
     assert data["success"] is True
 
     async with account_session_factory() as session:
-        result = await session.execute(
-            User.__table__.select().where(User.__table__.c.id == str(account_test_user.id))
-        )
+        result = await session.execute(User.__table__.select().where(User.__table__.c.id == str(account_test_user.id)))
         user = result.first()
         assert user is not None
         assert user.full_name == "Deleted User"
@@ -208,9 +202,7 @@ async def test_delete_account_anonymises_pii(
 
 
 @pytest.mark.asyncio
-async def test_delete_account_removes_sessions(
-    account_client, account_test_user, account_session_factory
-):
+async def test_delete_account_removes_sessions(account_client, account_test_user, account_session_factory):
     """Deletion should remove all sessions for the user."""
     async with account_session_factory() as session:
         s = Session(
@@ -242,11 +234,7 @@ async def test_delete_account_removes_sessions(
     assert resp.status_code == 200
 
     async with account_session_factory() as session:
-        result = await session.execute(
-            Session.__table__.select().where(
-                Session.__table__.c.user_id == str(account_test_user.id)
-            )
-        )
+        result = await session.execute(Session.__table__.select().where(Session.__table__.c.user_id == str(account_test_user.id)))
         sessions = result.all()
         assert len(sessions) == 0
 

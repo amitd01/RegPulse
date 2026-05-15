@@ -21,11 +21,7 @@ from app.models.circular import CircularDocument
 from app.models.user import User
 from app.routers.circulars import router as circulars_router
 
-_TABLES = [
-    Base.metadata.tables[t]
-    for t in ("users", "circular_documents", "document_chunks", "scraper_runs")
-    if t in Base.metadata.tables
-]
+_TABLES = [Base.metadata.tables[t] for t in ("users", "circular_documents", "document_chunks", "scraper_runs") if t in Base.metadata.tables]
 
 
 @pytest.fixture

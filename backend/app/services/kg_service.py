@@ -71,10 +71,7 @@ async def find_entities_by_name(
         clauses.append("entity_type::text = ANY(:etypes)")
         params["etypes"] = entity_types
 
-    sql = text(
-        f"SELECT id, entity_type::text, canonical_name, aliases "
-        f"FROM kg_entities WHERE {' AND '.join(clauses)}"
-    )
+    sql = text(f"SELECT id, entity_type::text, canonical_name, aliases " f"FROM kg_entities WHERE {' AND '.join(clauses)}")
     result = await db.execute(sql, params)
     rows = result.all()
     return [
