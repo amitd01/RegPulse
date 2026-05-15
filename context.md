@@ -1,53 +1,53 @@
 # RegPulse — Project Status
 
-> **50 build prompts + Sprints 1–8 + Frontend v2 + Phase D.1–D.3 complete. CI green. MVP live on GCP in DEMO_MODE. Critical path now: TD-13 (scraper PDF extraction) → real-data smoke → v1.0.0 cut.**
+> **Phase 2 complete + GCP MVP live in DEMO_MODE + Phase D (collaboration) in flight. Next critical path: SCR-1 scraper extraction fix, then Phase 7 launch sequence.**
 
 ---
 
 ## Current State (2026-05-15)
 
-- **Branch:** `main` — Phase D.3 (Debates API) + 59-file cleanup pass landing this session
-- **Phase:** Phase 2 complete. Phase D.1/D.2/D.3 complete (Pulse Dashboard, Team Learnings, Debates wired to live backend). 10/12 PRD v3.0 gaps resolved. G-10 → Sprint 9. G-11 superseded by KG expansion.
+- **Branch:** `main` — Phase D.1 + D.2 committed; D.3 (Debates) and a 59-file cleanup pass landed this session
 - **CI:** All 3 jobs green on `main` (backend-lint, backend-test, frontend-build)
-- **UAT:** 81/81 automated tests passed on Sprint 7 state; Sprint 8 added 10 unit tests
-- **Golden eval:** 21/21 PASS | **Retrieval eval:** 8/8 PASS | **Unit tests:** 106/106
-- **Frontend:** 27 routes (added `/learnings`, `/debate`) | **Backend:** ~67 endpoints, 12 services, 21 tables, 5 SQL migrations + 2 Alembic migrations
-- **GCP:** Cloud Run backend/frontend + scraper job live (`regpulse-495309`, asia-south1) since 2026-05-14. DEMO_MODE.
+- **Live:** GCP MVP deployed 2026-05-14 — Cloud Run backend rev 00004 + frontend rev 00001 + scraper Job, all in `staging + DEMO_MODE=true`
+- **UAT:** 81/81 automated tests passed on Sprint 7 state; Sprint 8 + Phase D added more unit coverage
+- **Golden eval:** 21/21 PASS | **Retrieval eval:** 8/8 PASS
+- **Frontend:** 27 routes (Dashboard, /learnings, /debate now backed by real APIs)
+- **Backend:** ~70 endpoints, 12 services, 21 tables, 5 SQL migrations + 2 Alembic
+- **LEARNINGS.md:** L1–L8 (Phase 2) + LGCP.1–LGCP.6 (GCP deploy)
+
+**🔥 Top blocker:** SCR-1 — scraper enqueues hundreds of May circulars but only 10 (from April 13) land in DB due to poppler/pdftotext PDF extraction failures.
 
 ---
 
 ## Inventory
 
-**Backend:** 12 services, 20 router files (~67 endpoints), 21 tables, 5 SQL + 2 Alembic migrations
-- Phase D.3 additions: `app/models/debate.py`, `app/routers/debates.py`, `app/schemas/debates.py`, Alembic `1066cb96e57c_add_debate_models.py`
-- Sprint 8 additions: `app/dependencies/rag.py`, `scripts/backfill_question_embeddings.py`
+**Backend:** 12 services, ~70 endpoints, 21 tables, 5 SQL migrations + 2 Alembic
+- Phase D.1: Pulse Dashboard API + frontend wire-up (`fee0f76` / `959bfef`)
+- Phase D.2: Team Learnings API + `learning.py` model + frontend (`a3013c5` / `25ab3ac`)
+- Phase D.3: Debates API — `debate.py` model, `routers/debates.py`, `schemas/debates.py`, Alembic `1066cb96e57c`
 
 **Frontend:** 27 routes, terminal-modern v2 design system, PostHog analytics
-- Phase D.3: `hooks/useDebates.ts`; `dashboard/page.tsx` + `debate/page.tsx` migrated from mock to live persistent backend via TanStack Query
-- Frontend v2 (5 chunks): tokens, AppShell, Primitives, mockData, all 12 pages rewritten
+- Phase D wire-up: `useDebates` hook, Dashboard `DebateCard`, `/debate` page fully on live DB
 
-**Scraper:** 10 Celery tasks, 6 beat schedules — **TD-13 PDF extraction bottleneck blocking real-data ingest**
+**Scraper:** 10 Celery tasks, 6 beat schedules. Container layout fixed in `aed8425`. PDF extraction still broken (SCR-1).
 
-**Infra:** GCP Cloud Run + Cloud SQL + Memorystore + Artifact Registry + VPC + Scheduler + Secret Manager + Cloud Monitoring dashboard
-
-**Evals:** `test_hallucination.py` (21), `test_retrieval.py` (8), `k6_load_test.js` (3 scenarios)
-**Tests:** 106 unit + integration
+**Infra:** GCP Phases 1–6 done (provisioning → deploy → observability). Phase 4H, 5, 6 (CI/CD), 7 still deferred.
 
 ---
 
-## Open Items
+## Tech Debt & Follow-ups (open)
 
-| ID | Issue | Owner | When |
-|---|---|---|---|
-| **TD-13** | Scraper PDF extraction failing — only 10/600 docs land. Poppler "Syntax Error" + empty-text warnings. | next session | Sprint 9 / Phase C |
-| TD-01 | Scraper writes direct to backend DB | — | Sprint 9+ |
-| TD-03 | Manual api.ts client | — | Sprint 9 |
-| TD-09 | `BACKEND_PUBLIC_URL` unset in demo | — | Phase 5 (custom domain) |
-| G-10 | LLM circuit breaker (`pybreaker`) | — | Sprint 9 |
-| OP-1 | Backfill `questions.question_embedding` for pre-Sprint 8 rows | — | Production cutover |
-| OP-2 | Admin sandbox doesn't swap `PromptVersion` at LLM call time | — | Sprint 9 |
-| 🗓️ 2026-05-16 | Rotate OpenAI + Anthropic API keys | amit | scheduled |
-| 🗓️ 2026-05-16 | Confirm/revoke `shubhamkadam1802@gmail.com` Editor+DevOps | amit | scheduled |
+| ID | Issue | Plan |
+|---|---|---|
+| **SCR-1** | **PDF extraction failing on ~99% of May circulars** | poppler/pdftotext "Syntax Error" + `process_document_empty_text`. Top priority. |
+| TD-01 | Scraper writes directly to backend DB | API isolation in Sprint 9+ |
+| TD-03 | Manual api.ts client | OpenAPI codegen (Sprint 9) |
+| TD-09 | `BACKEND_PUBLIC_URL` unset in demo | Set when custom domain (Phase 5) lands |
+| G-10 | Simple try/catch LLM fallback — no circuit-open tracking | `pybreaker` in requirements.txt; wire in Sprint 9 |
+| OP-1 | `questions.question_embedding` NULL for pre-Sprint 8 rows | Run `scripts/backfill_question_embeddings.py` once in production |
+| OP-2 | Admin sandbox doesn't swap `PromptVersion` at LLM call time | Wire `PromptVersion.prompt_text` through `LLMService` in Sprint 9 |
+
+Resolved: ~~TD-02/04/05/06/07/08/10/11/12~~ (Sprints 1–6); G-01–G-09, G-12 (Sprints 7–8); scraper `ModuleNotFoundError` (`aed8425`).
 
 ---
 
@@ -64,10 +64,12 @@
 
 ## Critical Path to v1.0.0
 
-1. **Fix TD-13** — debug `PDFExtractor` in scraper container. Verify `poppler-utils` installed, handle "Syntax Error" failures gracefully, test with failing URLs from logs. (~half day)
-2. **Real RBI scrape** — re-run scraper, verify `circular_documents` count > 100, run `scripts/backfill_question_embeddings.py`.
-3. **Phase 5 — custom domain + TLS** (~30 min active + provisioning wait).
-4. **Phase 6 — GitHub Actions auto-deploy via WIF** (~1.5–2 hr).
-5. **Phase 7 — smoke test + tag v1.0.0**.
+Pre-launch code work is complete. GCP MVP is live in DEMO_MODE. Remaining path to v1.0.0:
 
-Phase 4H (Celery on GCE) is only needed when leaving DEMO_MODE (auto-renewal, low-credit emails, RSS, clustering).
+1. **SCR-1 (PDF extraction)** — unblocks real data in DB. Without this, demo is "live but stale." Estimated 1–2 hr.
+2. **2026-05-16 security tasks** — rotate exposed API keys + audit `shubhamkadam1802@gmail.com` IAM access.
+3. **Phase 5 — Custom domain + TLS** — `regpulse.in` / `api.regpulse.in` mappings + Google-managed SSL. 30 min + provisioning wait.
+4. **Phase 6 — GitHub Actions auto-deploy via WIF** — `git tag v0.1.0` → CI deploys. 1.5–2 hr.
+5. **Phase 7 — Smoke tests + v1.0.0 tag** — full UAT pass against GCP staging, then cut release.
+
+ANN-index recovery (`halfvec(3072)` migration) parked until `circular_documents` row count exceeds ~1000 and end-to-end latency becomes measurably slow.

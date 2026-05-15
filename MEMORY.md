@@ -8,15 +8,15 @@
 
 B2B SaaS for Indian banking professionals. RAG-powered Q&A over RBI Circulars with cited answers. Work-email-gated, subscription-based, 5 free lifetime credits.
 
-**Status:** Phase 2 (Sprints 1–8) shipped, CI green, v1.0.0-rc. MVP live on GCP in DEMO_MODE since 2026-05-14. Phase D (Frontend v2 backend integration) D.1/D.2/D.3 complete (2026-05-15).
+**Status:** Phase 2 (Sprints 1–8) shipped, CI green, v1.0.0-rc. MVP live on GCP in DEMO_MODE since 2026-05-14. Phase D.1/D.2/D.3 (Frontend v2 collaboration backend integration) complete (2026-05-15) — Pulse Dashboard, Team Learnings, Debates all on live persistent backend.
 
 **Strict invariants:**
 - Zero-hallucination: multi-signal confidence (0.0–1.0), "Consult Expert" fallback when < 0.5 or zero valid citations.
 - HTTPOnly cookie refresh tokens (XSS-resistant). RS256 JWT + jti blacklist.
-- News items live alongside circulars in `/updates` but are **never** mixed into the RAG retrieval corpus.
+- RAG corpus = circulars only. News (RSS) and KG entities never enter retrieval.
+- KG-driven RAG expansion ON by default (`RAG_KG_EXPANSION_ENABLED=true`).
 - Public snippet sharing must NEVER expose `detailed_interpretation` — only `quick_answer` (truncated) + 1 citation, or consult-expert fallback.
-- KG-driven RAG expansion is ON by default (`RAG_KG_EXPANSION_ENABLED=true`).
-- **Phase D.3 (2026-05-15)**: `DebateThread` + `DebateReply` relational models, full CRUD, Dashboard + `/debate` page wired to live persistent backend (not mock).
+- DPDP-compliant: account deletion (OTP-verified, PII anonymisation, cascade) + JSON export at `/api/v1/account`.
 
 ---
 
@@ -24,7 +24,7 @@ B2B SaaS for Indian banking professionals. RAG-powered Q&A over RBI Circulars wi
 
 **Scraper** (`/scraper`): Celery + Python. Crawls rbi.org.in daily → PDF extract → chunk → embed → pgvector. Supersession + impact classification. **Sync** code — never `await`. Standalone — never imports from `backend/`.
 
-**Backend** (`/backend`): FastAPI, SQLAlchemy 2.0 async, Pydantic v2. All endpoints at `/api/v1/`. ~67 endpoints, 12 services, 21 tables.
+**Backend** (`/backend`): FastAPI, SQLAlchemy 2.0 async, Pydantic v2. All endpoints at `/api/v1/`. ~70 endpoints, 12 services, 21 tables.
 
 **Frontend** (`/frontend`): Next.js 14, TypeScript strict, terminal-modern v2 design system (CSS custom-property tokens, Inter Tight + Source Serif 4 + JetBrains Mono), TanStack Query, Zustand. 27 routes. Design source in `files/design-v2/`.
 
@@ -34,7 +34,7 @@ B2B SaaS for Indian banking professionals. RAG-powered Q&A over RBI Circulars wi
 
 ## Schema (21 tables)
 
-Ground truth: `backend/migrations/001`–`005*.sql` (raw SQL) + Alembic `c202ee0a4986` (learnings) + `1066cb96e57c` (debates).
+Ground truth: `backend/migrations/001`–`005*.sql` + Alembic `c202ee0a4986` (learnings) + `1066cb96e57c` (debates).
 
 | Table | Model | Key columns |
 |-------|-------|-------------|
@@ -51,7 +51,7 @@ Ground truth: `backend/migrations/001`–`005*.sql` (raw SQL) + Alembic `c202ee0
 | admin_audit_log | `admin.py` | actor_id, action, target_table, old/new_value |
 | analytics_events | `admin.py` | user_hash, event_type, event_data |
 | pending_domain_reviews | `user.py` | domain, mx_valid, approved |
-| kg_entities (S3) | `kg.py` | entity_type, canonical_name, aliases (JSONB) |
+| kg_entities (S3) | `kg.py` | entity_type, canonical_name, aliases JSONB |
 | kg_relationships (S3) | `kg.py` | source/target_entity_id, relation_type, source_document_id |
 | news_items (S3) | `news.py` | source, external_id, title, url, linked_circular_id, relevance_score |
 | public_snippets (S3) | `snippet.py` | slug, question_id, snippet_text, top_citation, consult_expert |
@@ -157,15 +157,15 @@ Scraper tasks route to `scraper` queue — worker must consume with `-Q celery,s
 
 | ID | Issue | Plan |
 |---|---|---|
+| **SCR-1** | **Scraper PDF extraction failing** — ~600 docs discovered, only 10 land in DB. "Syntax Error" + `process_document_empty_text` warnings. Root cause likely poppler/pdftotext install in scraper image. | **Top priority next session** |
 | TD-01 | Scraper writes directly to backend DB | API isolation in v2 (Sprint 9+) |
 | TD-03 | Manual api.ts client | OpenAPI codegen (Sprint 9) |
 | TD-09 | `BACKEND_PUBLIC_URL` unset in demo | Set when GCP custom domain lands |
-| **TD-13** | **Scraper PDF extraction failing** — ~600 docs discovered, only 10 land in DB. "Syntax Error" + `process_document_empty_text` warnings. Root cause likely poppler/pdftotext install in scraper image. | **Sprint 9 / Phase C blocker** |
 | G-10 | Simple try/catch LLM fallback — no circuit-open tracking | `pybreaker` in requirements.txt; wire in Sprint 9 |
 | OP-1 | `questions.question_embedding` NULL for pre-Sprint 8 rows | Run `scripts/backfill_question_embeddings.py` once in production |
-| OP-2 | Admin sandbox doesn't actually swap `PromptVersion` at LLM call time | Wire `PromptVersion.prompt_text` through `LLMService` in Sprint 9 |
+| OP-2 | Admin sandbox doesn't swap `PromptVersion` at LLM call time | Wire `PromptVersion.prompt_text` through `LLMService` in Sprint 9 |
 
-Resolved: TD-02/04/05/06/07/08/10/11/12 (Sprints 1–6); G-01/02/03/04/05/06/07/08/09/12 (Sprints 7–8).
+Resolved: TD-02/04/05/06/07/08/10/11/12 (Sprints 1–6); G-01–G-09, G-12 (Sprints 7–8); scraper `ModuleNotFoundError` (`aed8425`).
 
 ---
 
@@ -180,7 +180,7 @@ Resolved: TD-02/04/05/06/07/08/10/11/12 (Sprints 1–6); G-01/02/03/04/05/06/07/
 
 **Infra:** Cloud SQL `regpulse-db` (Postgres 16 Enterprise HA), Memorystore Redis `regpulse-redis` (Basic 1GB), VPC Connector `regpulse-connector`, 13 Secret Manager secrets, runtime SA `regpulse-runtime@`. Backend `regpulse/backend:rc2`, frontend `regpulse/frontend:rc1`. Both `min-instances=1`. Mode: `ENVIRONMENT=staging, DEMO_MODE=true, FREE_CREDIT_GRANT=999999`.
 
-**Scraper:** Cloud Run Job `regpulse-scraper` (2 vCPU, 2Gi, 1h timeout). `WORKDIR /app` fix unblocked first run. Daily Cloud Scheduler `regpulse-scraper-daily` at 20:30 UTC / 02:00 IST. **Currently bottlenecked by TD-13 (PDF extraction failures).**
+**Scraper:** Cloud Run Job `regpulse-scraper` (2 vCPU, 2Gi, 1h timeout). `WORKDIR /app` fix unblocked first run (`aed8425`). Daily Cloud Scheduler `regpulse-scraper-daily` at 20:30 UTC / 02:00 IST. **Currently bottlenecked by SCR-1 (PDF extraction).**
 
 **Observability:** Log-based metrics (`regpulse_scraper_documents/errors/success`) + Cloud Monitoring Dashboard via `scripts/gcp/phase6_setup_observability.sh`.
 
