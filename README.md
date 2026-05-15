@@ -34,6 +34,7 @@
 | Sprint 7 | DPDP compliance (account deletion + data export), subscription auto-renewal, low-credit notifications | ✅ Complete |
 | Sprint 8 | Updates feed tracking, action items stats/overdue, admin Q&A sandbox, question suggestions, real PDF + QR codes | ✅ Complete (`56d628f`) |
 | Frontend v2 | Terminal-modern redesign: design tokens, AppShell, editorial Ask, list pages, Learnings, Debate routes | ✅ Complete (`49cde9c`) |
+| Phase D.3 | Debate & Annotations API | ✅ Complete |
 | Phase A | GCP infra provisioning (Cloud SQL, Memorystore, Artifact Registry, Secret Manager) | ⏳ Next |
 | Phase B | CI/CD hardening (WIF, staging env, security baseline, integration tests) | ⏳ Planned |
 | Phase C | Data migration + observability (✅ done) + v1.0.0 launch | ⏳ In Progress |
@@ -97,6 +98,7 @@ docker exec regpulse-scraper celery -A celery_app -b redis://redis:6379/1 call s
 | Snippets (Sprint 3) | create, list, public get, og image, revoke |
 | News (Sprint 3) | list, detail |
 | Admin | dashboard, review (3), prompts (3 + **test-question sandbox** Sprint 8), users (2), circulars (3), scraper (2), news (2), uploads (3), heatmap (2) |
+| Debates (D.3) | list, create thread, list replies, create reply, update stance |
 | Health | liveness, readiness |
 
 ---

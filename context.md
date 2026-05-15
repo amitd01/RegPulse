@@ -1,52 +1,53 @@
 # RegPulse — Project Status
 
-> **50 build prompts + Sprints 1–8 + Frontend v2 redesign complete. CI green. All pre-launch code gaps closed. Next critical path: GCP Phases A→C.**
+> **50 build prompts + Sprints 1–8 + Frontend v2 + Phase D.1–D.3 complete. CI green. MVP live on GCP in DEMO_MODE. Critical path now: TD-13 (scraper PDF extraction) → real-data smoke → v1.0.0 cut.**
 
 ---
 
-## Current State (2026-04-22)
+## Current State (2026-05-15)
 
-- **Branch:** `main` — Sprint 8 + Frontend v2 redesign merged
-- **Phase:** Phase 2 complete. 10/12 PRD v3.0 gaps resolved (G-01/02/03/04/05/06/07/08/09/12). G-10 deferred to Sprint 9. G-11 superseded by KG expansion.
-- **CI:** All 3 jobs green on `main` (backend-lint 12s, backend-test 2m 15s, frontend-build 1m 19s)
-- **UAT:** 81/81 automated tests passed on Sprint 7 state (see `UAT_RESULTS.md`); Sprint 8 added 10 unit tests on top
-- **Golden eval:** 21/21 PASS | **Retrieval eval:** 8/8 PASS
-- **Ruff:** 0 errors | **Black:** 0 reformats | **tsc --noEmit:** clean | **ESLint:** clean
-- **Unit tests:** 106/106 passing (fixed 6 pre-existing failures flagged in Sprint 7 handover as part of Sprint 8 CI cleanup)
-- **Frontend:** 27 routes (added `/learnings`, `/debate`) | **Backend:** ~65 endpoints, 11 services, 19 tables, 5 migrations
-- **Frontend v2:** Terminal-modern redesign shipped — design tokens, AppShell, editorial Ask brief, list page redesigns, 2 new routes, Upgrade + Account reskin. All live API wiring preserved.
-- **Docker:** 6-container `docker compose up --build -d`; rebuild required to pick up Frontend v2
-- **`LEARNINGS.md`** at repo root — L1–L8 + cross-sprint patterns
+- **Branch:** `main` — Phase D.3 (Debates API) + 59-file cleanup pass landing this session
+- **Phase:** Phase 2 complete. Phase D.1/D.2/D.3 complete (Pulse Dashboard, Team Learnings, Debates wired to live backend). 10/12 PRD v3.0 gaps resolved. G-10 → Sprint 9. G-11 superseded by KG expansion.
+- **CI:** All 3 jobs green on `main` (backend-lint, backend-test, frontend-build)
+- **UAT:** 81/81 automated tests passed on Sprint 7 state; Sprint 8 added 10 unit tests
+- **Golden eval:** 21/21 PASS | **Retrieval eval:** 8/8 PASS | **Unit tests:** 106/106
+- **Frontend:** 27 routes (added `/learnings`, `/debate`) | **Backend:** ~67 endpoints, 12 services, 21 tables, 5 SQL migrations + 2 Alembic migrations
+- **GCP:** Cloud Run backend/frontend + scraper job live (`regpulse-495309`, asia-south1) since 2026-05-14. DEMO_MODE.
 
 ---
 
 ## Inventory
 
-**Backend:** 11 services, 19 router files (~65 endpoints), 19 tables, 5 migrations
-  - New Sprint 8: `app/dependencies/rag.py` (shared RAG/LLM builders), `scripts/backfill_question_embeddings.py`
-  - New Sprint 8 endpoints: `GET /circulars/updates`, `POST /circulars/updates/mark-seen`, `GET /action-items/stats`, `GET /admin/prompts/test-question`, `GET /questions/suggestions`; `GET /questions/{id}/export` now returns `application/pdf`
+**Backend:** 12 services, 20 router files (~67 endpoints), 21 tables, 5 SQL + 2 Alembic migrations
+- Phase D.3 additions: `app/models/debate.py`, `app/routers/debates.py`, `app/schemas/debates.py`, Alembic `1066cb96e57c_add_debate_models.py`
+- Sprint 8 additions: `app/dependencies/rag.py`, `scripts/backfill_question_embeddings.py`
+
 **Frontend:** 27 routes, terminal-modern v2 design system, PostHog analytics
-  - Sprint 8: filter chips + sidebar unread badge on `/updates`, overdue badge on `/action-items`, debounced suggestions dropdown on `/ask`
-  - **Frontend v2 redesign** (5 chunks): CSS custom-property design tokens (paper/ink/amber palette, serif/mono/sans type scale), `AppShell` with `TopBar` + `Sidebar` + `Ticker` + `CommandPalette` + `TweaksPanel`, `Primitives.tsx` (Pill, Btn, Avatar, Icon set, Toast, MiniStat, Sparkline), `mockData.ts` (Indian banking fixtures). All 12 app pages rewritten: editorial Ask brief (2-col with right rail, annotations, feedback, learning modal), Library (240px filter aside + 2-col cards), Updates (dtable + news relevance cards), History (dtable with confidence bars), Saved (2-col cards), Action Items (MiniStats + dtable), Learnings (new route, mock), Debate (new route, mock), Upgrade (3-col plans), Account (PROFILE + TEAM + DPDP panels). Design source stashed in `files/design-v2/`.
-**Scraper:** 10 Celery tasks, 6 beat schedules
-**Infra:** CI/CD (ci.yml + deploy.yml), Nginx config, Makefile, launch_check.sh, PRODUCTION_PLAN.md
+- Phase D.3: `hooks/useDebates.ts`; `dashboard/page.tsx` + `debate/page.tsx` migrated from mock to live persistent backend via TanStack Query
+- Frontend v2 (5 chunks): tokens, AppShell, Primitives, mockData, all 12 pages rewritten
+
+**Scraper:** 10 Celery tasks, 6 beat schedules — **TD-13 PDF extraction bottleneck blocking real-data ingest**
+
+**Infra:** GCP Cloud Run + Cloud SQL + Memorystore + Artifact Registry + VPC + Scheduler + Secret Manager + Cloud Monitoring dashboard
+
 **Evals:** `test_hallucination.py` (21), `test_retrieval.py` (8), `k6_load_test.js` (3 scenarios)
-**Tests:** Sprint 7 added `test_account.py` (6). Sprint 8 added `test_pdf_export.py` (5), `test_action_items_stats.py` (2), `test_updates_feed.py` (3). Full: 106 unit.
+**Tests:** 106 unit + integration
 
 ---
 
-## Tech Debt & Follow-ups (open)
+## Open Items
 
-| ID | Issue | Plan |
-|---|---|---|
-| TD-01 | Scraper writes directly to backend DB | API isolation in v2 (Sprint 9+) |
-| TD-03 | Manual api.ts client | OpenAPI codegen (Sprint 9) |
-| TD-09 | `BACKEND_PUBLIC_URL` unset in demo | Set when GCP deploy lands |
-| G-10 | Simple try/catch LLM fallback — no circuit-open tracking | `pybreaker` in requirements.txt; wire in Sprint 9 |
-| OP-1 | `questions.question_embedding` NULL for pre-Sprint 8 rows | Run `scripts/backfill_question_embeddings.py` once in production |
-| OP-2 | Admin sandbox doesn't actually swap `PromptVersion` at LLM call time | Wire `PromptVersion.prompt_text` through `LLMService` in Sprint 9 (low priority; endpoint validates `prompt_id` exists) |
-
-Resolved: ~~TD-02/04/05/06/07/08/10/11/12~~ (Sprints 1–6); G-01–G-09, G-12 (Sprints 7–8).
+| ID | Issue | Owner | When |
+|---|---|---|---|
+| **TD-13** | Scraper PDF extraction failing — only 10/600 docs land. Poppler "Syntax Error" + empty-text warnings. | next session | Sprint 9 / Phase C |
+| TD-01 | Scraper writes direct to backend DB | — | Sprint 9+ |
+| TD-03 | Manual api.ts client | — | Sprint 9 |
+| TD-09 | `BACKEND_PUBLIC_URL` unset in demo | — | Phase 5 (custom domain) |
+| G-10 | LLM circuit breaker (`pybreaker`) | — | Sprint 9 |
+| OP-1 | Backfill `questions.question_embedding` for pre-Sprint 8 rows | — | Production cutover |
+| OP-2 | Admin sandbox doesn't swap `PromptVersion` at LLM call time | — | Sprint 9 |
+| 🗓️ 2026-05-16 | Rotate OpenAI + Anthropic API keys | amit | scheduled |
+| 🗓️ 2026-05-16 | Confirm/revoke `shubhamkadam1802@gmail.com` Editor+DevOps | amit | scheduled |
 
 ---
 
@@ -63,10 +64,10 @@ Resolved: ~~TD-02/04/05/06/07/08/10/11/12~~ (Sprints 1–6); G-01–G-09, G-12 (
 
 ## Critical Path to v1.0.0
 
-Pre-launch code work is complete. Remaining path to launch:
+1. **Fix TD-13** — debug `PDFExtractor` in scraper container. Verify `poppler-utils` installed, handle "Syntax Error" failures gracefully, test with failing URLs from logs. (~half day)
+2. **Real RBI scrape** — re-run scraper, verify `circular_documents` count > 100, run `scripts/backfill_question_embeddings.py`.
+3. **Phase 5 — custom domain + TLS** (~30 min active + provisioning wait).
+4. **Phase 6 — GitHub Actions auto-deploy via WIF** (~1.5–2 hr).
+5. **Phase 7 — smoke test + tag v1.0.0**.
 
-1. **Phase A — GCP infra provisioning** (~1 week): GCP project, Cloud SQL + pgvector, Memorystore Redis, Artifact Registry, Secret Manager, VPC connectors. See `PRODUCTION_PLAN.md §Phase 2`.
-2. **Phase B — CI/CD + security hardening** (~1 week): Workload Identity Federation, first deploy, staging env, custom domain + TLS, `pip audit` / `pnpm audit` in CI, integration test job. See `PRODUCTION_PLAN.md §Phase 4–5`.
-3. **Phase C — Data migration + launch** (~1 week): Full RBI scrape, `scripts/backfill_question_embeddings.py`, Cloud Monitoring alert policies, pre-launch smoke tests, tag `v1.0.0`. See `PRODUCTION_PLAN.md §Phase 6–8`.
-
-Target window: ~3 weeks from merge of Sprint 8 to v1.0.0 beta launch, with Phase A and Sprint 9 work parallelisable during Phase B.
+Phase 4H (Celery on GCE) is only needed when leaving DEMO_MODE (auto-renewal, low-credit emails, RSS, clustering).

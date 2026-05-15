@@ -73,6 +73,8 @@ rbi.org.in → Scraper (Celery/Redis) → PostgreSQL+pgvector
 |-------|---------|-------|
 | `manual_uploads` | id, admin_id FK, filename, file_size_bytes, status (PENDING/PROCESSING/COMPLETED/FAILED), document_id FK, error_message, created_at, completed_at | Tracks admin PDF uploads through the processing pipeline |
 | `question_clusters` | id, cluster_label, representative_questions (TEXT[]), centroid (vector 3072), question_count, period_start, period_end, created_at | k-means clusters of user questions, regenerated daily |
+| `debate_threads` | id, source_circular_id FK, created_by FK, title, stats (JSONB), created_at, updated_at | Team debate threads |
+| `debate_replies` | id, thread_id FK, user_id FK, content, stance (enum: AGREE/DISAGREE/NEUTRAL), created_at, updated_at | Threaded replies |
 
 ### Sprint 5 Column Additions
 - `circular_documents.upload_source` — VARCHAR(20) NOT NULL DEFAULT 'scraper'. Values: `scraper`, `manual_upload`
@@ -193,6 +195,11 @@ All endpoints at `/api/v1/`. Error format: `{"success": false, "error": "...", "
 | GET | /news/{id} | Verified | News item detail |
 | GET | /admin/news | Admin | Includes dismissed items, status filter |
 | PATCH | /admin/news/{id} | Admin | Update status (NEW/REVIEWED/DISMISSED) |
+| GET | /debates (D.3) | Verified | List active debate threads (with stats and last reply) |
+| POST | /debates (D.3) | Verified | Create a new debate thread |
+| GET | /debates/{id} (D.3) | Verified | Detail with full threaded replies |
+| POST | /debates/{id}/reply (D.3) | Verified | Add a reply + optional stance |
+| PATCH | /debates/{id}/stance (D.3) | Verified | Update the user's stance on a thread |
 
 ### 3.11 Health (2 endpoints)
 | Method | Path | Description |

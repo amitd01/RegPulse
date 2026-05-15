@@ -457,3 +457,19 @@
 **What bit us:** Sprint 8 started writing `question_embedding` on new rows, but every existing row has NULL — so `GET /questions/suggestions` returns empty for users who asked questions before the deploy.
 **Fix:** Shipped `scripts/backfill_question_embeddings.py` in the same PR. Batches 50 rows at a time, skips rows where the column is already set (idempotent), reuses EmbeddingService so Redis caching helps on repeat runs.
 **Prevention:** Whenever a schema column goes from "optionally populated" to "always populated", include a backfill script in the same PR and document it in the handover as an operational step. Don't leave the backfill as a follow-up ticket.
+
+---
+
+## Phase D — V2 Integration & Audit (May 2026)
+
+### L9.1 — Automated agents are blocked by strict OTP validation even in DEMO_MODE
+**What bit us:** The `browser_subagent` failed to navigate the app beyond the login screen. It correctly entered the fixed `123456` OTP, but the backend returned 400/422 errors or the session cookie wasn't correctly persisted in the agent's headless state.
+**Root cause:** Auth gates designed for humans often have session-binding or state-tracking that automated agents fail to mimic perfectly, or the 10-min TTL/3-send-per-hour limit bit the agent during retries.
+**Fix:** In `DEMO_MODE`, consider a `?bypass_auth=true` query param or a pre-seeded session cookie for automated audits.
+**Prevention:** When building automated UX audits, always verify the "login" path first. If it's a known blocker, provide a bypass for non-production environments.
+
+### L9.2 — Scraper reported success despite zero text extraction from PDFs
+**What bit us:** `scraper_runs` showed hundreds of documents "processed", but `circular_documents` remained at 10 rows. Logs showed pervasive "Syntax Error" from poppler/pdftotext.
+**Root cause:** The scraper caught the `pdftotext` error but logged it as a warning and moved to the next document without failing the task or the run. The "processed" count in `scraper_runs` was incrementing for every URL visited, not every document landed.
+**Fix:** Tighten the `process_document` status logic to distinguish between `skipped` (non-PDF), `failed_extraction`, and `success`. Report these counts separately in `scraper_runs`.
+**Prevention:** "Processed" is a vague metric. Always track `success`, `fail`, and `skip` as distinct counters in any pipeline task.

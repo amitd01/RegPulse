@@ -65,7 +65,8 @@ RegPulse/
 │   │   │   ├── scraper.py     # ScraperRun
 │   │   │   ├── kg.py          # KGEntity, KGRelationship
 │   │   │   ├── news.py        # NewsItem
-│   │   │   └── snippet.py     # PublicSnippet
+│   │   │   ├── snippet.py     # PublicSnippet
+│   │   │   └── debate.py      # DebateThread, DebateReply (Phase D.3)
 │   │   ├── schemas/           # Pydantic request/response schemas
 │   │   ├── routers/
 │   │   │   ├── auth.py        # /auth/* (register, login, verify-otp, refresh, logout)
@@ -76,6 +77,7 @@ RegPulse/
 │   │   │   ├── saved.py       # /saved/* (CRUD)
 │   │   │   ├── snippets.py    # /snippets/* (create, list, public get, og image, revoke)
 │   │   │   ├── news.py        # /news/* (list, detail)
+│   │   │   ├── debates.py     # /debates/* (list, detail, reply, stance) (Phase D.3)
 │   │   │   └── admin/         # Admin sub-package
 │   │   │       ├── dashboard.py  # Stats + heatmap
 │   │   │       ├── review.py     # Thumbs-down review queue
@@ -336,6 +338,7 @@ All routes prefixed `/api/v1/`. ~65 endpoints across 19 router files.
 | admin/scraper.py | /admin/scraper | run history, manual trigger |
 | admin/uploads.py | /admin/pdf | manual PDF upload |
 | admin/news.py | /admin/news | list with dismissed, update status |
+| debates.py (D.3) | /debates | list, detail, reply, stance |
 
 **Shared helpers:** `app/dependencies/rag.py` exposes `build_rag_service(request, db, redis)` and `build_llm_service(request)`. Used by `routers/questions.py` (Q&A + suggestions) and `routers/admin/prompts.py` (sandbox). Never inline these in new routers.
 

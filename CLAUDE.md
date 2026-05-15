@@ -55,6 +55,7 @@
 | Sprint 7 | DPDP Compliance (account deletion + data export), subscription auto-renewal, low-credit notifications | ✅ Complete |
 | Sprint 8 | Updates feed tracking, action items stats/overdue, admin Q&A sandbox, question suggestions, PDF export w/ QR codes | ✅ Complete |
 | Frontend v2 | Terminal-modern redesign — design tokens, AppShell, editorial Ask, list pages, Learnings, Debate, Upgrade, Account | ✅ Complete (`49cde9c`) |
+| Phase D.3 | Debate & Annotations API — relational models, CRUD, Dashboard integration | ✅ Complete |
 | Post-Build | Real data migration, GCP deployment, Beta launch | ⏳ In Progress |
 
 ## Localhost Demo

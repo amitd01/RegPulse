@@ -1,6 +1,6 @@
 # RegPulse — Project Memory
 
-> **Read this file before every Claude Code task.**
+> **Read this file before every Claude Code task.** Read `LEARNINGS.md` before starting any sprint.
 
 ---
 
@@ -8,38 +8,33 @@
 
 B2B SaaS for Indian banking professionals. RAG-powered Q&A over RBI Circulars with cited answers. Work-email-gated, subscription-based, 5 free lifetime credits.
 
-> **Read `LEARNINGS.md` at the repo root before starting any sprint.** Phase 2 mistakes are catalogued there with root causes and prevention rules.
+**Status:** Phase 2 (Sprints 1–8) shipped, CI green, v1.0.0-rc. MVP live on GCP in DEMO_MODE since 2026-05-14. Phase D (Frontend v2 backend integration) D.1/D.2/D.3 complete (2026-05-15).
 
-**(Phase 2 — Sprints 1–8 shipped, CI green, v1.0.0-rc)**:
-- Strict zero-hallucination constraint with multi-signal confidence scoring (0.0-1.0).
-- "Consult an Expert" fallback when confidence < 0.5 or zero valid citations.
-- PostHog adopted for event/journey analytics to prevent lock-in.
-- HTTPOnly cookie-based refresh tokens (XSS-resistant).
-- Sprint 3: public safe snippet sharing (`/s/[slug]`), RSS/news ingest with embedding-based circular linking, knowledge graph extraction with RAG expansion.
+**Strict invariants:**
+- Zero-hallucination: multi-signal confidence (0.0–1.0), "Consult Expert" fallback when < 0.5 or zero valid citations.
+- HTTPOnly cookie refresh tokens (XSS-resistant). RS256 JWT + jti blacklist.
 - News items live alongside circulars in `/updates` but are **never** mixed into the RAG retrieval corpus.
-- Sprint 4: Confidence Meter UI, class-based dark mode (WCAG-AA), skeleton loaders, rAF-buffered SSE rendering, PostHog feature flags.
-- Sprint 5: Admin manual PDF upload (`/admin/uploads`), semantic clustering heatmap (`/admin/heatmap`).
-- Sprint 6: Pre-launch hardening — SIGTERM graceful shutdown (backend + Celery), system user for audit log, scraper embeddings wired into `process_document` INSERT (TD-08 fully resolved), LLM exception handling tightened to typed API errors, retrieval-level integration eval, dev Dockerfile target, **KG-driven RAG expansion now ON by default** (`RAG_KG_EXPANSION_ENABLED=true`). Migration `005_sprint6_system_user.sql`.
-- Sprint 7: DPDP compliance — account deletion (OTP-verified, PII anonymisation, cascade delete), data export (JSON download), subscription auto-renewal toggle + Celery reminder task, low-credit notification Celery task + in-request trigger at balance 5/2. New router: `/api/v1/account` (3 endpoints). Gaps resolved: G-01, G-02, G-04, G-05.
-- Sprint 8: Pre-launch UX + admin tooling — `GET /circulars/updates` + `POST /updates/mark-seen` (unread badge in sidebar, filter chips), `GET /action-items/stats` + `is_overdue` computed field, admin Q&A sandbox (`GET /admin/prompts/test-question` — no credits, no Question row, logs `AnalyticsEvent("admin_test_question")`), question suggestions (`GET /questions/suggestions` — pgvector ANN over user's own `questions.question_embedding`, now persisted on write; backfill script `scripts/backfill_question_embeddings.py`), real PDF compliance brief with per-citation QR codes (`reportlab` + `qrcode[pil]`). Shared `build_rag_service` / `build_llm_service` extracted to `app/dependencies/rag.py`. Gaps resolved: G-03, G-06, G-07, G-08, G-09, G-12. **All pre-launch code gaps closed** — only G-10 (circuit breaker, Sprint 9) and G-11 (deferred; KG expansion serves same purpose) remain.
+- Public snippet sharing must NEVER expose `detailed_interpretation` — only `quick_answer` (truncated) + 1 citation, or consult-expert fallback.
+- KG-driven RAG expansion is ON by default (`RAG_KG_EXPANSION_ENABLED=true`).
+- **Phase D.3 (2026-05-15)**: `DebateThread` + `DebateReply` relational models, full CRUD, Dashboard + `/debate` page wired to live persistent backend (not mock).
 
 ---
 
 ## Architecture
 
-**Scraper** (`/scraper`): Celery + Python. Crawls rbi.org.in daily → PDF extract → chunk → embed → pgvector. Supersession detection + impact classification.
+**Scraper** (`/scraper`): Celery + Python. Crawls rbi.org.in daily → PDF extract → chunk → embed → pgvector. Supersession + impact classification. **Sync** code — never `await`. Standalone — never imports from `backend/`.
 
-**Backend** (`/backend`): FastAPI, SQLAlchemy 2.0 async, Pydantic v2. All at `/api/v1/`. ~65 endpoints, 11 services.
+**Backend** (`/backend`): FastAPI, SQLAlchemy 2.0 async, Pydantic v2. All endpoints at `/api/v1/`. ~67 endpoints, 12 services, 21 tables.
 
 **Frontend** (`/frontend`): Next.js 14, TypeScript strict, terminal-modern v2 design system (CSS custom-property tokens, Inter Tight + Source Serif 4 + JetBrains Mono), TanStack Query, Zustand. 27 routes. Design source in `files/design-v2/`.
 
-**LLM:** claude-sonnet-4-20250514 with extended thinking (10k budget) primary, gpt-4o fallback. Embeddings: text-embedding-3-large (3072-dim). Reranker: ms-marco-MiniLM-L-6-v2 (skipped in DEMO_MODE).
+**LLM:** claude-sonnet-4-20250514 + extended thinking (10k budget) primary, gpt-4o fallback. Embeddings: text-embedding-3-large (3072-dim). Reranker: ms-marco-MiniLM-L-6-v2 (skipped in DEMO_MODE).
 
 ---
 
-## Schema (19 tables)
+## Schema (21 tables)
 
-Ground truth: `backend/migrations/001_initial_schema.sql` + `002_sprint3_knowledge_graph.sql` + `003_sprint4_confidence.sql` + `004_sprint5.sql` + `005_sprint6_system_user.sql`
+Ground truth: `backend/migrations/001`–`005*.sql` (raw SQL) + Alembic `c202ee0a4986` (learnings) + `1066cb96e57c` (debates).
 
 | Table | Model | Key columns |
 |-------|-------|-------------|
@@ -47,7 +42,7 @@ Ground truth: `backend/migrations/001_initial_schema.sql` + `002_sprint3_knowled
 | sessions | `user.py` | token_hash, expires_at, revoked |
 | circular_documents | `circular.py` | title, status, impact_level, affected_teams, tags |
 | document_chunks | `circular.py` | chunk_text, embedding vector(3072) |
-| questions | `question.py` | answer_text, quick_answer, risk_level, **confidence_score**, **consult_expert**, citations JSONB |
+| questions | `question.py` | answer_text, quick_answer, risk_level, **confidence_score**, **consult_expert**, citations JSONB, question_embedding |
 | action_items | `question.py` | title, assigned_team, priority, status, due_date |
 | saved_interpretations | `question.py` | name, tags, needs_review |
 | prompt_versions | `admin.py` | version_tag, prompt_text, is_active |
@@ -56,14 +51,17 @@ Ground truth: `backend/migrations/001_initial_schema.sql` + `002_sprint3_knowled
 | admin_audit_log | `admin.py` | actor_id, action, target_table, old/new_value |
 | analytics_events | `admin.py` | user_hash, event_type, event_data |
 | pending_domain_reviews | `user.py` | domain, mx_valid, approved |
-| kg_entities (Sprint 3) | `kg.py` | entity_type, canonical_name, aliases (JSONB) |
-| kg_relationships (Sprint 3) | `kg.py` | source/target_entity_id, relation_type, source_document_id |
-| news_items (Sprint 3) | `news.py` | source, external_id, title, url, linked_circular_id, relevance_score |
-| public_snippets (Sprint 3) | `snippet.py` | slug, question_id, snippet_text, top_citation, consult_expert |
-| manual_uploads (Sprint 5) | `admin.py` | admin_id, filename, status, document_id, error_message |
-| question_clusters (Sprint 5) | `admin.py` | cluster_label, representative_questions, centroid, period_start/end |
+| kg_entities (S3) | `kg.py` | entity_type, canonical_name, aliases (JSONB) |
+| kg_relationships (S3) | `kg.py` | source/target_entity_id, relation_type, source_document_id |
+| news_items (S3) | `news.py` | source, external_id, title, url, linked_circular_id, relevance_score |
+| public_snippets (S3) | `snippet.py` | slug, question_id, snippet_text, top_citation, consult_expert |
+| manual_uploads (S5) | `admin.py` | admin_id, filename, status, document_id, error_message |
+| question_clusters (S5) | `admin.py` | cluster_label, representative_questions, centroid, period_start/end |
+| learnings (D.2) | `learning.py` | user_id, title, note, source_type, source_id, source_ref, tags |
+| debate_threads (D.3) | `debate.py` | title, source_circular_id, created_by, stats JSONB |
+| debate_replies (D.3) | `debate.py` | thread_id, user_id, content, stance enum (AGREE/DISAGREE/NEUTRAL) |
 
-Indexes: ivfflat on embeddings (lists=100), GIN on FTS + citations JSONB + tags JSONB, btree on FKs/status/timestamps.
+Indexes: ivfflat on embeddings (lists=100; **disabled on Cloud SQL — pgvector 2000-dim cap, see LEARNINGS LGCP.5**), GIN on FTS + citations JSONB + tags JSONB, btree on FKs/status/timestamps.
 
 ---
 
@@ -71,14 +69,14 @@ Indexes: ivfflat on embeddings (lists=100), GIN on FTS + citations JSONB + tags 
 
 1. RAG-only answers — no training knowledge. Injection guard layered on top.
 2. Citation validation — strip circular numbers not in retrieved chunks.
-3. Credits deducted only on success (SELECT FOR UPDATE). Cache hits free.
+3. Credits deducted only on success (`SELECT FOR UPDATE`). Cache hits free.
 4. Work email only — 250+ domain blocklist + MX check.
 5. No PDF hosting — `rbi_url` links to rbi.org.in only.
 6. Superseded circulars excluded from RAG (`WHERE status='ACTIVE'`).
 7. AI summaries need admin approval before display.
 8. PII never reaches LLM.
 9. Action items auto-generated from `recommended_actions`.
-10. Staleness: re-indexed circular → `saved_interpretations.needs_review=TRUE`.
+10. Re-indexed circular → `saved_interpretations.needs_review=TRUE`.
 
 ---
 
@@ -91,9 +89,9 @@ Indexes: ivfflat on embeddings (lists=100), GIN on FTS + citations JSONB + tags 
 4. RRF fusion: score = Σ 1/(60 + rank_i)
 5. Dedup: max RAG_MAX_CHUNKS_PER_DOC per document
 6. Cross-encoder rerank (ProcessPoolExecutor, 30s timeout) → top K
-7. Insufficient context guard: < 2 chunks → "Consult Expert" fallback (no LLM call)
+7. < 2 chunks → "Consult Expert" fallback (no LLM call)
 8. Injection guard + XML wrapping → LLM (Anthropic, GPT-4o fallback)
-9. Validate citations → compute confidence score (3 signals)
+9. Validate citations → compute confidence (3 signals)
 10. Confidence < 0.5 or zero citations → "Consult Expert" fallback
 11. INSERT + deduct credit → cache → SSE/JSON
 ```
@@ -107,129 +105,87 @@ LLM returns: `{quick_answer, detailed_interpretation, risk_level, confidence_sco
 **Backend:**
 - Never import from `scraper/` — use `embedding_service.py`
 - `app.state.cross_encoder` may be None — check before use
-- `db.py`: conditional pool_size (skips for SQLite)
 - Exception classes in `app.exceptions` only (7 subclasses)
 - Auth chain: get_current_user → require_active → require_verified → require_admin/credits
-- Auth uses `python-jose` RS256 JWT + jti blacklist in Redis
-- Admin mutations write to `admin_audit_log`
-- Admin read-only or non-mutating actions (e.g. Q&A sandbox) log to `analytics_events` with `event_type="admin_test_question"` — not `admin_audit_log`
-- Subscription plans defined in `PLANS` dict in `subscription_service.py`
-- Razorpay webhook at `/subscriptions/webhook` — excluded from CORS, verified via HMAC-SHA256
-- `POST /questions` uses `response_model=None` (Union return type: JSON or StreamingResponse)
-- `questions.question_embedding` is persisted on every new row (Sprint 8) — fed by `_maybe_embed_question()` in `routers/questions.py`, hits EmbeddingService's Redis cache
-- Shared RAG/LLM wiring lives in `app/dependencies/rag.py` (`build_rag_service`, `build_llm_service`) — used by both `questions.py` and `admin/prompts.py` sandbox
-- Route ordering: `/foo/stats`, `/foo/suggestions`, `/foo/updates` etc. MUST be declared BEFORE any `/foo/{id}` path parameter route or FastAPI will match them as UUIDs
-- pgvector-only SQL (e.g. `ORDER BY embedding <=> CAST(:vec AS vector)`) must check `db.bind.dialect.name == 'postgresql'` and short-circuit for SQLite unit tests
-- User mutations from routes (e.g. `last_seen_updates = now()`) must use `UPDATE users SET ... WHERE id = :id` rather than attribute-set-on-dependency-injected-user, because the user ORM object may be attached to a different session than the route's `db`
-- Config: `from app.config import get_settings` (@lru_cache singleton)
-- All errors: `{"success": false, "error": "...", "code": "..."}`
-- B008 suppressed globally, E402 suppressed for conftest.py in pyproject.toml
-- All ORM enums use `enum.StrEnum`
-- reportlab `Paragraph` treats `&`, `<`, `>` as markup — always pass user-facing strings through `pdf_export_service._escape()`
-
-**Scraper:**
-- `scraper/db.py` is synchronous — no await
-- `scraper/config.py` uses `ScraperSettings` — never imports `app.config`
-- All modules standalone — never import from `backend/`
+- Admin mutations write to `admin_audit_log`. Admin read-only/sandbox actions log to `analytics_events` (e.g. `admin_test_question`).
+- Subscription plans defined in `PLANS` dict in `subscription_service.py`.
+- Razorpay webhook at `/subscriptions/webhook` — excluded from CORS, verified via HMAC-SHA256.
+- `POST /questions` uses `response_model=None` (Union: JSON or StreamingResponse).
+- `questions.question_embedding` persisted on every new row — fed by `_maybe_embed_question()`, hits EmbeddingService Redis cache.
+- Shared RAG/LLM wiring in `app/dependencies/rag.py` (`build_rag_service`, `build_llm_service`).
+- **Route ordering:** `/foo/stats`, `/foo/suggestions`, `/foo/updates` MUST be declared BEFORE any `/foo/{id}` path-param route.
+- pgvector-only SQL must check `db.bind.dialect.name == 'postgresql'` and short-circuit for SQLite unit tests.
+- User mutations from routes (e.g. `last_seen_updates = now()`) must use `UPDATE users SET ... WHERE id = :id` — the user ORM object may be attached to a different session than the route's `db`.
+- TIMESTAMPTZ columns must declare `DateTime(timezone=True)` or asyncpg rejects naive datetimes.
+- Config: `from app.config import get_settings` (@lru_cache singleton). All errors: `{"success": false, "error": "...", "code": "..."}`.
+- All ORM enums use `enum.StrEnum`. ruff B008 + E402 (conftest) suppressed in pyproject.
+- reportlab `Paragraph` treats `&`, `<`, `>` as markup — always pass user-facing strings through `pdf_export_service._escape()`.
 
 **Frontend:**
-- Access token in Zustand memory only — NEVER localStorage
-- Refresh token managed via backend `Set-Cookie` with `HttpOnly; Secure; SameSite=lax`
-- Frontend NEVER touches `document.cookie` — relies on `withCredentials: true` in axios
-- `authStore.setAuth` takes 2 args: `(user, accessToken)` — no refresh token arg
-- `authStore.clearAuth` calls `/api/v1/auth/logout` which clears the HTTPOnly cookie
-- For credit balance updates without re-auth: use `useAuthStore.setState({user: {...user, credit_balance: n}})`
-- TanStack Query for data fetching; `QueryProvider` wraps app in root layout
-- SSE via `fetch` + `ReadableStream` (not EventSource)
-- Library browsable without auth; search/ask require verified user
-- Middleware checks protected routes (cookie sent automatically by browser)
-- **Frontend v2 design system**: CSS custom-property tokens in `globals.css` — `var(--ink)`, `var(--signal)`, `var(--panel)` etc. Dark mode via `html.dark` class (not `[data-theme]`). Tokens NEVER in `tailwind.config.ts`.
-- **Primitives** in `components/design/Primitives.tsx`: `Pill`, `Btn`, `Icon`, `Avatar`, `Sparkline`, `MiniStat`, `ToastProvider`/`useToast`, `Panel`, `cn`
-- **AppShell** in `components/shell/`: `TopBar`, `Sidebar`, `Ticker`, `CommandPalette` (⌘K), `TweaksPanel`
-- **Mock fallback**: pages degrade to `RP_DATA` from `lib/mockData.ts` when backend returns empty lists — never show "no data" zero-states on executive surfaces
-- **Toasts**: `useToast().push({ tag: "LEARNING", text: "..." })` — wired globally by `ToastProvider` in `AppShell`
-- `<Link>` + `<button>` child is invalid HTML — use router.push in onClick or styled `<a>`
+- Access token in Zustand memory only — NEVER localStorage. Refresh token via backend `Set-Cookie HttpOnly; Secure; SameSite=lax`. Frontend NEVER touches `document.cookie`.
+- `authStore.setAuth(user, accessToken)` — 2 args. `clearAuth` calls `/api/v1/auth/logout`.
+- Credit balance updates without re-auth: `useAuthStore.setState({user: {...user, credit_balance: n}})`.
+- TanStack Query for data; `QueryProvider` wraps app in root layout.
+- SSE via `fetch` + `ReadableStream` (not EventSource).
+- **Frontend v2 design system**: tokens in `globals.css` — `var(--ink)`, `var(--signal)`, `var(--panel)`. Dark mode via `html.dark` class. Tokens NEVER in `tailwind.config.ts`.
+- **Primitives** (`components/design/Primitives.tsx`): `Pill`, `Btn`, `Icon`, `Avatar`, `Sparkline`, `MiniStat`, `ToastProvider`/`useToast`, `Panel`, `cn`.
+- **AppShell** (`components/shell/`): `TopBar`, `Sidebar`, `Ticker`, `CommandPalette` (⌘K), `TweaksPanel`.
+- Mock fallback: pages degrade to `RP_DATA` from `lib/mockData.ts` when backend returns empty — never show "no data" zero-states.
+- `<Link>` + `<button>` child is invalid HTML — use `router.push` in onClick or styled `<a>`.
 
 ---
 
 ## DEMO_MODE
 
 When `DEMO_MODE=true` (blocked in prod):
-- OTP is fixed to `123456` — no email sent
-- Work email validation skipped (any email accepted)
-- Cross-encoder reranker skipped (fast startup, no HuggingFace download)
-- Razorpay/SMTP use dummy keys — payments and email non-functional
-- `OTP_MAX_SENDS_PER_HOUR` should be raised (default 3 is too low for testing)
+- OTP fixed `123456` (no email sent). Work email validation skipped. Cross-encoder skipped (fast startup). Razorpay/SMTP use dummy keys.
+- `OTP_MAX_SENDS_PER_HOUR` should be raised (default 3 too low).
 
-## Environment Variables
-
-See `.env.example`. Key required: `DATABASE_URL`, `REDIS_URL`, `JWT_*`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `RAZORPAY_*`, `SMTP_*`, `FRONTEND_URL`.
-
-## Localhost Deployment
+## Localhost
 
 ```bash
-cp .env.example .env   # fill in API keys, set DEMO_MODE=true
+cp .env.example .env   # set DEMO_MODE=true
 docker compose up --build -d
-# Schema auto-applied via initdb.d mount
-# Trigger scraper (embeddings generated on insert — no backfill needed):
-# docker exec regpulse-scraper celery -A celery_app -b redis://redis:6379/1 call scraper.tasks.daily_scrape
 # Frontend: http://localhost:3000  |  API docs: http://localhost:8000/api/v1/docs
 ```
 
-**Known issues (demo):**
-- Scraper tasks route to `scraper` queue — worker must consume with `-Q celery,scraper`
-- `password_changed_at` column was missing from SQL schema (patched)
-- `OTP_MAX_SENDS_PER_HOUR` should be raised (default 3 is too low for testing)
+Scraper tasks route to `scraper` queue — worker must consume with `-Q celery,scraper`.
 
 ---
 
-## Technical Debt
+## Technical Debt (open)
 
 | ID | Issue | Plan |
 |---|---|---|
 | TD-01 | Scraper writes directly to backend DB | API isolation in v2 (Sprint 9+) |
-| TD-03 | Manual api.ts client | OpenAPI codegen in Sprint 9 |
-| TD-09 | OG image URL uses `BACKEND_PUBLIC_URL` config which is unset in demo | Set when GCP deploy lands, falls back to localhost:8000 |
-| G-10 | Simple try/catch LLM fallback; no circuit-open state tracking | `pybreaker` already in `requirements.txt`; wire in Sprint 9 |
-| ~~TD-02~~ | ~~No graceful shutdown handlers~~ | ✅ Fixed (Sprint 6) — SIGTERM handler in `main.py` + Celery `worker_shutting_down` signal |
-| ~~TD-04~~ | ~~admin_audit_log.actor_id NOT NULL — scraper can't log~~ | ✅ Fixed (Sprint 6) — System user seeded via `005_sprint6_system_user.sql`, scraper `_audit_log()` helper |
-| ~~TD-05~~ | ~~Scraper embedder is a stub~~ | ✅ Fixed (Sprint 1) — Uses OpenAI `text-embedding-3-large` |
-| ~~TD-06~~ | ~~Landing page is bare placeholder~~ | ✅ Fixed (Sprint 1) — Full marketing landing page |
-| ~~TD-07~~ | ~~refresh_token cookie is not httpOnly~~ | ✅ Fixed (Sprint 1) — Backend `Set-Cookie: HttpOnly; Secure; SameSite=lax` |
-| ~~TD-08~~ | ~~`document_chunks.embedding` not populated by `process_document`~~ | ✅ Fixed (Sprint 6) — Embeddings wired into process_document INSERT |
-| ~~TD-10~~ | ~~Broad `except Exception` in LLM service~~ | ✅ Fixed (Sprint 6) — Typed Anthropic/OpenAI exception tuples |
-| ~~TD-11~~ | ~~Golden eval doesn't exercise retrieval~~ | ✅ Fixed (Sprint 6) — `test_retrieval.py` with real embeddings + Postgres |
-| ~~TD-12~~ | ~~pytest not in runtime image~~ | ✅ Fixed (Sprint 6) — `requirements-dev.txt` + Dockerfile `dev` target |
+| TD-03 | Manual api.ts client | OpenAPI codegen (Sprint 9) |
+| TD-09 | `BACKEND_PUBLIC_URL` unset in demo | Set when GCP custom domain lands |
+| **TD-13** | **Scraper PDF extraction failing** — ~600 docs discovered, only 10 land in DB. "Syntax Error" + `process_document_empty_text` warnings. Root cause likely poppler/pdftotext install in scraper image. | **Sprint 9 / Phase C blocker** |
+| G-10 | Simple try/catch LLM fallback — no circuit-open tracking | `pybreaker` in requirements.txt; wire in Sprint 9 |
+| OP-1 | `questions.question_embedding` NULL for pre-Sprint 8 rows | Run `scripts/backfill_question_embeddings.py` once in production |
+| OP-2 | Admin sandbox doesn't actually swap `PromptVersion` at LLM call time | Wire `PromptVersion.prompt_text` through `LLMService` in Sprint 9 |
+
+Resolved: TD-02/04/05/06/07/08/10/11/12 (Sprints 1–6); G-01/02/03/04/05/06/07/08/09/12 (Sprints 7–8).
 
 ---
 
 ## GCP Deployment State
 
-MVP live in DEMO_MODE as of 2026-05-14. **Source of truth: `GCP_DEPLOY_RUNBOOK.md`.** Project `regpulse-495309` (asia-south1, billing `0130B1-10E7BB-34EF9C`).
+**Source of truth: `GCP_DEPLOY_RUNBOOK.md`.** Project `regpulse-495309` (asia-south1, billing `0130B1-10E7BB-34EF9C`).
 
 **Live URLs (Cloud Run auto-generated; custom domain deferred to Phase 5):**
 - Frontend: `https://regpulse-frontend-yvigu4ssea-el.a.run.app`
 - Backend: `https://regpulse-backend-yvigu4ssea-el.a.run.app`
 - API docs: `https://regpulse-backend-yvigu4ssea-el.a.run.app/api/v1/docs`
 
-**Infra summary:**
-- Cloud SQL `regpulse-db` (Postgres 16 Enterprise, HA, public+private IPs), Memorystore Redis `regpulse-redis` (Basic 1GB), VPC Connector `regpulse-connector`, 13 secrets in Secret Manager, runtime SA `regpulse-runtime@`.
-- Backend deployed from `regpulse/backend:rc2`, frontend from `regpulse/frontend:rc1`. Both at `min-instances=1`.
-- Mode: `ENVIRONMENT=staging, DEMO_MODE=true, FREE_CREDIT_GRANT=999999`. OTP fixed `123456`, payments/SMTP disabled.
+**Infra:** Cloud SQL `regpulse-db` (Postgres 16 Enterprise HA), Memorystore Redis `regpulse-redis` (Basic 1GB), VPC Connector `regpulse-connector`, 13 Secret Manager secrets, runtime SA `regpulse-runtime@`. Backend `regpulse/backend:rc2`, frontend `regpulse/frontend:rc1`. Both `min-instances=1`. Mode: `ENVIRONMENT=staging, DEMO_MODE=true, FREE_CREDIT_GRANT=999999`.
 
-**Scraper (Phase 4I) — running:**
-- Job `regpulse-scraper` fixed `ModuleNotFoundError` by updating `WORKDIR /app` in Dockerfile.
-- Successfully executing first scrape (~30-60 min).
-- Daily Cloud Scheduler `regpulse-scraper-daily` set for 20:30 UTC / 02:00 IST.
-- Monitor: `gcloud run jobs executions describe regpulse-scraper --region=asia-south1`.
+**Scraper:** Cloud Run Job `regpulse-scraper` (2 vCPU, 2Gi, 1h timeout). `WORKDIR /app` fix unblocked first run. Daily Cloud Scheduler `regpulse-scraper-daily` at 20:30 UTC / 02:00 IST. **Currently bottlenecked by TD-13 (PDF extraction failures).**
 
-**Observability (Phase 6):**
-- Log-based metrics (`regpulse_scraper_documents`, `regpulse_scraper_errors`, `regpulse_scraper_success`) and Cloud Monitoring Dashboard deployed via `scripts/gcp/phase6_setup_observability.sh`.
+**Observability:** Log-based metrics (`regpulse_scraper_documents/errors/success`) + Cloud Monitoring Dashboard via `scripts/gcp/phase6_setup_observability.sh`.
 
-**Deferred for later sessions:**
-- Phase 4H (Celery GCE) — only needed when leaving DEMO_MODE (auto-renewal, low-credit emails).
-- Phase 5 (custom domain), Phase 6 (GitHub Actions auto-deploy via WIF), Phase 7 (full smoke test + v1.0.0 cut).
-- ANN indexes on embeddings (pgvector 2000-dim cap on Cloud SQL — see LEARNINGS LGCP.5).
-- Rotate OpenAI + Anthropic API keys (exposed in chat transcript during Phase 3B).
-
-**Open IAM item:** `shubhamkadam1802@gmail.com` has Editor+DevOps on the project — confirm Think360 or revoke.
+**Deferred:**
+- Phase 4H (Celery GCE) — only needed when leaving DEMO_MODE.
+- Phase 5 (custom domain), Phase 6 (GitHub Actions WIF auto-deploy), Phase 7 (smoke + v1.0.0 cut).
+- ANN indexes on embeddings (`halfvec(3072)` migration for ivfflat compatibility).
+- 🗓️ **2026-05-16:** Rotate OpenAI + Anthropic API keys (transcript-exposed). Confirm/revoke `shubhamkadam1802@gmail.com` Editor+DevOps access.

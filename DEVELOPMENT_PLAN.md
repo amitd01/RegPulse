@@ -11,13 +11,13 @@
 
 | Area | Status |
 |---|---|
-| **Codebase** | 50/50 prompts + Sprints 1–8 complete. ~65 endpoints, 19 tables, 25 frontend routes. |
-| **CI** | Green (backend-lint, backend-test, frontend-build) — 106 unit tests passing on `main` at `56d628f`. |
+| **Codebase** | 50/50 prompts + Sprints 1–8 + Phase D.1-D.3 complete. ~67 endpoints, 21 tables, 27 frontend routes. |
+| **CI** | Green (backend-lint, backend-test, frontend-build). |
 | **Eval** | Golden dataset 21/21 PASS, retrieval eval 8/8 PASS |
-| **Deploy pipeline** | Stub — GCP `deploy.yml` written but Cloud Run services not provisioned |
-| **Infra** | No GCP resources provisioned |
-| **PRD v2.0 gaps** | 10/12 closed (Sprints 7–8); G-10 in Sprint 9; G-11 deferred |
-| **Tech debt** | TD-01 (scraper DB isolation), TD-03 (OpenAPI codegen), TD-09 (BACKEND_PUBLIC_URL) |
+| **Deploy pipeline** | Staging live on Cloud Run. Scraper Job running daily. |
+| **Infra** | GCP resources provisioned (asia-south1). Cloud SQL, Redis, Artifact Registry live. |
+| **Audit** | **UX Blocker**: OTP login gate blocks automated agents. **Scraper**: Ingestion bottleneck (Syntax Error in PDF extraction). |
+| **Tech debt** | TD-01 (scraper DB isolation), TD-03 (OpenAPI codegen), TD-09 (BACKEND_PUBLIC_URL), **TD-13 (Scraper extraction fix)** |
 
 ---
 
@@ -290,11 +290,13 @@ gcloud scheduler jobs create http scraper-daily ...
 
 **References:** PRODUCTION_PLAN.md Phases 6–8
 
-### C.1 Data Migration
-- Run full scraper against live rbi.org.in (replace 6-circular demo corpus)
-- Verify: circulars indexed, embeddings populated, KG entities extracted
-- Run `backfill_kg.py` if needed for any circulars that missed KG extraction
-- Verify golden dataset eval passes against real data
+### C.1 Data Migration & Ingestion Audit
+- Run full scraper against live rbi.org.in.
+- **Audit Observation (2026-05-15)**: Scraper identifies ~600 documents but only 10 successfully index. Logs show "Syntax Error" from `pdftotext`.
+- **Action**: Fix poppler/pdftotext extraction in scraper container (TD-13).
+- Verify: circulars indexed, embeddings populated, KG entities extracted.
+- Run `backfill_kg.py` if needed for any circulars that missed KG extraction.
+- Verify golden dataset eval passes against real data.
 
 ### C.2 Observability
 - Cloud Monitoring alert policies:
@@ -486,7 +488,7 @@ Sprint 8 (UX gaps) ── can start ──────────┤
 | G-12 | Action items overdue | Sprint 8 | ✅ Complete |
 | D.1 | Pulse Dashboard API | Phase D | ✅ Complete |
 | D.2 | Team Learnings API | Phase D | ✅ Complete |
-| D.3 | Debate & Annotations API | Phase D | Planned |
+| D.3 | Debate & Annotations API | Phase D | ✅ Complete |
 | D.4 | Market Ticker Feed | Phase D | Planned |
 
 ---
