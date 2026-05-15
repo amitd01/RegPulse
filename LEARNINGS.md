@@ -473,3 +473,15 @@
 **Root cause:** The scraper caught the `pdftotext` error but logged it as a warning and moved to the next document without failing the task or the run. The "processed" count in `scraper_runs` was incrementing for every URL visited, not every document landed.
 **Fix:** Tighten the `process_document` status logic to distinguish between `skipped` (non-PDF), `failed_extraction`, and `success`. Report these counts separately in `scraper_runs`.
 **Prevention:** "Processed" is a vague metric. Always track `success`, `fail`, and `skip` as distinct counters in any pipeline task.
+
+### L9.3 — Crawler dropping image-only links + Extractor crashing on HTML (SCR-1)
+**What bit us:** The scraper missed all 76+ Notification PDFs but crashed on 800+ `.aspx` URLs with "Syntax Error: Illegal character".
+**Root cause:** Two bugs combined. (1) The RBI Notification page wraps PDF downloads in image icons, which have empty `link_text`. The crawler's `if not link_text: continue` filter silently dropped every real PDF link. (2) The remaining collected URLs were HTML navigation pages, but `pdfplumber` was fed them without validation, causing underlying `poppler` crashes.
+**Fix:** (1) In `rbi_crawler.py`, if a link ends with `.pdf` but has no text, use the filename as the fallback `link_text`. (2) In `pdf_extractor.py`, validate the `%PDF-` magic byte before passing content to `pdfplumber`, and reject gracefully via `ExtractionFailure`.
+**Prevention:** Never filter purely on anchor text without checking the `href` extension. Never trust `Content-Type` or URLs — always validate magic bytes before passing untrusted files to binary parsers.
+
+### L9.4 — RBI WAF blocks automated PDF downloads (OP-3)
+**What bit us:** Even after fixing the crawler, ~373 valid `rbidocs.rbi.org.in` PDF links failed extraction.
+**Root cause:** RBI's Web Application Firewall returned HTTP 200 but the body was a 244-byte HTML "Request Rejected" page (`<title>Request Rejected</title>`). Our extraction failed gracefully because of L9.3's magic byte validation, but the documents still couldn't be ingested.
+**Fix:** OP-3 created to track. Needs User-Agent spoofing, slower crawl rates, or proxying to bypass the WAF.
+**Prevention:** When scraping government or enterprise sites, always test the raw download path with typical scraper User-Agents. If WAF is present, design for it early.

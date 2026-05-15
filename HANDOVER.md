@@ -11,7 +11,7 @@
 
 Two things to know upfront:
 
-1. **The demo is live but stale.** GCP backend + frontend serve cleanly. The scraper container fix landed in `aed8425` and the daily job runs. BUT PDF extraction is failing for ~99% of May circulars — only 10 from April 13 are actually in the DB. **This is the top blocker** (SCR-1). Until it's fixed, every Q&A in the demo will fall back to "Consult an Expert."
+1. **The demo is live and serving real RBI data.** GCP backend + frontend serve cleanly. The scraper container fix landed in `aed8425` and the daily job runs. The PDF extraction block (SCR-1) was resolved in `16ba70c` — we now have 93 circulars and 1,208 chunks embedded. There is one remaining gap: ~373 PDFs are blocked by the RBI WAF ("Request Rejected"), but the pipeline is healthy for the rest.
 2. **Phase D is done.** D.1 (Pulse Dashboard API), D.2 (Team Learnings API), and D.3 (Debates API) all shipped and wired into the v2 frontend. Live persistent backend, no more mocks.
 
 ---
@@ -33,7 +33,7 @@ curl -s https://regpulse-backend-yvigu4ssea-el.a.run.app/api/v1/circulars | pyth
 gcloud logging read 'resource.type=cloud_run_job AND resource.labels.job_name=regpulse-scraper AND (textPayload=~"Syntax Error" OR textPayload=~"process_document_empty_text")' --limit=20 --freshness=24h --format='value(timestamp,textPayload)'
 ```
 
-**Expected:** still seeing `Syntax Error` from poppler/pdftotext and `process_document_empty_text` warnings. Until that's fixed, `circulars` count won't grow.
+**Expected:** You should see successful extraction logs and a growing `circulars` count. WAF rejections will appear as warnings for `rbidocs.rbi.org.in`.
 
 ### 2. Backend + frontend health
 
@@ -70,12 +70,12 @@ git -C /Users/amitdas/claude/Repos/RegPulse status -sb
 | **Cloud SQL** | `regpulse-db` | Postgres 16 Enterprise, HA, public IP `34.100.234.6` + private `10.81.0.2`, 21 tables, no ANN indexes (pgvector 2000-dim cap) |
 | **Memorystore Redis** | `regpulse-redis` | Basic 1GB, private `10.45.36.187:6379`, AUTH enabled |
 | **VPC Connector** | `regpulse-connector` | /28 at `10.8.0.0/28`, attached to default VPC |
-| **Artifact Registry** | `asia-south1-docker.pkg.dev/regpulse-495309/regpulse` | `backend:rc2`, `frontend:rc1`, `scraper:rc1` (with WORKDIR fix) |
+| **Artifact Registry** | `asia-south1-docker.pkg.dev/regpulse-495309/regpulse` | `backend:rc2`, `frontend:rc1`, `scraper:rc3` (PDF extraction + crawler fix) |
 | **Secret Manager** | 13 × `REGPULSE_*` | API keys + DB/Redis creds + JWT pem files |
 | **Runtime SA** | `regpulse-runtime@regpulse-495309.iam.gserviceaccount.com` | secretAccessor, cloudsql.client, run.invoker, logWriter, metricWriter |
 | **Backend** | Cloud Run `regpulse-backend` rev 00004 | live |
 | **Frontend** | Cloud Run `regpulse-frontend` rev 00001 | live |
-| **Scraper Job** | Cloud Run Job `regpulse-scraper` | 2 vCPU, 2Gi, 1h timeout, eager-mode one-shot |
+| **Scraper Job** | Cloud Run Job `regpulse-scraper` | 2 vCPU, 2Gi, 1h timeout, `scraper:rc3` |
 | **Scheduler** | `regpulse-scraper-daily` | `30 20 * * *` UTC (= 02:00 IST) |
 | **Observability** | Cloud Monitoring "RegPulse Scraper Observability" | log-based metrics for documents/errors/success |
 
@@ -87,28 +87,26 @@ git -C /Users/amitdas/claude/Repos/RegPulse status -sb
 
 | # | What | Severity | Where |
 |---|---|---|---|
-| **0** | **SCR-1 — scraper PDF extraction failing on ~99% of May circulars** | 🔥 **Top priority** | Debug `scraper/extractor/pdf_extractor.py` against failing URLs from Cloud Run Job logs. Verify poppler-utils install in container. May need ocr fallback for "Syntax Error" PDFs. |
-| 1 | Rotate OpenAI + Anthropic API keys (transcript-exposed during Phase 3B) | **High** | 🗓️  Scheduled 2026-05-16. Revoke at console.anthropic.com + platform.openai.com → `export OPENAI_KEY=… ANTHROPIC_KEY=… && bash scripts/gcp/phase3b_external_secrets.sh`. |
-| 2 | Confirm / revoke `shubhamkadam1802@gmail.com` Editor+DevOps access | **Medium** | 🗓️  Scheduled 2026-05-16. Ask IT; if not Think360 → `gcloud projects remove-iam-policy-binding regpulse-495309 --member="user:shubhamkadam1802@gmail.com" --role="roles/editor"` (and `roles/iam.devOps`). |
-| 3 | UAT audit blocker: headless agent fails OTP flow with 422/400 | Medium | Investigate `auth/otp` strict session/validation that blocks headless browsers. May need a "service test account" path that bypasses the strict checks in `DEMO_MODE`. |
+| **0** | **Phase 5 — Custom domain + TLS** | 🔥 **Top priority** | Map `regpulse.in` and `api.regpulse.in` to the Cloud Run services. |
+| 1 | Scraper WAF block (`OP-3`) | **High** | ~373 PDFs from `rbidocs` get "Request Rejected" (WAF). Add User-Agent/delay or proxy. |
+| 2 | Rotate OpenAI + Anthropic API keys (transcript-exposed during Phase 3B) | **High** | 🗓️  Scheduled 2026-05-16. Revoke at console.anthropic.com + platform.openai.com → `export OPENAI_KEY=… ANTHROPIC_KEY=… && bash scripts/gcp/phase3b_external_secrets.sh`. |
+| 3 | Confirm / revoke `shubhamkadam1802@gmail.com` Editor+DevOps access | **Medium** | 🗓️  Scheduled 2026-05-16. Ask IT; if not Think360 → `gcloud projects remove-iam-policy-binding regpulse-495309 --member="user:shubhamkadam1802@gmail.com" --role="roles/editor"` (and `roles/iam.devOps`). |
+| 4 | UAT audit blocker: headless agent fails OTP flow with 422/400 | Medium | Investigate `auth/otp` strict session/validation that blocks headless browsers. May need a "service test account" path that bypasses the strict checks in `DEMO_MODE`. |
 
 ---
 
 ## 🛠️  Suggested next dev activities (ranked)
 
-### A. **SCR-1 fix — PDF extraction** *(do this first)*
-- Grab 5–10 failing URLs from scraper logs (`textPayload=~"Syntax Error"`).
-- Reproduce locally inside the scraper container with `pdftotext` against each URL.
-- Diagnose: corrupted PDFs / encrypted PDFs / wrong content-type / missing fonts.
-- Likely fix paths: (i) catch poppler errors and fall back to `pytesseract` OCR; (ii) skip and mark `scraper_runs.failed += 1` with reason; (iii) pre-validate PDF magic bytes before extraction.
-- Estimated time: 1–2 hr.
-
-### B. Phase 5 — Custom domain + TLS
+### A. Phase 5 — Custom domain + TLS *(do this first)*
 - `gcloud beta run domain-mappings create --service=regpulse-frontend --domain=regpulse.in --region=asia-south1` + `--service=regpulse-backend --domain=api.regpulse.in`
 - Update DNS at registrar with CNAME/A records GCP returns.
 - Wait ~15–60 min for Google-managed SSL.
 - Update `FRONTEND_URL` + `BACKEND_PUBLIC_URL` envs, rebuild frontend with new `NEXT_PUBLIC_API_URL`.
 - Estimated time: 30 min + provisioning wait.
+
+### B. Scraper WAF block (`OP-3`)
+- Crawler is correctly identifying ~373 valid `rbidocs.rbi.org.in` PDFs, but RBI's WAF ("Request Rejected") blocks the Cloud Run IP or default Python User-Agent.
+- Try setting standard browser User-Agents, or proxying through a residential pool if the block is IP-based.
 
 ### C. Phase 6 — GitHub Actions auto-deploy via WIF
 - Configure WIF pool + provider on the project.
@@ -121,7 +119,7 @@ git -C /Users/amitdas/claude/Repos/RegPulse status -sb
 - Options when needed: (1) `halfvec(3072)` migration for ivfflat up to 4000 dims; (2) wait for Cloud SQL pgvector 0.7+; (3) downgrade to `text-embedding-3-small` (quality regression, not recommended).
 
 ### E. Phase 7 — Final smoke tests + v1.0.0 tag
-- Only after SCR-1 fix + Phase 5 domain mapping.
+- Only after Phase 5 domain mapping.
 - Run full UAT against GCP staging, tag `v1.0.0`, cut release.
 
 ---
@@ -152,7 +150,7 @@ git -C /Users/amitdas/claude/Repos/RegPulse status -sb
 2. Read `MEMORY.md` (compact) for invariants and current GCP state
 3. Read this file's "First 10 minutes" — run the diagnostic commands
 4. Read `LEARNINGS.md` § LGCP.1–LGCP.6 — GCP deploy gotchas
-5. Start on SCR-1 (PDF extraction debugging) — it's the only thing blocking real-data demos
+5. Start on Phase 5 (domain mapping) or investigate OP-3 (WAF blocking).
 
 That's enough to be productive.
 
@@ -160,8 +158,6 @@ That's enough to be productive.
 
 ## ✅ This session's deliverables
 
-- Phase D.3 Debates API committed + pushed (models, routers, schemas, Alembic migration, `useDebates` hook)
-- 59-file working-tree cleanup pass committed + pushed (`+292 / −598`, mostly import + boilerplate simplification)
-- MEMORY.md compacted to ~190 lines (under 200-line cap), Phase 2 sprint detail moved to `DEVELOPMENT_PLAN.md`, SCR-1 added to open tech debt
-- context.md refreshed from 2026-04-22 to 2026-05-15 reality
-- HANDOVER.md (this file) regenerated for next session
+- SCR-1 (scraper PDF extraction) fixed: 93 circulars, 1,208 chunks now ingested
+- MEMORY.md, HANDOVER.md, and LEARNINGS.md updated with Phase C / SCR-1 learnings
+- WAF block on ~373 PDFs identified as `OP-3`

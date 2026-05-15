@@ -8,7 +8,7 @@
 
 B2B SaaS for Indian banking professionals. RAG-powered Q&A over RBI Circulars with cited answers. Work-email-gated, subscription-based, 5 free lifetime credits.
 
-**Status:** Phase 2 (Sprints 1–8) shipped, CI green, v1.0.0-rc. MVP live on GCP in DEMO_MODE since 2026-05-14. Phase D.1/D.2/D.3 (Frontend v2 collaboration backend integration) complete (2026-05-15) — Pulse Dashboard, Team Learnings, Debates all on live persistent backend.
+**Status:** Phase 2 (Sprints 1–8) shipped, CI green, v1.0.0-rc. MVP live on GCP in DEMO_MODE since 2026-05-14. Phase D.1/D.2/D.3 (Frontend v2 collaboration backend integration) complete (2026-05-15) — Pulse Dashboard, Team Learnings, Debates all on live persistent backend. SCR-1 (scraper PDF extraction) resolved 2026-05-15 — 93 circulars / 1,208 chunks ingested.
 
 **Strict invariants:**
 - Zero-hallucination: multi-signal confidence (0.0–1.0), "Consult Expert" fallback when < 0.5 or zero valid citations.
@@ -34,7 +34,7 @@ B2B SaaS for Indian banking professionals. RAG-powered Q&A over RBI Circulars wi
 
 ## Schema (21 tables)
 
-Ground truth: `backend/migrations/001`–`005*.sql` + Alembic `c202ee0a4986` (learnings) + `1066cb96e57c` (debates).
+Ground truth: `backend/migrations/001`–`006*.sql` + Alembic `c202ee0a4986` (learnings) + `1066cb96e57c` (debates) + `a3f7e2b1c4d0` (failed_extractions).
 
 | Table | Model | Key columns |
 |-------|-------|-------------|
@@ -47,7 +47,7 @@ Ground truth: `backend/migrations/001`–`005*.sql` + Alembic `c202ee0a4986` (le
 | saved_interpretations | `question.py` | name, tags, needs_review |
 | prompt_versions | `admin.py` | version_tag, prompt_text, is_active |
 | subscription_events | `subscription.py` | order_id, plan, amount_paise, status |
-| scraper_runs | `scraper.py` | status, documents_processed/failed |
+| scraper_runs | `scraper.py` | status, documents_processed/failed, failed_extractions |
 | admin_audit_log | `admin.py` | actor_id, action, target_table, old/new_value |
 | analytics_events | `admin.py` | user_hash, event_type, event_data |
 | pending_domain_reviews | `user.py` | domain, mx_valid, approved |
@@ -157,15 +157,15 @@ Scraper tasks route to `scraper` queue — worker must consume with `-Q celery,s
 
 | ID | Issue | Plan |
 |---|---|---|
-| **SCR-1** | **Scraper PDF extraction failing** — ~600 docs discovered, only 10 land in DB. "Syntax Error" + `process_document_empty_text` warnings. Root cause likely poppler/pdftotext install in scraper image. | **Top priority next session** |
 | TD-01 | Scraper writes directly to backend DB | API isolation in v2 (Sprint 9+) |
 | TD-03 | Manual api.ts client | OpenAPI codegen (Sprint 9) |
 | TD-09 | `BACKEND_PUBLIC_URL` unset in demo | Set when GCP custom domain lands |
 | G-10 | Simple try/catch LLM fallback — no circuit-open tracking | `pybreaker` in requirements.txt; wire in Sprint 9 |
 | OP-1 | `questions.question_embedding` NULL for pre-Sprint 8 rows | Run `scripts/backfill_question_embeddings.py` once in production |
 | OP-2 | Admin sandbox doesn't swap `PromptVersion` at LLM call time | Wire `PromptVersion.prompt_text` through `LLMService` in Sprint 9 |
+| OP-3 | ~373 rbidocs PDFs blocked by RBI WAF ("Request Rejected") | Add User-Agent header / retry with backoff; or accept lower yield |
 
-Resolved: TD-02/04/05/06/07/08/10/11/12 (Sprints 1–6); G-01–G-09, G-12 (Sprints 7–8); scraper `ModuleNotFoundError` (`aed8425`).
+Resolved: TD-02/04/05/06/07/08/10/11/12 (Sprints 1–6); G-01–G-09, G-12 (Sprints 7–8); scraper `ModuleNotFoundError` (`aed8425`); **SCR-1** (PDF extraction + crawler empty-text links, `16ba70c`).
 
 ---
 
@@ -180,7 +180,9 @@ Resolved: TD-02/04/05/06/07/08/10/11/12 (Sprints 1–6); G-01–G-09, G-12 (Spri
 
 **Infra:** Cloud SQL `regpulse-db` (Postgres 16 Enterprise HA), Memorystore Redis `regpulse-redis` (Basic 1GB), VPC Connector `regpulse-connector`, 13 Secret Manager secrets, runtime SA `regpulse-runtime@`. Backend `regpulse/backend:rc2`, frontend `regpulse/frontend:rc1`. Both `min-instances=1`. Mode: `ENVIRONMENT=staging, DEMO_MODE=true, FREE_CREDIT_GRANT=999999`.
 
-**Scraper:** Cloud Run Job `regpulse-scraper` (2 vCPU, 2Gi, 1h timeout). `WORKDIR /app` fix unblocked first run (`aed8425`). Daily Cloud Scheduler `regpulse-scraper-daily` at 20:30 UTC / 02:00 IST. **Currently bottlenecked by SCR-1 (PDF extraction).**
+**Artifact Registry:** `asia-south1-docker.pkg.dev/regpulse-495309/regpulse` (`backend:rc2`, `frontend:rc1`, `scraper:rc3`)
+
+**Scraper:** Cloud Run Job `regpulse-scraper` (2 vCPU, 2Gi, 1h timeout, `scraper:rc3`). Daily Cloud Scheduler `regpulse-scraper-daily` at 20:30 UTC / 02:00 IST. SCR-1 resolved (`16ba70c`): 93 circulars, 1,208 chunks. Remaining gap: ~373 rbidocs PDFs blocked by RBI WAF (OP-3).
 
 **Observability:** Log-based metrics (`regpulse_scraper_documents/errors/success`) + Cloud Monitoring Dashboard via `scripts/gcp/phase6_setup_observability.sh`.
 
