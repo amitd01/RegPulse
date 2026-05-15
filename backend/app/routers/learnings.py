@@ -12,7 +12,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -258,12 +258,12 @@ async def pin_learning(
     return LearningDetailResponse(data=_to_item(row, user))
 
 
-@router.delete("/{learning_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{learning_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
 async def delete_learning(
     learning_id: uuid.UUID,
     user: User = Depends(require_verified_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> Response:
     row = await db.get(Learning, learning_id)
     if row is None or row.user_id != user.id:
         raise HTTPException(
@@ -276,3 +276,4 @@ async def delete_learning(
         )
     await db.delete(row)
     await db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
