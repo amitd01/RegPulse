@@ -294,6 +294,9 @@ def process_document(
 
         # Step 6: Save to database (single transaction)
         doc_id = str(uuid.uuid4())
+        # In DEMO_MODE the admin-review queue would never be drained — auto-approve so
+        # the Library and search surfaces actually show ingested circulars.
+        pending_review = not get_scraper_settings().DEMO_MODE
         with get_db_session() as db:
             # Insert circular_documents row
             db.execute(
@@ -307,7 +310,7 @@ def process_document(
                         :id, :circular_number, :title, :doc_type, :department,
                         :issued_date, :effective_date, :rbi_url, 'ACTIVE',
                         :impact_level, :action_deadline, :affected_teams, :tags,
-                        TRUE, :scraper_run_id
+                        :pending_admin_review, :scraper_run_id
                     )
                 """),
                 {
@@ -323,6 +326,7 @@ def process_document(
                     "action_deadline": metadata.action_deadline,
                     "affected_teams": json.dumps(metadata.affected_teams),
                     "tags": json.dumps([]),
+                    "pending_admin_review": pending_review,
                     "scraper_run_id": scraper_run_id,
                 },
             )
@@ -474,15 +478,20 @@ def generate_summary(self, document_id: str) -> dict:  # noqa: ANN001
         )
         summary_text = response.content[0].text.strip()
 
-        # Save summary and mark for admin review
+        # Save summary; mark for admin review unless we're in DEMO_MODE.
+        pending_review = not get_scraper_settings().DEMO_MODE
         with get_db_session() as db:
             db.execute(
                 text(
                     "UPDATE circular_documents SET ai_summary = :summary, "
-                    "pending_admin_review = TRUE, updated_at = now() "
+                    "pending_admin_review = :pending_admin_review, updated_at = now() "
                     "WHERE id = :doc_id"
                 ),
-                {"summary": summary_text, "doc_id": document_id},
+                {
+                    "summary": summary_text,
+                    "pending_admin_review": pending_review,
+                    "doc_id": document_id,
+                },
             )
             db.commit()
 
