@@ -55,10 +55,7 @@ _USER_AGENTS: list[str] = [
         "Mozilla/5.0 (X11; Linux x86_64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
     ),
-    (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) "
-        "Gecko/20100101 Firefox/125.0"
-    ),
+    ("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) " "Gecko/20100101 Firefox/125.0"),
 ]
 
 _REQUEST_TIMEOUT = 30.0  # seconds
@@ -144,8 +141,8 @@ class RBICrawler:
             href: str = anchor["href"]
             link_text = anchor.get_text(strip=True)
 
-            # Skip empty, javascript, or anchor-only links
-            if not link_text or href.startswith(("#", "javascript:")):
+            # Skip javascript or anchor-only links
+            if href.startswith(("#", "javascript:")):
                 continue
 
             # Resolve relative URLs
@@ -154,6 +151,15 @@ class RBICrawler:
             # Only keep links pointing to rbi.org.in
             if "rbi.org.in" not in full_url:
                 continue
+
+            # For PDF links with empty text (image-only download links on RBI),
+            # use the filename as fallback link text. Skip non-PDF links with
+            # no text (navigation icons, etc.).
+            if not link_text:
+                if full_url.lower().endswith(".pdf"):
+                    link_text = full_url.rsplit("/", 1)[-1]
+                else:
+                    continue
 
             # Try to extract a date string from a sibling or parent cell
             raw_date_str = self._extract_date_from_context(anchor)
@@ -204,9 +210,7 @@ class RBICrawler:
                 logger.warning("robots_blocked", url=section_url)
                 continue
 
-            links = await self.fetch_document_links(
-                section_url, section_name=section_name
-            )
+            links = await self.fetch_document_links(section_url, section_name=section_name)
 
             new_links = [link for link in links if link.url not in seen_urls]
             all_new.extend(new_links)

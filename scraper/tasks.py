@@ -252,7 +252,15 @@ def process_document(
         extracted = _run_async(pdf_extractor.extract(url))
 
         if not extracted.raw_text.strip():
-            logger.warning("process_document_empty_text", url=url)
+            logger.warning(
+                "process_document_empty_text",
+                url=url,
+                extraction_method=extracted.extraction_method,
+                warnings=extracted.warnings,
+            )
+            # Increment failed_extractions counter on the scraper run
+            if scraper_run_id:
+                _increment_failed_extractions(scraper_run_id, url, extracted.warnings)
             return {"status": "skipped", "reason": "empty_text", "url": url}
 
         # Step 2: Extract metadata
@@ -1306,6 +1314,31 @@ def _mark_run_failed(run_id: str, error_msg: str) -> None:
             db.commit()
     except Exception:
         logger.error("mark_run_failed_error", run_id=run_id, exc_info=True)
+
+
+def _increment_failed_extractions(
+    run_id: str, url: str, warnings: list[str] | None = None
+) -> None:
+    """Atomically increment failed_extractions counter on a scraper run."""
+    try:
+        reason = "; ".join(warnings) if warnings else "unknown"
+        with get_db_session() as db:
+            db.execute(
+                text(
+                    "UPDATE scraper_runs SET failed_extractions = failed_extractions + 1 "
+                    "WHERE id = :id"
+                ),
+                {"id": run_id},
+            )
+            db.commit()
+        logger.info(
+            "failed_extraction_recorded",
+            run_id=run_id,
+            url=url,
+            reason=reason[:200],
+        )
+    except Exception:
+        logger.error("increment_failed_extractions_error", run_id=run_id, exc_info=True)
 
 
 # ---------------------------------------------------------------------------
