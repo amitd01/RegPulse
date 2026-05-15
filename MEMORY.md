@@ -140,6 +140,8 @@ LLM returns: `{quick_answer, detailed_interpretation, risk_level, confidence_sco
 When `DEMO_MODE=true` (blocked in prod):
 - OTP fixed `123456` (no email sent). Work email validation skipped. Cross-encoder skipped (fast startup). Razorpay/SMTP use dummy keys.
 - `OTP_MAX_SENDS_PER_HOUR` should be raised (default 3 too low).
+- Scraper auto-approves new circulars (`pending_admin_review=FALSE` on INSERT + AI-summary UPDATE) so the Library and RAG surfaces actually show them. See `scraper/tasks.py:process_document` + `generate_summary`. Prod keeps the admin gate.
+- Backend cookie needs `COOKIE_SECURE=true, COOKIE_SAMESITE=none` while frontend + backend live on different `*.run.app` subdomains. Switch back to `lax` once custom domain (Phase 5) lands. Wired via `config.py:COOKIE_SECURE/COOKIE_SAMESITE`.
 
 ## Localhost
 
@@ -164,8 +166,9 @@ Scraper tasks route to `scraper` queue — worker must consume with `-Q celery,s
 | OP-1 | `questions.question_embedding` NULL for pre-Sprint 8 rows | Run `scripts/backfill_question_embeddings.py` once in production |
 | OP-2 | Admin sandbox doesn't swap `PromptVersion` at LLM call time | Wire `PromptVersion.prompt_text` through `LLMService` in Sprint 9 |
 | OP-3 | ~373 rbidocs PDFs blocked by RBI WAF ("Request Rejected") | Add User-Agent header / retry with backoff; or accept lower yield |
+| **CORS-DEMO-1** | **Browser-login loops on `*.run.app` demo** — backend cookie is invisible to Next.js middleware running on a different PSL site. Fix: (A) Next.js rewrites proxy `/api/*` through frontend origin, OR (B) Phase 5 custom domain. See LEARNINGS L9.6. | **Top priority next session** |
 
-Resolved: TD-02/04/05/06/07/08/10/11/12 (Sprints 1–6); G-01–G-09, G-12 (Sprints 7–8); scraper `ModuleNotFoundError` (`aed8425`); **SCR-1** (PDF extraction + crawler empty-text links, `16ba70c`).
+Resolved: TD-02/04/05/06/07/08/10/11/12 (Sprints 1–6); G-01–G-09, G-12 (Sprints 7–8); scraper `ModuleNotFoundError` (`aed8425`); **SCR-1** (PDF extraction + crawler empty-text links, `16ba70c`); admin-review gate for DEMO (this session, `scraper:rc4`).
 
 ---
 
@@ -178,11 +181,11 @@ Resolved: TD-02/04/05/06/07/08/10/11/12 (Sprints 1–6); G-01–G-09, G-12 (Spri
 - Backend: `https://regpulse-backend-yvigu4ssea-el.a.run.app`
 - API docs: `https://regpulse-backend-yvigu4ssea-el.a.run.app/api/v1/docs`
 
-**Infra:** Cloud SQL `regpulse-db` (Postgres 16 Enterprise HA), Memorystore Redis `regpulse-redis` (Basic 1GB), VPC Connector `regpulse-connector`, 13 Secret Manager secrets, runtime SA `regpulse-runtime@`. Backend `regpulse/backend:rc2`, frontend `regpulse/frontend:rc1`. Both `min-instances=1`. Mode: `ENVIRONMENT=staging, DEMO_MODE=true, FREE_CREDIT_GRANT=999999`.
+**Infra:** Cloud SQL `regpulse-db` (Postgres 16 Enterprise HA), Memorystore Redis `regpulse-redis` (Basic 1GB), VPC Connector `regpulse-connector`, 13 Secret Manager secrets, runtime SA `regpulse-runtime@`. Backend `regpulse/backend:rc4` (rev `00009-v8h`), frontend `regpulse/frontend:rc1`, scraper `regpulse/scraper:rc4`. Both services `min-instances=1`. Mode: `ENVIRONMENT=staging, DEMO_MODE=true, FREE_CREDIT_GRANT=999999, COOKIE_SECURE=true, COOKIE_SAMESITE=none`.
 
-**Artifact Registry:** `asia-south1-docker.pkg.dev/regpulse-495309/regpulse` (`backend:rc2`, `frontend:rc1`, `scraper:rc3`)
+**Artifact Registry:** `asia-south1-docker.pkg.dev/regpulse-495309/regpulse` (`backend:rc4`, `frontend:rc1`, `scraper:rc4`)
 
-**Scraper:** Cloud Run Job `regpulse-scraper` (2 vCPU, 2Gi, 1h timeout, `scraper:rc3`). Daily Cloud Scheduler `regpulse-scraper-daily` at 20:30 UTC / 02:00 IST. SCR-1 resolved (`16ba70c`): 93 circulars, 1,208 chunks. Remaining gap: ~373 rbidocs PDFs blocked by RBI WAF (OP-3).
+**Scraper:** Cloud Run Job `regpulse-scraper` (2 vCPU, 2Gi, 1h timeout, `scraper:rc4`). Daily Cloud Scheduler `regpulse-scraper-daily` at 20:30 UTC / 02:00 IST. SCR-1 resolved (`16ba70c`): 93 circulars, 1,208 chunks. Remaining gap: ~373 rbidocs PDFs blocked by RBI WAF (OP-3). Bulk-approve of existing 93 rows done as one-shot SQL UPDATE (2026-05-15).
 
 **Observability:** Log-based metrics (`regpulse_scraper_documents/errors/success`) + Cloud Monitoring Dashboard via `scripts/gcp/phase6_setup_observability.sh`.
 

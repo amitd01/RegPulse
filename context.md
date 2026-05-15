@@ -1,21 +1,21 @@
 # RegPulse — Project Status
 
-> **Phase 2 complete + GCP MVP live in DEMO_MODE + Phase D (collaboration) in flight. Next critical path: SCR-1 scraper extraction fix, then Phase 7 launch sequence.**
+> **Phase 2 complete + GCP MVP live in DEMO_MODE + Phase D (collaboration) shipped. SCR-1 (scraper PDF extraction) resolved 2026-05-15. Demo Q&A works end-to-end at the API layer. Next critical path: CORS-DEMO-1 (cross-site middleware loop blocks browser login) → Phase 7 launch.**
 
 ---
 
 ## Current State (2026-05-15)
 
-- **Branch:** `main` — Phase D.1 + D.2 committed; D.3 (Debates) and a 59-file cleanup pass landed this session
+- **Branch:** `main` — Phase D.1/D.2/D.3 + SCR-1 fix + DEMO auto-approve + cross-site cookie fix all on `main`. `backend:rc4` (rev `00009-v8h`), `scraper:rc4` deployed 2026-05-15.
 - **CI:** All 3 jobs green on `main` (backend-lint, backend-test, frontend-build)
-- **Live:** GCP MVP deployed 2026-05-14 — Cloud Run backend rev 00004 + frontend rev 00001 + scraper Job, all in `staging + DEMO_MODE=true`
+- **Live:** GCP MVP deployed 2026-05-14, hardened 2026-05-15 — Cloud Run backend rev `00009-v8h` + frontend rev `00001` (unchanged, has the middleware bug) + scraper Job, all in `staging + DEMO_MODE=true`
 - **UAT:** 81/81 automated tests passed on Sprint 7 state; Sprint 8 + Phase D added more unit coverage
 - **Golden eval:** 21/21 PASS | **Retrieval eval:** 8/8 PASS
 - **Frontend:** 27 routes (Dashboard, /learnings, /debate now backed by real APIs)
 - **Backend:** ~70 endpoints, 12 services, 21 tables, 5 SQL migrations + 2 Alembic
 - **LEARNINGS.md:** L1–L8 (Phase 2) + LGCP.1–LGCP.6 (GCP deploy)
 
-**🔥 Top blocker:** SCR-1 — scraper enqueues hundreds of May circulars but only 10 (from April 13) land in DB due to poppler/pdftotext PDF extraction failures.
+**🔥 Top blocker:** CORS-DEMO-1 — browser login loops because Next.js middleware on `regpulse-frontend-…run.app` can't read the `refresh_token` cookie scoped to `regpulse-backend-…run.app` (different PSL sites). Fix paths (A/B/C) documented in `HANDOVER.md`. Recommendation: (A) Next.js rewrites OR (C) Phase 5 custom domain.
 
 ---
 
@@ -39,7 +39,8 @@
 
 | ID | Issue | Plan |
 |---|---|---|
-| **SCR-1** | **PDF extraction failing on ~99% of May circulars** | poppler/pdftotext "Syntax Error" + `process_document_empty_text`. Top priority. |
+| **CORS-DEMO-1** | **Browser login loop — Next.js middleware can't see cross-site cookie** | `*.run.app` sites are PSL-separated. Fix paths in HANDOVER + LEARNINGS L9.6. Top priority. |
+| ~~SCR-1~~ | ~~PDF extraction failing~~ | ✅ Resolved (`16ba70c` + `scraper:rc4`). 93 circulars / 1,208 chunks. |
 | TD-01 | Scraper writes directly to backend DB | API isolation in Sprint 9+ |
 | TD-03 | Manual api.ts client | OpenAPI codegen (Sprint 9) |
 | TD-09 | `BACKEND_PUBLIC_URL` unset in demo | Set when custom domain (Phase 5) lands |
@@ -64,12 +65,12 @@ Resolved: ~~TD-02/04/05/06/07/08/10/11/12~~ (Sprints 1–6); G-01–G-09, G-12 (
 
 ## Critical Path to v1.0.0
 
-Pre-launch code work is complete. GCP MVP is live in DEMO_MODE. Remaining path to v1.0.0:
+Pre-launch code work is complete. GCP MVP is live in DEMO_MODE; API-level Q&A returns cited answers. Remaining path to v1.0.0:
 
-1. **SCR-1 (PDF extraction)** — unblocks real data in DB. Without this, demo is "live but stale." Estimated 1–2 hr.
+1. **CORS-DEMO-1 fix** — Next.js rewrites OR Phase 5 custom domain. Without this the browser demo loops on login. ~10 min (rewrites) or ~30-60 min (custom domain). See HANDOVER § Top priority.
 2. **2026-05-16 security tasks** — rotate exposed API keys + audit `shubhamkadam1802@gmail.com` IAM access.
-3. **Phase 5 — Custom domain + TLS** — `regpulse.in` / `api.regpulse.in` mappings + Google-managed SSL. 30 min + provisioning wait.
-4. **Phase 6 — GitHub Actions auto-deploy via WIF** — `git tag v0.1.0` → CI deploys. 1.5–2 hr.
+3. **OP-3 — RBI WAF workaround** — recover the ~373 lost PDFs after CORS-DEMO-1 clears.
+4. **Phase 6 — GitHub Actions auto-deploy via WIF** — 1.5–2 hr.
 5. **Phase 7 — Smoke tests + v1.0.0 tag** — full UAT pass against GCP staging, then cut release.
 
 ANN-index recovery (`halfvec(3072)` migration) parked until `circular_documents` row count exceeds ~1000 and end-to-end latency becomes measurably slow.
