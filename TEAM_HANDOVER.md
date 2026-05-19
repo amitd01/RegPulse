@@ -1,13 +1,17 @@
 # RegPulse — Team Handover
 
 > **You're here because you're taking over RegPulse.** Read this file first; it points at everything else.
-> **Last updated:** 2026-04-14 (Sprint 8 merged at `56d628f`)
+> **Last updated:** 2026-05-19 (ReBuild S1→S10 merged at `c7f0e3f`)
 
 ---
 
 ## 1. TL;DR
 
-RegPulse is a B2B SaaS RAG platform that answers Indian banking compliance questions from RBI's official circulars. **50 build prompts + Sprints 1–8 are shipped.** All pre-launch code is done. **The only remaining path to v1.0.0 is GCP infra (Phases A–C in `PRODUCTION_PLAN.md`).**
+RegPulse is a B2B SaaS RAG platform that answers Indian banking compliance questions from RBI's official circulars. **50 build prompts + Sprints 1–8 + Frontend v2 redesign + ReBuild S1→S10 are shipped.** Code-side everything is in place. **The two remaining tracks to v1.0.0:**
+1. **S4b** — structural PDF extractor + real RBI scrape of ≥20 circulars. Needs Docker + real OPENAI_API_KEY + internet.
+2. **GCP Phases A → B → C** — infra provisioning + Cloud Run deploys + WIF + `v1.0.0` tag. Per `PRODUCTION_PLAN.md`.
+
+The ReBuild closed F1–F5 + F7–F8 from the audit. F6 (no real RBI corpus) is part of S4b.
 
 | Metric | Value |
 |---|---|

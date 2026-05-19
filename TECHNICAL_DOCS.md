@@ -1,6 +1,6 @@
 # RegPulse --- Technical Documentation
 
-> Version 3.0 | 2026-04-14 | Covers 50 build prompts + Sprints 1--8 (all pre-launch code complete)
+> Version 4.0 | 2026-05-19 | Covers 50 build prompts + Sprints 1--8 + Frontend v2 + ReBuild S1→S10. Code-side pre-launch complete; S4b (real RBI scrape) + GCP Phases A/B/C outstanding.
 
 ---
 
