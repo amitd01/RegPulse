@@ -31,6 +31,7 @@ _TABLE_NAMES = ["users", "questions", "circular_documents", "learnings"]
 
 
 def _sqlite_compat_tables():
+    """Module-level swap, idempotent on repeat calls."""
     """Build SQLite-friendly copies of the tables we need."""
     tables = []
     for name in _TABLE_NAMES:
@@ -54,6 +55,11 @@ def _sqlite_compat_tables():
                     col.server_default = None  # type: ignore[assignment]
         tables.append(t)
     return tables
+
+
+# Run the swap at module load time so subsequent test files see the mutated
+# column types (avoids fixture-ordering interference).
+_sqlite_compat_tables()
 
 
 @pytest.fixture

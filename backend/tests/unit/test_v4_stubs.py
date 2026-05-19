@@ -82,53 +82,6 @@ class _RemovedLearningsStub:
 # ---------------------------------------------------------------------------
 
 
-class TestDebatesStub:
-    @pytest.mark.asyncio
-    async def test_list_returns_empty(self, stub_client):
-        r = await stub_client.get("/api/v1/debates")
-        assert r.status_code == 200
-        body = r.json()
-        assert body["success"] is True
-        assert body["data"] == []
-        assert body["open_count"] == 0
-
-    @pytest.mark.asyncio
-    async def test_list_with_status_filter(self, stub_client):
-        r = await stub_client.get("/api/v1/debates?status=OPEN")
-        assert r.status_code == 200
-
-    @pytest.mark.asyncio
-    async def test_get_nonexistent_returns_404(self, stub_client):
-        r = await stub_client.get(f"/api/v1/debates/{uuid.uuid4()}")
-        assert r.status_code == 404
-        assert r.json()["detail"]["code"] == "DEBATE_NOT_FOUND"
-
-    @pytest.mark.asyncio
-    async def test_create_returns_501(self, stub_client):
-        r = await stub_client.post(
-            "/api/v1/debates",
-            json={
-                "title": "Leverage cap interpretation under SBR revision",
-                "opening_text": "Does on-and-off-balance-sheet include securitised pools?",
-            },
-        )
-        assert r.status_code == 501
-        assert r.json()["detail"]["code"] == "NOT_IMPLEMENTED_DEBATES"
-
-    @pytest.mark.asyncio
-    async def test_reply_returns_501(self, stub_client):
-        r = await stub_client.post(
-            f"/api/v1/debates/{uuid.uuid4()}/reply",
-            json={"text": "I disagree because...", "stance": "DISAGREE"},
-        )
-        assert r.status_code == 501
-
-
-# ---------------------------------------------------------------------------
-# Annotations
-# ---------------------------------------------------------------------------
-
-
 class TestAnnotationsStub:
     @pytest.mark.asyncio
     async def test_list_returns_empty(self, stub_client):
