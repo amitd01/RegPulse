@@ -41,7 +41,7 @@ The pre-rebuild project shipped 50 build prompts + 8 sprints + Frontend v2 on `m
 
 | Session | Slice | Description | Status |
 |---|---|---|---|
-| S1 | — | Foundation freeze: lock schema/models/migrations; regenerate `.env.example`; install full dep set; seed script populates 10 circulars with real embeddings | Pending |
+| S1 | — | Foundation freeze: lock schema/models/migrations; regenerate `.env.example`; install full dep set; seed script populates 10 circulars with real embeddings | Done — `aiosqlite` + `fakeredis` added to `requirements-dev.txt`; `make dev-env` generates RSA keypair into `.env`; `DEMO_MODE=true` default; pytest 106/106 from clean clone |
 | S2 | — | OpenAPI contract + `openapi-typescript` codegen; stub routers for `/learnings`, `/debate`, `/annotations`, `/feedback/structured` | Pending |
 | S3 | 1 | Auth journey on v2: rewrite `(auth)/{login,register,verify}` + layout; Playwright `auth.spec.ts` | Pending |
 | S4 | 2 | Real-data circular reading: structural PDF extractor; `circular_documents.structured_content` migration; 20 real RBI circulars scraped; rewrite `/library/[id]` with document renderer; Playwright `library.spec.ts` | Pending |

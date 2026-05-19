@@ -1,8 +1,30 @@
-# LEARNINGS — RegPulse Phase 2
+# LEARNINGS — RegPulse
 
-> Mistakes, surprises, and gotchas that cost us time during Phase 2 (Sprints 1–7). Each entry is a guard against repeating the same loss in future iterations. Read this before starting any sprint.
+> Mistakes, surprises, and gotchas that cost us time. Each entry is a guard against repeating the same loss. Read this before starting any sprint or slice.
 >
 > Format per entry: **what bit us**, **root cause**, **fix or guard**, **how to prevent**.
+
+---
+
+## ReBuild Session 1 — Foundation freeze
+
+### LR1.1 — Dependency drift: `pytest` didn't run from a clean clone
+**What bit us.** During the ReBuild audit, `pip install -r backend/requirements-dev.txt && pytest` failed twice: once on missing `fakeredis`, once on missing `aiosqlite`. Both are used by `backend/tests/conftest.py` (fakeredis patches `get_redis`; aiosqlite is the SQLite async driver for in-memory tests).
+
+**Root cause.** Production deps (`requirements.txt`) don't include test-only DB driver + Redis stub, and `requirements-dev.txt` didn't either — the deps were silently expected to be present from a previous local install. Anyone cloning fresh hit the wall.
+
+**Fix.** Added `aiosqlite==0.20.0` and `fakeredis==2.26.1` to `requirements-dev.txt`. Verified `pytest backend/tests/unit` runs 106/106 green after `pip install -r requirements-dev.txt` from a clean Python env.
+
+**How to prevent.** CI's `backend-test` job must run `pip install -r requirements-dev.txt` in a fresh container with no pre-installed deps, then `pytest`. If a test-time import isn't pinned in `requirements-dev.txt`, CI breaks — same wall as a new contributor.
+
+### LR1.2 — `.env.example` couldn't boot the app without manual OpenSSL gymnastics
+**What bit us.** Original `.env.example` had `JWT_PRIVATE_KEY=your-rsa-private-key-pem` as a placeholder. Anyone running `docker compose up` had to know to generate an RSA keypair via OpenSSL and paste a multi-line PEM into a `.env` file — exactly the multi-line dotenv parsing footgun that L1.2 already warned about.
+
+**Root cause.** Cargo-culted "fill in your values here" pattern with no automation.
+
+**Fix.** Added `make dev-env` target that generates a 2048-bit RSA keypair via OpenSSL, escapes newlines as `\n` literals, and writes both keys into `.env` as double-quoted single-line values. python-dotenv unescapes the `\n` when loading, so pydantic-settings sees a proper multi-line PEM. Verified end-to-end with `cryptography.hazmat.primitives.serialization.load_pem_private_key`. Also flipped `DEMO_MODE=true` as the dev default so Razorpay/SMTP/OpenAI/Anthropic placeholders don't block boot.
+
+**How to prevent.** First-clone path is now `cp .env.example .env && make dev-env && docker compose up --build -d` — three commands, no manual editing. Any future env-var that needs generation/derivation gets the same treatment.
 
 ---
 

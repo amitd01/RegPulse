@@ -6,6 +6,12 @@ pytest==8.3.4
 pytest-asyncio==0.24.0
 pytest-cov==6.0.0
 
+# Test-only DB driver (conftest swaps to sqlite+aiosqlite for unit tests)
+aiosqlite==0.20.0
+
+# Test-only Redis substitute (conftest patches get_redis to fakeredis.aioredis)
+fakeredis==2.26.1
+
 # Type checking
 mypy==1.14.1
 
