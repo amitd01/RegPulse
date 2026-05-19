@@ -3,8 +3,23 @@
 from __future__ import annotations
 
 import os
+import sqlite3
 import uuid
 from datetime import UTC, datetime
+
+import json as _json
+
+# SQLite native sqlite3 driver doesn't know how to bind a Python uuid.UUID
+# parameter (Mapped[uuid.UUID] default=uuid.uuid4 in our ORM models produces
+# UUID objects). Register a global adapter so router code that does
+# `Model(id=uuid.uuid4())` works against both PG and the SQLite test bed.
+sqlite3.register_adapter(uuid.UUID, lambda u: str(u))
+
+# Same for JSONB-typed Python lists/dicts: PG handles them natively via the
+# JSONB type, but the SQLite-compat swap turns those columns into String, and
+# SQLAlchemy passes through the original list/dict object as the bind value.
+sqlite3.register_adapter(list, _json.dumps)
+sqlite3.register_adapter(dict, _json.dumps)
 
 # ---------------------------------------------------------------------------
 # Generate RSA key pair BEFORE importing anything from app.*

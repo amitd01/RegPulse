@@ -69,48 +69,12 @@ async def stub_client(stub_user):
 # ---------------------------------------------------------------------------
 
 
-class TestLearningsStub:
-    @pytest.mark.asyncio
-    async def test_list_returns_empty_envelope(self, stub_client):
-        r = await stub_client.get("/api/v1/learnings")
-        assert r.status_code == 200
-        body = r.json()
-        assert body["success"] is True
-        assert body["data"] == []
-        assert body["total"] == 0
+# Learnings stubs replaced by real implementation in slice 9b.
+# See backend/tests/unit/test_learnings.py for the live-router tests.
 
-    @pytest.mark.asyncio
-    async def test_stats_returns_zeros(self, stub_client):
-        r = await stub_client.get("/api/v1/learnings/stats")
-        assert r.status_code == 200
-        body = r.json()
-        assert body["success"] is True
-        assert body["data"] == {"total": 0, "this_week": 0, "contributors": 0}
 
-    @pytest.mark.asyncio
-    async def test_get_nonexistent_returns_404(self, stub_client):
-        r = await stub_client.get(f"/api/v1/learnings/{uuid.uuid4()}")
-        assert r.status_code == 404
-        assert r.json()["detail"]["code"] == "LEARNING_NOT_FOUND"
-
-    @pytest.mark.asyncio
-    async def test_create_returns_501(self, stub_client):
-        r = await stub_client.post(
-            "/api/v1/learnings",
-            json={"title": "PSL climate-adaptive sub-target is additive"},
-        )
-        assert r.status_code == 501
-        assert r.json()["detail"]["code"] == "NOT_IMPLEMENTED_LEARNINGS"
-
-    @pytest.mark.asyncio
-    async def test_pin_returns_501(self, stub_client):
-        r = await stub_client.post(f"/api/v1/learnings/{uuid.uuid4()}/pin")
-        assert r.status_code == 501
-
-    @pytest.mark.asyncio
-    async def test_validation_rejects_short_title(self, stub_client):
-        r = await stub_client.post("/api/v1/learnings", json={"title": "x"})
-        assert r.status_code == 422  # FastAPI validation, contract enforced
+class _RemovedLearningsStub:
+    """Placeholder — original stub tests deleted with S9b real implementation."""
 
 
 # ---------------------------------------------------------------------------
