@@ -535,3 +535,65 @@ textarea.input {
 .rp-route-fade {
   animation: fadeIn 0.2s ease;
 }
+
+/* ---------------------------------------------------------------------------
+ * Responsive (slice 10c — mobile audit)
+ *
+ * The v2 design is desktop-first. These rules narrow the AppShell sidebar +
+ * stack the multi-column hero / spec-sheet / panel grids on narrow viewports
+ * so the MVP journey remains usable on a phone.
+ * ------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  /* Compact-mode sidebar: drop full label text, keep mono codes only. The
+   * tablet-and-down breakpoint hides the long label and centres the mono
+   * prefix; tap targets still work. */
+  aside nav a span:not(.mono) {
+    display: none;
+  }
+  aside {
+    width: 64px !important;
+  }
+  aside nav {
+    padding: 8px 4px !important;
+  }
+  aside nav a {
+    justify-content: center;
+    padding: 10px 8px !important;
+  }
+
+  /* Hero serif headlines downsize on mobile so they don't overflow */
+  h1.serif {
+    font-size: 36px !important;
+    line-height: 1.1 !important;
+  }
+  h2.serif {
+    font-size: 24px !important;
+  }
+
+  /* Spec-sheet 4-column grids on detail pages → 2 columns on mobile */
+  .panel[style*="repeat(auto-fit"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Editorial body should hug the viewport */
+  .prose {
+    max-width: 100% !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Phone-portrait: stack everything single-column */
+  .panel[style*="repeat(auto-fit"] {
+    grid-template-columns: 1fr !important;
+  }
+  /* Action-item / recommended-action grids (admin + ask) become single-col */
+  [style*="grid-template-columns: 100px 120px 1fr"],
+  [style*="grid-template-columns: 56px 120px 1fr 70px auto"] {
+    grid-template-columns: 1fr !important;
+    row-gap: 4px !important;
+  }
+  /* Hide the corner footer ticks; keep core info */
+  footer .up:nth-child(2) {
+    display: none;
+  }
+}

@@ -17,6 +17,15 @@
 
 **How to prevent.** CI's `backend-test` job must run `pip install -r requirements-dev.txt` in a fresh container with no pre-installed deps, then `pytest`. If a test-time import isn't pinned in `requirements-dev.txt`, CI breaks — same wall as a new contributor.
 
+### LR10.1 — pybreaker 1.2.0's `call_async` has a broken tornado import
+**What bit us.** Wrapping the Anthropic call in `await ANTHROPIC_BREAKER.call_async(...)` for slice 10b broke 7 existing `test_llm_exceptions.py` tests with `NameError: name 'gen' is not defined`. pybreaker 1.2.0's source for `call_async` is `@gen.coroutine` from `tornado` but tornado isn't imported unconditionally — only inside an if-Tornado-installed block. Without tornado the decorator name doesn't exist at module load.
+
+**Root cause.** pybreaker bug. The async API in 1.2.0 isn't safe for non-tornado consumers.
+
+**Fix.** Don't use `.call_async()`. Use the synchronous `.call(_helper)` wrapper to manage state (increment fail_counter, raise CircuitBreakerError when over threshold), then `await` the actual Anthropic call outside the breaker. Manually check `ANTHROPIC_BREAKER.current_state == "open"` before calling Anthropic; manually reset via `.close()` after a success.
+
+**How to prevent.** Pin all transitive deps OR avoid library APIs that depend on optional sister-libraries (`tornado` here). When upstream's tests don't cover the path you need, write your own state-machine wrapper.
+
 ### LR7.1 — Mono nav codes give the admin sidebar a terminal feel without bloating real estate
 **What bit us — almost.** First draft of the v2 admin sidebar borrowed the (app)-shell pattern with full text labels and icons. At 224px wide the result felt visually heavy compared to the rest of the v2 surface, which lives on tight 10.5px mono labels.
 

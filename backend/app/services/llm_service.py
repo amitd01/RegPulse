@@ -48,6 +48,13 @@ ANTHROPIC_BREAKER = pybreaker.CircuitBreaker(
     name="anthropic-primary",
 )
 
+
+def _raise_for_breaker_count(exc: Exception) -> None:
+    """Helper used to increment the breaker's fail counter via the sync .call()
+    path. pybreaker's call_async() has a broken `from tornado import gen`
+    import in 1.2.0, so we use the synchronous interface to manage state."""
+    raise exc
+
 _SYSTEM_PROMPT = """You are RegPulse, an AI assistant that answers regulatory compliance questions \
 for Indian banking professionals. You ONLY answer based on the RBI circular excerpts provided below.
 
@@ -267,16 +274,10 @@ class LLMService:
             openai.APIConnectionError,
             openai.APITimeoutError,
         )
-        # Wrap the Anthropic call in pybreaker so sustained provider outages
-        # short-circuit to OpenAI without paying timeout latency per request.
-        try:
-            raw_response = await ANTHROPIC_BREAKER.call_async(
-                self._call_anthropic, user_message
-            )
-            model_used = self._settings.LLM_MODEL
-            logger.info("llm_anthropic_success", model=model_used)
-        except pybreaker.CircuitBreakerError:
-            # Breaker is open — skip Anthropic entirely
+        # G-10: short-circuit Anthropic when the breaker is open. We use the
+        # breaker's state API directly because pybreaker's call_async has a
+        # broken `from tornado import gen` import path in 1.2.0.
+        if ANTHROPIC_BREAKER.current_state == "open":
             logger.warning(
                 "llm_anthropic_breaker_open",
                 fail_count=ANTHROPIC_BREAKER.fail_counter,
@@ -292,15 +293,32 @@ class LLMService:
             except _openai_errors:
                 logger.error("llm_both_failed_breaker", exc_info=True)
                 raise
-        except _anthropic_errors:
-            logger.warning("llm_anthropic_failed, trying fallback", exc_info=True)
+        else:
             try:
-                raw_response = await self._call_openai(user_message)
-                model_used = self._settings.LLM_FALLBACK_MODEL
-                logger.info("llm_openai_fallback_success", model=model_used)
-            except _openai_errors:
-                logger.error("llm_both_failed", exc_info=True)
-                raise
+                raw_response = await self._call_anthropic(user_message)
+                model_used = self._settings.LLM_MODEL
+                # Successful call: reset breaker counter
+                if ANTHROPIC_BREAKER.fail_counter > 0:
+                    ANTHROPIC_BREAKER.close()
+                logger.info("llm_anthropic_success", model=model_used)
+            except _anthropic_errors as e:
+                # Increment breaker counter — opens after fail_max=3
+                try:
+                    ANTHROPIC_BREAKER.call(_raise_for_breaker_count, e)
+                except (pybreaker.CircuitBreakerError, *_anthropic_errors):
+                    pass
+                logger.warning(
+                    "llm_anthropic_failed",
+                    fail_count=ANTHROPIC_BREAKER.fail_counter,
+                    breaker_state=ANTHROPIC_BREAKER.current_state,
+                )
+                try:
+                    raw_response = await self._call_openai(user_message)
+                    model_used = self._settings.LLM_FALLBACK_MODEL
+                    logger.info("llm_openai_fallback_success", model=model_used)
+                except _openai_errors:
+                    logger.error("llm_both_failed", exc_info=True)
+                    raise
 
         # Parse and validate
         parsed = _parse_llm_response(raw_response)

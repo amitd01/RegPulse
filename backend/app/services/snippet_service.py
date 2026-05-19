@@ -120,7 +120,16 @@ def _share_url(slug: str) -> str:
 def _og_image_url(slug: str) -> str:
     settings = get_settings()
     # Backend serves the OG image; LinkedIn/X must resolve this URL directly.
-    # Falls back to localhost:8000 for demo.
+    # Production wiring: set BACKEND_PUBLIC_URL=https://api.regpulse.in in
+    # Secret Manager (TD-09 resolution path — slice 10c). The localhost
+    # fallback exists only so `docker compose up` doesn't crash; LinkedIn
+    # crawlers will fail to fetch the OG image but the share link still works.
+    if not settings.BACKEND_PUBLIC_URL and settings.ENVIRONMENT == "prod":
+        logger.warning(
+            "backend_public_url_unset_in_prod",
+            slug=slug,
+            consequence="OG image will use localhost:8000 — LinkedIn/X previews will be broken",
+        )
     base = settings.BACKEND_PUBLIC_URL or "http://localhost:8000"
     return f"{base.rstrip('/')}/api/v1/snippets/{slug}/og"
 
