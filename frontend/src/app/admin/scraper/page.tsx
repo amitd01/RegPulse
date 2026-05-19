@@ -1,10 +1,16 @@
+/**
+ * Admin scraper — v2 terminal-modern (S7b1).
+ *
+ * Trigger controls for priority/full scrapes plus a feed of recent runs
+ * with status pill + counts + error tail (when present).
+ */
+
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import api from "@/lib/api";
-import { Badge } from "@/components/ui/Badge";
-import { Spinner } from "@/components/ui/Spinner";
 import toast from "react-hot-toast";
+import api from "@/lib/api";
+import { Btn, Pill } from "@/components/design/Primitives";
 
 interface ScraperRun {
   id: string;
@@ -20,11 +26,20 @@ function useScraperRuns() {
   return useQuery({
     queryKey: ["admin", "scraper"],
     queryFn: async () => {
-      const { data } = await api.get("/admin/scraper/runs", { params: { page: 1, page_size: 20 } });
+      const { data } = await api.get("/admin/scraper/runs", {
+        params: { page: 1, page_size: 20 },
+      });
       return data as { data: ScraperRun[]; total: number };
     },
   });
 }
+
+const statusTone = (s: string): "good" | "bad" | "warn" | "" => {
+  if (s === "COMPLETED") return "good";
+  if (s === "FAILED") return "bad";
+  if (s === "RUNNING") return "warn";
+  return "";
+};
 
 export default function ScraperPage() {
   const { data, isLoading } = useScraperRuns();
@@ -32,57 +47,132 @@ export default function ScraperPage() {
 
   const trigger = useMutation({
     mutationFn: async (mode: string) => {
-      const { data } = await api.post("/admin/scraper/trigger", null, { params: { mode } });
-      return data;
+      const { data } = await api.post("/admin/scraper/trigger", null, {
+        params: { mode },
+      });
+      return data as { message?: string };
     },
     onSuccess: (data) => {
-      toast.success(data.message || "Scrape triggered");
+      toast.success(data.message ?? "Scrape triggered");
       qc.invalidateQueries({ queryKey: ["admin", "scraper"] });
     },
   });
 
-  if (isLoading) return <div className="flex justify-center p-20"><Spinner size="lg" /></div>;
+  if (isLoading) {
+    return (
+      <div
+        className="tick"
+        style={{ padding: 48, textAlign: "center", color: "var(--ink-4)" }}
+      >
+        LOADING SCRAPER RUNS…
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900">Scraper</h1>
-        <div className="flex gap-2">
-          <button
+    <div style={{ padding: "24px 32px 64px" }} data-testid="admin-scraper">
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 4,
+          gap: 16,
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          <div className="tick" style={{ marginBottom: 8 }}>
+            ADMIN · SCRAPER · CELERY PIPELINE
+          </div>
+          <h1
+            className="serif"
+            style={{
+              fontSize: 26,
+              fontWeight: 500,
+              letterSpacing: "-0.015em",
+            }}
+          >
+            Scraper runs.
+          </h1>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Btn
+            variant="primary"
+            size="sm"
+            disabled={trigger.isPending}
             onClick={() => trigger.mutate("priority")}
-            disabled={trigger.isPending}
-            className="rounded bg-navy-700 px-3 py-1.5 text-xs text-white"
+            data-testid="scraper-trigger-priority"
           >
-            Priority Scrape
-          </button>
-          <button
+            Priority scrape
+          </Btn>
+          <Btn
+            size="sm"
+            disabled={trigger.isPending}
             onClick={() => trigger.mutate("full")}
-            disabled={trigger.isPending}
-            className="rounded border border-gray-300 px-3 py-1.5 text-xs text-gray-600"
+            data-testid="scraper-trigger-full"
           >
-            Full Scrape
-          </button>
+            Full scrape
+          </Btn>
         </div>
       </div>
 
-      <div className="space-y-3">
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 22 }}>
         {data?.data.map((run) => (
-          <div key={run.id} className="rounded-lg border border-gray-200 bg-white p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Badge variant={run.status === "COMPLETED" ? "active" : run.status === "FAILED" ? "high" : "medium"}>
-                  {run.status}
-                </Badge>
-                <span className="text-xs text-gray-500">
+          <div
+            key={run.id}
+            className="panel"
+            style={{ padding: 14 }}
+            data-testid="admin-scraper-row"
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+                flexWrap: "wrap",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <Pill tone={statusTone(run.status)}>{run.status}</Pill>
+                <span
+                  className="mono"
+                  style={{ fontSize: 11, color: "var(--ink-3)" }}
+                >
                   {new Date(run.started_at).toLocaleString("en-IN")}
                 </span>
               </div>
-              <div className="text-xs text-gray-500">
-                {run.documents_processed} processed, {run.documents_failed} failed
+              <div
+                className="mono tnum"
+                style={{ fontSize: 11.5, color: "var(--ink-3)" }}
+              >
+                {run.documents_processed} PROCESSED ·{" "}
+                <span
+                  style={{
+                    color: run.documents_failed > 0 ? "var(--bad)" : "var(--ink-3)",
+                  }}
+                >
+                  {run.documents_failed} FAILED
+                </span>
               </div>
             </div>
             {run.error_message && (
-              <p className="mt-2 text-xs text-red-600">{run.error_message}</p>
+              <p
+                className="mono"
+                style={{
+                  marginTop: 8,
+                  fontSize: 11.5,
+                  color: "var(--bad)",
+                  lineHeight: 1.45,
+                  background: "var(--bad-bg)",
+                  padding: "8px 10px",
+                  borderRadius: 2,
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {run.error_message}
+              </p>
             )}
           </div>
         ))}

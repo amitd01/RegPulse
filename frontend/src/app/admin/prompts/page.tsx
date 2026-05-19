@@ -1,10 +1,16 @@
+/**
+ * Admin prompts — v2 terminal-modern (S7b1).
+ *
+ * Manages versioned LLM system prompts. Create form on top, list of versions
+ * below with one-click activate on the inactive ones.
+ */
+
 "use client";
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
-import { Badge } from "@/components/ui/Badge";
-import { Spinner } from "@/components/ui/Spinner";
+import { Btn, Pill } from "@/components/design/Primitives";
 
 interface PromptVersion {
   id: string;
@@ -23,6 +29,16 @@ function usePrompts() {
     },
   });
 }
+
+const labelStyle: React.CSSProperties = {
+  display: "block",
+  fontFamily: "var(--font-mono)",
+  fontSize: 10,
+  color: "var(--ink-4)",
+  textTransform: "uppercase",
+  letterSpacing: ".06em",
+  marginBottom: 6,
+};
 
 export default function PromptsPage() {
   const { data, isLoading } = usePrompts();
@@ -48,58 +64,136 @@ export default function PromptsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "prompts"] }),
   });
 
-  if (isLoading) return <div className="flex justify-center p-20"><Spinner size="lg" /></div>;
+  if (isLoading) {
+    return (
+      <div
+        className="tick"
+        style={{ padding: 48, textAlign: "center", color: "var(--ink-4)" }}
+      >
+        LOADING PROMPT VERSIONS…
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6">
-      <h1 className="mb-6 text-xl font-bold text-gray-900">Prompt Versions</h1>
+    <div style={{ padding: "24px 32px 64px" }} data-testid="admin-prompts">
+      <div className="tick" style={{ marginBottom: 8 }}>
+        ADMIN · LLM SYSTEM PROMPTS · VERSIONED
+      </div>
+      <h1
+        className="serif"
+        style={{
+          fontSize: 26,
+          fontWeight: 500,
+          letterSpacing: "-0.015em",
+          marginBottom: 22,
+        }}
+      >
+        Prompt versions.
+      </h1>
 
-      {/* Create form */}
-      <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4">
-        <h2 className="mb-3 text-sm font-semibold text-gray-700">Create New Version</h2>
+      <div className="panel" style={{ padding: 16, marginBottom: 28 }}>
+        <div className="tick" style={{ marginBottom: 12 }}>
+          CREATE NEW VERSION
+        </div>
+        <label htmlFor="prompt-tag" style={labelStyle}>
+          Version tag
+        </label>
         <input
+          id="prompt-tag"
           value={tag}
           onChange={(e) => setTag(e.target.value)}
-          placeholder="Version tag (e.g. v2.1)"
-          className="mb-2 w-full rounded border border-gray-300 px-3 py-2 text-sm"
+          placeholder="e.g. v2.1"
+          className="input"
+          data-testid="prompt-tag-input"
+          style={{ marginBottom: 12 }}
         />
+        <label htmlFor="prompt-text" style={labelStyle}>
+          Prompt text
+        </label>
         <textarea
+          id="prompt-text"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Prompt text..."
-          rows={4}
-          className="mb-2 w-full rounded border border-gray-300 px-3 py-2 text-sm"
+          placeholder="System prompt body…"
+          rows={6}
+          className="input"
+          data-testid="prompt-text-input"
+          style={{ fontFamily: "var(--font-mono)", fontSize: 12.5, marginBottom: 12 }}
         />
-        <button
-          onClick={() => create.mutate()}
+        <Btn
+          variant="primary"
+          size="sm"
           disabled={!tag || !text || create.isPending}
-          className="rounded bg-navy-700 px-4 py-2 text-sm text-white disabled:opacity-50"
+          onClick={() => create.mutate()}
+          data-testid="prompt-create"
         >
-          Create & Activate
-        </button>
+          {create.isPending ? "Creating…" : "Create & activate"}
+        </Btn>
       </div>
 
-      {/* List */}
-      <div className="space-y-3">
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {data?.data.map((p) => (
-          <div key={p.id} className="rounded-lg border border-gray-200 bg-white p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">{p.version_tag}</span>
-                {p.is_active && <Badge variant="active">Active</Badge>}
+          <div
+            key={p.id}
+            className="panel"
+            style={{ padding: 14 }}
+            data-testid="admin-prompt-row"
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span
+                  className="mono"
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "var(--ink)",
+                    background: "var(--panel-2)",
+                    padding: "3px 8px",
+                    borderRadius: 2,
+                  }}
+                >
+                  {p.version_tag}
+                </span>
+                {p.is_active && <Pill tone="good">ACTIVE</Pill>}
+                <span
+                  className="mono"
+                  style={{ fontSize: 10.5, color: "var(--ink-4)" }}
+                >
+                  {new Date(p.created_at).toLocaleDateString("en-IN")}
+                </span>
               </div>
               {!p.is_active && (
-                <button
+                <Btn
+                  size="sm"
+                  disabled={activate.isPending}
                   onClick={() => activate.mutate(p.id)}
-                  className="rounded border border-gray-300 px-3 py-1 text-xs"
+                  data-testid="prompt-activate"
                 >
                   Activate
-                </button>
+                </Btn>
               )}
             </div>
-            <p className="mt-2 text-xs text-gray-500 line-clamp-3">{p.prompt_text}</p>
-            <p className="mt-1 text-xs text-gray-400">
-              {new Date(p.created_at).toLocaleDateString("en-IN")}
+            <p
+              style={{
+                marginTop: 8,
+                fontSize: 12.5,
+                color: "var(--ink-3)",
+                lineHeight: 1.5,
+                display: "-webkit-box",
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+              }}
+            >
+              {p.prompt_text}
             </p>
           </div>
         ))}

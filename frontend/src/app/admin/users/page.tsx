@@ -1,11 +1,16 @@
+/**
+ * Admin users — v2 terminal-modern (S7b1).
+ *
+ * Searchable user table with status pills and one-click activate/deactivate.
+ * Uses the .dtable utility from globals.css for the v2 table idiom.
+ */
+
 "use client";
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
-import { Badge } from "@/components/ui/Badge";
-import { SearchInput } from "@/components/ui/SearchInput";
-import { Spinner } from "@/components/ui/Spinner";
+import { Btn, Pill } from "@/components/design/Primitives";
 
 interface AdminUser {
   id: string;
@@ -36,54 +41,106 @@ export default function UsersPage() {
   const qc = useQueryClient();
 
   const toggle = useMutation({
-    mutationFn: async ({ id, field, value }: { id: string; field: string; value: boolean }) => {
+    mutationFn: async ({
+      id,
+      field,
+      value,
+    }: {
+      id: string;
+      field: string;
+      value: boolean;
+    }) => {
       await api.patch(`/admin/users/${id}`, { [field]: value });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "users"] }),
   });
 
   return (
-    <div className="p-6">
-      <h1 className="mb-4 text-xl font-bold text-gray-900">Users ({data?.total ?? 0})</h1>
-      <SearchInput value={search} onChange={setSearch} placeholder="Search by email or name..." className="mb-4 max-w-md" />
+    <div style={{ padding: "24px 32px 64px" }} data-testid="admin-users">
+      <div className="tick" style={{ marginBottom: 8 }}>
+        ADMIN · USERS · {data?.total ?? 0} TOTAL
+      </div>
+      <h1
+        className="serif"
+        style={{
+          fontSize: 26,
+          fontWeight: 500,
+          letterSpacing: "-0.015em",
+          marginBottom: 20,
+        }}
+      >
+        Users.
+      </h1>
 
-      {isLoading && <Spinner size="sm" />}
+      <input
+        type="search"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Search email or name…"
+        className="input"
+        data-testid="admin-users-search"
+        style={{ maxWidth: 360, marginBottom: 18 }}
+      />
+
+      {isLoading && (
+        <div
+          className="tick"
+          style={{ padding: 24, textAlign: "center", color: "var(--ink-4)" }}
+        >
+          LOADING…
+        </div>
+      )}
 
       {data && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-left text-xs text-gray-500">
+        <div className="panel" style={{ overflowX: "auto", padding: 0 }}>
+          <table className="dtable">
+            <thead>
               <tr>
-                <th className="px-3 py-2">Email</th>
-                <th className="px-3 py-2">Name</th>
-                <th className="px-3 py-2">Plan</th>
-                <th className="px-3 py-2">Credits</th>
-                <th className="px-3 py-2">Status</th>
-                <th className="px-3 py-2">Actions</th>
+                <th>Email</th>
+                <th>Name</th>
+                <th>Plan</th>
+                <th>Credits</th>
+                <th>Status</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {data.data.map((u) => (
-                <tr key={u.id} className="border-t border-gray-100">
-                  <td className="px-3 py-2 text-gray-900">{u.email}</td>
-                  <td className="px-3 py-2">{u.full_name}</td>
-                  <td className="px-3 py-2 capitalize">{u.plan}</td>
-                  <td className="px-3 py-2">{u.credit_balance}</td>
-                  <td className="px-3 py-2">
-                    {u.is_active ? (
-                      <Badge variant="active">Active</Badge>
-                    ) : (
-                      <Badge variant="superseded">Inactive</Badge>
-                    )}
-                    {u.is_admin && <Badge variant="high" className="ml-1">Admin</Badge>}
+                <tr key={u.id} data-testid="admin-user-row">
+                  <td
+                    className="mono"
+                    style={{ fontSize: 12, color: "var(--ink)" }}
+                  >
+                    {u.email}
                   </td>
-                  <td className="px-3 py-2">
-                    <button
-                      onClick={() => toggle.mutate({ id: u.id, field: "is_active", value: !u.is_active })}
-                      className="text-xs text-navy-600 hover:underline"
+                  <td>{u.full_name}</td>
+                  <td style={{ textTransform: "capitalize" }}>{u.plan}</td>
+                  <td className="tnum mono">{u.credit_balance}</td>
+                  <td>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      {u.is_active ? (
+                        <Pill tone="good">ACTIVE</Pill>
+                      ) : (
+                        <Pill tone="bad">INACTIVE</Pill>
+                      )}
+                      {u.is_admin && <Pill tone="amber">ADMIN</Pill>}
+                    </div>
+                  </td>
+                  <td>
+                    <Btn
+                      size="sm"
+                      variant="ghost"
+                      data-testid="admin-user-toggle"
+                      onClick={() =>
+                        toggle.mutate({
+                          id: u.id,
+                          field: "is_active",
+                          value: !u.is_active,
+                        })
+                      }
                     >
                       {u.is_active ? "Deactivate" : "Activate"}
-                    </button>
+                    </Btn>
                   </td>
                 </tr>
               ))}
