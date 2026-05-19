@@ -1,0 +1,119 @@
+{
+  "_doc": "Hand-crafted structured_content trees for the 5 synthetic demo circulars. Used by scripts/seed_demo.py until slice 4b's structural PDF extractor lands. Shape matches backend/app/schemas/circulars.py:StructuredContent.",
+  "RBI/2024-25/42": {
+    "version": 1,
+    "blocks": [
+      {"type": "heading", "level": 1, "text": "Master Direction — Know Your Customer (KYC) Direction, 2024"},
+      {"type": "paragraph", "text": "This Master Direction consolidates Know Your Customer (KYC) norms applicable to all Regulated Entities (REs), including Scheduled Commercial Banks, Co-operative Banks, Regional Rural Banks, NBFCs, and Payment System Operators. It supersedes the directions issued vide circular DBR.AML.BC.No.81/14.01.001/2015-16 dated February 25, 2016."},
+      {"type": "heading", "level": 2, "text": "1. Scope and Applicability"},
+      {"type": "paragraph", "text": "This Direction shall apply to every Regulated Entity from the effective date specified above. Existing customer relationships shall be brought into compliance through the periodic updation cycle prescribed in Section 4."},
+      {"type": "heading", "level": 2, "text": "2. Customer Due Diligence (CDD)"},
+      {"type": "paragraph", "text": "Regulated Entities shall undertake CDD measures while establishing an account-based relationship or carrying out occasional transactions above the prescribed threshold."},
+      {"type": "list", "ordered": true, "items": [
+        {"type": "paragraph", "text": "Identification of the customer using Officially Valid Documents (OVDs) and verification of identity."},
+        {"type": "paragraph", "text": "Identification and verification of the beneficial owner where applicable."},
+        {"type": "paragraph", "text": "Understanding the purpose and intended nature of the customer relationship."},
+        {"type": "paragraph", "text": "Conducting ongoing due diligence and scrutiny of transactions."}
+      ]},
+      {"type": "heading", "level": 2, "text": "3. Periodic Updation Timelines"},
+      {"type": "paragraph", "text": "Regulated Entities shall update KYC records based on customer risk categorisation as follows:"},
+      {"type": "table", "headers": ["Risk Category", "Periodic Updation Cycle", "Trigger"], "rows": [
+        ["Low Risk", "Every 10 years", "From last full KYC"],
+        ["Medium Risk", "Every 8 years", "From last full KYC"],
+        ["High Risk", "Every 2 years", "From last full KYC"],
+        ["Politically Exposed Person", "Every 2 years", "Independent of risk score"]
+      ]},
+      {"type": "heading", "level": 2, "text": "4. Video-based Customer Identification Process (V-CIP)"},
+      {"type": "paragraph", "text": "REs may undertake V-CIP for individual customers as an additional method of identity verification. The V-CIP shall be conducted by an official of the RE specifically authorised for this purpose. Liveness detection and geolocation tagging are mandatory."}
+    ]
+  },
+  "RBI/2023-24/108": {
+    "version": 1,
+    "blocks": [
+      {"type": "heading", "level": 1, "text": "Guidelines on Digital Lending"},
+      {"type": "paragraph", "text": "These guidelines apply to all Regulated Entities (REs) and their Lending Service Providers (LSPs), including Digital Lending Apps (DLAs). The framework standardises consumer protection, data privacy, and direct fund-flow requirements."},
+      {"type": "heading", "level": 2, "text": "1. Direct Fund Flow"},
+      {"type": "paragraph", "text": "All loan disbursals and repayments shall be executed only between the bank accounts of the borrower and the RE, without any pass-through or pool account of the LSP or any third party."},
+      {"type": "heading", "level": 2, "text": "2. Key Fact Statement (KFS)"},
+      {"type": "paragraph", "text": "Every digital loan shall be accompanied by a standardised Key Fact Statement that the borrower must acknowledge before disbursement. The KFS shall include:"},
+      {"type": "list", "ordered": false, "items": [
+        {"type": "paragraph", "text": "All-inclusive cost of the loan expressed as Annual Percentage Rate (APR)."},
+        {"type": "paragraph", "text": "Cooling-off period of 5 days (extended from 3 in the 2026-04 amendment)."},
+        {"type": "paragraph", "text": "Recovery mechanism, including LSP details if applicable."},
+        {"type": "paragraph", "text": "Grievance redressal officer contact details."}
+      ]},
+      {"type": "heading", "level": 2, "text": "3. Data Localisation"},
+      {"type": "paragraph", "text": "All data collected during the digital lending process shall be stored on servers located within India. Cross-border data sharing is prohibited except for limited exceptions notified by the Reserve Bank."}
+    ]
+  },
+  "RBI/2024-25/15": {
+    "version": 1,
+    "blocks": [
+      {"type": "heading", "level": 1, "text": "Scale Based Regulation (SBR) Framework for NBFCs"},
+      {"type": "paragraph", "text": "The Scale Based Regulation framework classifies Non-Banking Financial Companies into four layers based on their size, activity, and perceived riskiness. Progressive regulatory requirements are mapped to each layer."},
+      {"type": "heading", "level": 2, "text": "1. Layered Classification"},
+      {"type": "table", "headers": ["Layer", "Description", "Asset Size Threshold"], "rows": [
+        ["Base Layer (NBFC-BL)", "Non-deposit-taking with minimal regulatory impact", "Below ₹1,000 Cr"],
+        ["Middle Layer (NBFC-ML)", "All deposit-taking + non-deposit ≥ ₹1,000 Cr", "₹1,000 — ₹12,500 Cr"],
+        ["Upper Layer (NBFC-UL)", "Top 10 by Scoring methodology", "Identified annually by RBI"],
+        ["Top Layer (NBFC-TL)", "Empty by default; populated if systemic risk warrants", "—"]
+      ]},
+      {"type": "heading", "level": 2, "text": "2. Capital Requirements for Upper Layer"},
+      {"type": "paragraph", "text": "Upper Layer NBFCs shall maintain Common Equity Tier-1 capital of not less than ten (10) per cent of risk-weighted assets, effective 1 April 2027. A glide-path of three quarters is provided for compliance."},
+      {"type": "paragraph", "text": "A leverage ratio cap of seven times (7×) on-and-off-balance-sheet exposures shall apply on a continuous basis. Securitised pools with true-sale derecognition under Ind-AS 109 are excluded from the leverage calculation."},
+      {"type": "heading", "level": 2, "text": "3. Governance Requirements"},
+      {"type": "list", "ordered": true, "items": [
+        {"type": "paragraph", "text": "Mandatory Risk Management Committee at Board level."},
+        {"type": "paragraph", "text": "Appointment of a full-time Chief Risk Officer reporting to the CEO."},
+        {"type": "paragraph", "text": "Annual ICAAP submission to the Reserve Bank."},
+        {"type": "paragraph", "text": "Independent Asset-Liability Management Committee."}
+      ]}
+    ]
+  },
+  "RBI/2023-24/76": {
+    "version": 1,
+    "blocks": [
+      {"type": "heading", "level": 1, "text": "Prompt Corrective Action (PCA) Framework"},
+      {"type": "paragraph", "text": "The PCA framework defines capital and asset-quality thresholds whose breach triggers progressively stricter supervisory restrictions on Scheduled Commercial Banks. The framework operates on three risk thresholds."},
+      {"type": "heading", "level": 2, "text": "1. Trigger Thresholds"},
+      {"type": "table", "headers": ["Threshold", "CRAR", "Net NPA", "Tier-1 CET1"], "rows": [
+        ["Threshold 1", "< 10.875%", "≥ 6%", "< 6.625%"],
+        ["Threshold 2", "< 9.375%", "≥ 9%", "< 5.125%"],
+        ["Threshold 3", "< 7.5%", "≥ 12%", "< 3.625%"]
+      ]},
+      {"type": "heading", "level": 2, "text": "2. Mandatory Restrictions on Breach"},
+      {"type": "paragraph", "text": "On crossing any threshold, the following restrictions shall apply automatically:"},
+      {"type": "list", "ordered": false, "items": [
+        {"type": "paragraph", "text": "Restriction on dividend distribution and remittance of profits."},
+        {"type": "paragraph", "text": "Restriction on branch expansion (domestic and overseas)."},
+        {"type": "paragraph", "text": "Restriction on management compensation and director fees."},
+        {"type": "paragraph", "text": "Higher provisions on stressed assets."},
+        {"type": "paragraph", "text": "Restriction on issuance of guarantees."}
+      ]}
+    ]
+  },
+  "RBI/2024-25/31": {
+    "version": 1,
+    "blocks": [
+      {"type": "heading", "level": 1, "text": "Master Direction on Fraud Risk Management"},
+      {"type": "paragraph", "text": "This Direction consolidates fraud reporting, detection, monitoring, and remediation requirements for Scheduled Commercial Banks, Co-operative Banks, and NBFCs."},
+      {"type": "heading", "level": 2, "text": "1. Reporting Timelines"},
+      {"type": "paragraph", "text": "Frauds shall be reported via the XBRL-based Central Fraud Registry within the following timelines:"},
+      {"type": "table", "headers": ["Fraud Amount", "Initial Report", "Detailed Report"], "rows": [
+        ["< ₹1 Crore", "Within 21 days", "Within 60 days"],
+        ["₹1 — ₹25 Crore", "Within 21 days", "Within 60 days"],
+        ["₹25 — ₹100 Crore", "Within 7 days", "Within 45 days"],
+        ["> ₹100 Crore", "Within 24 hours", "Within 30 days"]
+      ]},
+      {"type": "heading", "level": 2, "text": "2. Red Flag Account (RFA) Monitoring"},
+      {"type": "paragraph", "text": "Accounts exhibiting early warning signals shall be classified as RFA and subjected to enhanced monitoring. RFA status must be reviewed by the Audit Committee of the Board at least quarterly."},
+      {"type": "heading", "level": 2, "text": "3. Forensic Audit Protocols"},
+      {"type": "list", "ordered": true, "items": [
+        {"type": "paragraph", "text": "Mandatory forensic audit for frauds ≥ ₹50 Crore."},
+        {"type": "paragraph", "text": "Audit firm shall be from RBI's empanelled list."},
+        {"type": "paragraph", "text": "Audit report shall be reviewed by the Board within 30 days of submission."},
+        {"type": "paragraph", "text": "Audit findings shall be reported to law-enforcement agencies as required."}
+      ]}
+    ]
+  }
+}

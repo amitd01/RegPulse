@@ -43,6 +43,7 @@ def _make_circular(**overrides) -> MagicMock:  # noqa: ANN003
         "ai_summary": "Test summary",
         "pending_admin_review": False,
         "superseded_by": None,
+        "structured_content": None,
         "chunks": [],
     }
     defaults.update(overrides)

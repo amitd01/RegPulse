@@ -1823,6 +1823,7 @@ export interface components {
             pending_admin_review: boolean;
             /** Superseded By */
             superseded_by?: string | null;
+            structured_content?: components["schemas"]["StructuredContent"] | null;
             /**
              * Chunks
              * @default []
@@ -3122,6 +3123,45 @@ export interface components {
             items: components["schemas"]["SnippetListItem"][];
             /** Total */
             total: number;
+        };
+        /**
+         * StructuredBlock
+         * @description One block in the reading-shape document tree.
+         *
+         *     `type` ∈ {"heading", "paragraph", "list", "table"}. Other fields are
+         *     type-dependent; `extra` is reserved for forward-compat schema growth.
+         */
+        StructuredBlock: {
+            /** Type */
+            type: string;
+            /** Text */
+            text?: string | null;
+            /** Level */
+            level?: number | null;
+            /** Ordered */
+            ordered?: boolean | null;
+            /** Items */
+            items?: components["schemas"]["StructuredBlock"][] | null;
+            /** Headers */
+            headers?: string[] | null;
+            /** Rows */
+            rows?: string[][] | null;
+        };
+        /**
+         * StructuredContent
+         * @description Reading-shape JSONB tree on circular_documents.structured_content.
+         */
+        StructuredContent: {
+            /**
+             * Version
+             * @default 1
+             */
+            version: number;
+            /**
+             * Blocks
+             * @default []
+             */
+            blocks: components["schemas"]["StructuredBlock"][];
         };
         /** SubscriptionEventResponse */
         SubscriptionEventResponse: {

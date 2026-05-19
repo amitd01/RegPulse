@@ -98,12 +98,38 @@ class CircularSearchResultItem(CircularListItem):
     snippet: str | None = None
 
 
+class StructuredBlock(BaseModel):
+    """One block in the reading-shape document tree.
+
+    `type` ∈ {"heading", "paragraph", "list", "table"}. Other fields are
+    type-dependent; `extra` is reserved for forward-compat schema growth.
+    """
+
+    type: str
+    text: str | None = None
+    level: int | None = None  # heading depth 1-3
+    ordered: bool | None = None  # list
+    items: list["StructuredBlock"] | None = None  # list contents
+    headers: list[str] | None = None  # table
+    rows: list[list[str]] | None = None  # table
+
+
+class StructuredContent(BaseModel):
+    """Reading-shape JSONB tree on circular_documents.structured_content."""
+
+    version: int = 1
+    blocks: list[StructuredBlock] = []
+
+
 class CircularDetail(CircularListItem):
     effective_date: date | None = None
     rbi_url: str
     ai_summary: str | None = None
     pending_admin_review: bool
     superseded_by: uuid.UUID | None = None
+    # Slice 4a — reading-shape tree (typed wrapper around the JSONB column).
+    # None when the structural extractor hasn't run (slice 4b populates it).
+    structured_content: StructuredContent | None = None
     chunks: list[ChunkResponse] = []
     updated_at: datetime
 

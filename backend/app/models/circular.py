@@ -80,6 +80,10 @@ class CircularDocument(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default="now()"
     )
+    # Slice 4a — reading-shape tree (heading/paragraph/list/table blocks).
+    # Distinct from document_chunks.chunk_text which is retrieval-shape only.
+    # NULL when the structural extractor hasn't run on this doc yet (slice 4b).
+    structured_content: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     # Relationships
     chunks: Mapped[list["DocumentChunk"]] = relationship(

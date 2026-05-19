@@ -137,6 +137,11 @@ async def main() -> None:
     with open(golden_path) as f:
         dataset = json.load(f)
 
+    # Load structured-content trees (slice 4a — until 4b's PDF extractor runs)
+    structured_path = _root / "scripts" / "seed_structured.json"
+    with open(structured_path) as f:
+        structured_trees = json.load(f)
+
     circulars = dataset["synthetic_circulars"]
     print(f"Seeding {len(circulars)} demo circulars (reseed={reseed})...")
 
@@ -175,14 +180,15 @@ async def main() -> None:
                         id, circular_number, title, rbi_url, status, doc_type,
                         impact_level, pending_admin_review,
                         issued_date, effective_date, department,
-                        affected_teams, tags, ai_summary
+                        affected_teams, tags, ai_summary, structured_content
                     ) VALUES (
                         :id, :cn, :title, :url, 'ACTIVE', 'MASTER_DIRECTION',
                         :impact_level, FALSE,
                         :issued_date, :effective_date,
                         :department,
                         CAST(:affected_teams AS JSONB), CAST(:tags AS JSONB),
-                        :ai_summary
+                        :ai_summary,
+                        CAST(:structured_content AS JSONB)
                     )
                 """),
                 {
@@ -205,6 +211,11 @@ async def main() -> None:
                     "affected_teams": json.dumps(meta.get("affected_teams", [])),
                     "tags": json.dumps(meta.get("tags", [])),
                     "ai_summary": meta.get("ai_summary"),
+                    "structured_content": (
+                        json.dumps(structured_trees[cn])
+                        if cn in structured_trees and not cn.startswith("_")
+                        else None
+                    ),
                 },
             )
 

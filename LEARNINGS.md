@@ -17,6 +17,15 @@
 
 **How to prevent.** CI's `backend-test` job must run `pip install -r requirements-dev.txt` in a fresh container with no pre-installed deps, then `pytest`. If a test-time import isn't pinned in `requirements-dev.txt`, CI breaks — same wall as a new contributor.
 
+### LR4.1 — MagicMock auto-creates attributes, breaking Pydantic from_attributes
+**What bit us.** Adding `structured_content` to `CircularDetail` schema broke an existing router test (`test_get_detail_returns_200`) with a 500 response. The pre-existing test fixture used `MagicMock()` and `setattr(mock, k, v)` only for the keys it cared about. Pydantic v2 with `from_attributes=True` calls `getattr(obj, "structured_content")` — and MagicMock cheerfully returns a new MagicMock for any missing attribute. Pydantic then tries to validate that MagicMock against `StructuredContent | None` and explodes.
+
+**Root cause.** The pre-rebuild test pattern relied on MagicMock's "implicit attributes" behaviour. Adding a new optional field to the schema is a breaking change for any test using MagicMock without spec.
+
+**Fix.** Explicitly set `"structured_content": None` in the fixture's default dict. Same gotcha will apply to every future schema field addition unless the test fixture uses `MagicMock(spec=CircularDocument)` or a real ORM instance.
+
+**How to prevent.** When adding a Pydantic field with `from_attributes=True`, run the full unit suite — any MagicMock-based test that doesn't explicitly set the new attribute will silently fail. Better: migrate router tests to use `MagicMock(spec=Model)` so the auto-attribute trap is closed.
+
 ### LR3.1 — v2 design tokens via inline style for new ports, not Tailwind utilities
 **What bit us.** First instinct when porting `(auth)/*` to v2 was to add `bg-paper`, `text-ink` etc. as Tailwind utilities. They don't exist — and **must not** exist (ADR A18 / rule 15: tokens live in `globals.css` as CSS custom properties, never in `tailwind.config.ts`).
 

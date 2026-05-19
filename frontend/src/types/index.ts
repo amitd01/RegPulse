@@ -31,12 +31,26 @@ export interface ChunkResponse {
   token_count: number;
 }
 
+// Slice 4a — reading-shape document tree (mirrors backend StructuredContent)
+export type StructuredBlock =
+  | { type: "heading"; level: 1 | 2 | 3; text: string }
+  | { type: "paragraph"; text: string }
+  | { type: "list"; ordered: boolean; items: StructuredBlock[] }
+  | { type: "table"; headers: string[]; rows: string[][] };
+
+export interface StructuredContent {
+  version: number;
+  blocks: StructuredBlock[];
+}
+
 export interface CircularDetail extends CircularListItem {
   effective_date: string | null;
   rbi_url: string;
   ai_summary: string | null;
   pending_admin_review: boolean;
   superseded_by: string | null;
+  // Slice 4a — reading-shape; null until 4b's structural extractor runs.
+  structured_content: StructuredContent | null;
   chunks: ChunkResponse[];
   updated_at: string;
 }

@@ -5589,6 +5589,16 @@
             ],
             "title": "Superseded By"
           },
+          "structured_content": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StructuredContent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "chunks": {
             "items": {
               "$ref": "#/components/schemas/ChunkResponse"
@@ -8803,6 +8813,118 @@
           "total"
         ],
         "title": "SnippetListResponse"
+      },
+      "StructuredBlock": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
+          },
+          "ordered": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ordered"
+          },
+          "items": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/StructuredBlock"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Items"
+          },
+          "headers": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headers"
+          },
+          "rows": {
+            "anyOf": [
+              {
+                "items": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rows"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "StructuredBlock",
+        "description": "One block in the reading-shape document tree.\n\n`type` \u2208 {\"heading\", \"paragraph\", \"list\", \"table\"}. Other fields are\ntype-dependent; `extra` is reserved for forward-compat schema growth."
+      },
+      "StructuredContent": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "title": "Version",
+            "default": 1
+          },
+          "blocks": {
+            "items": {
+              "$ref": "#/components/schemas/StructuredBlock"
+            },
+            "type": "array",
+            "title": "Blocks",
+            "default": []
+          }
+        },
+        "type": "object",
+        "title": "StructuredContent",
+        "description": "Reading-shape JSONB tree on circular_documents.structured_content."
       },
       "SubscriptionEventResponse": {
         "properties": {
