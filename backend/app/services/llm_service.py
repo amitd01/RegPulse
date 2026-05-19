@@ -17,6 +17,7 @@ from collections.abc import AsyncGenerator
 
 import anthropic
 import openai
+import pybreaker
 import structlog
 
 from app.config import get_settings
@@ -24,6 +25,28 @@ from app.services.rag_service import RetrievedChunk
 from app.utils.injection_guard import check_injection, sanitise_for_llm
 
 logger = structlog.get_logger("regpulse.llm")
+
+# ---------------------------------------------------------------------------
+# Circuit breaker for the Anthropic primary (G-10 / slice 10b).
+#
+# Pre-rebuild: plain try/except Anthropic → OpenAI fallback. On a sustained
+# Anthropic outage every request paid the Anthropic timeout latency before
+# the fallback fired. With pybreaker, once 3 consecutive Anthropic calls
+# fail, the breaker opens for 60s and ALL calls in that window skip
+# Anthropic entirely and go straight to OpenAI — much lower tail latency
+# during partial provider outages.
+#
+# fail_max=3, reset_timeout=60s are conservative defaults. The breaker is
+# a module-level singleton so all worker processes share state through the
+# process-local cache (true distributed state across workers would need a
+# Redis backend; deferred).
+# ---------------------------------------------------------------------------
+ANTHROPIC_BREAKER = pybreaker.CircuitBreaker(
+    fail_max=3,
+    reset_timeout=60,
+    exclude=[ValueError, TypeError, AttributeError],  # programming errors don't trip
+    name="anthropic-primary",
+)
 
 _SYSTEM_PROMPT = """You are RegPulse, an AI assistant that answers regulatory compliance questions \
 for Indian banking professionals. You ONLY answer based on the RBI circular excerpts provided below.
@@ -244,10 +267,31 @@ class LLMService:
             openai.APIConnectionError,
             openai.APITimeoutError,
         )
+        # Wrap the Anthropic call in pybreaker so sustained provider outages
+        # short-circuit to OpenAI without paying timeout latency per request.
         try:
-            raw_response = await self._call_anthropic(user_message)
+            raw_response = await ANTHROPIC_BREAKER.call_async(
+                self._call_anthropic, user_message
+            )
             model_used = self._settings.LLM_MODEL
             logger.info("llm_anthropic_success", model=model_used)
+        except pybreaker.CircuitBreakerError:
+            # Breaker is open — skip Anthropic entirely
+            logger.warning(
+                "llm_anthropic_breaker_open",
+                fail_count=ANTHROPIC_BREAKER.fail_counter,
+            )
+            try:
+                raw_response = await self._call_openai(user_message)
+                model_used = self._settings.LLM_FALLBACK_MODEL
+                logger.info(
+                    "llm_openai_fallback_success",
+                    model=model_used,
+                    reason="breaker_open",
+                )
+            except _openai_errors:
+                logger.error("llm_both_failed_breaker", exc_info=True)
+                raise
         except _anthropic_errors:
             logger.warning("llm_anthropic_failed, trying fallback", exc_info=True)
             try:
