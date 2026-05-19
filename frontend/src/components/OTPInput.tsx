@@ -97,7 +97,10 @@ export default function OTPInput({ value, onChange, onComplete, disabled = false
   );
 
   return (
-    <div className="flex items-center justify-center gap-3">
+    <div
+      style={{ display: "flex", justifyContent: "center", gap: 10 }}
+      data-testid="otp-input"
+    >
       {Array.from({ length: OTP_LENGTH }).map((_, i) => (
         <input
           key={i}
@@ -110,14 +113,35 @@ export default function OTPInput({ value, onChange, onComplete, disabled = false
           maxLength={1}
           value={digits[i]?.trim() || ""}
           disabled={disabled}
-          className="h-14 w-12 rounded-lg border-2 border-gray-300 bg-white text-center text-2xl font-semibold
-            text-navy-800 transition-colors
-            focus:border-navy-500 focus:outline-none focus:ring-2 focus:ring-navy-200
-            disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+          data-testid={`otp-digit-${i}`}
+          aria-label={`OTP digit ${i + 1}`}
+          className="mono"
+          style={{
+            width: 44,
+            height: 52,
+            textAlign: "center",
+            fontSize: 22,
+            fontWeight: 600,
+            color: "var(--ink)",
+            background: "var(--panel)",
+            border: "1px solid var(--line-2)",
+            borderRadius: "var(--radius-2)",
+            outline: "none",
+            transition: "border-color .12s, box-shadow .12s",
+            opacity: disabled ? 0.5 : 1,
+          }}
           onChange={(e) => handleChange(i, e.target.value)}
           onKeyDown={(e) => handleKeyDown(i, e)}
           onPaste={handlePaste}
-          onFocus={(e) => e.target.select()}
+          onFocus={(e) => {
+            e.target.select();
+            e.target.style.borderColor = "var(--signal)";
+            e.target.style.boxShadow = "0 0 0 3px rgba(194,90,17,.15)";
+          }}
+          onBlur={(e) => {
+            e.target.style.borderColor = "var(--line-2)";
+            e.target.style.boxShadow = "none";
+          }}
         />
       ))}
     </div>

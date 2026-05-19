@@ -61,9 +61,16 @@ eval:
 		-e PYTHONPATH=/app \
 		backend bash -c "pip install -q pytest pytest-asyncio && pytest tests/evals/ -v"
 
-# Slice 3+ — Playwright E2E against running docker compose stack
+# Slice 3+ — Playwright E2E against running docker compose stack.
+# First-time run: `make e2e-install` to download browser binaries (~250MB).
 e2e:
 	cd frontend && npx playwright test
+
+e2e-install:
+	cd frontend && npx playwright install --with-deps chromium
+
+e2e-list:
+	cd frontend && npx playwright test --list
 
 # Regenerate TypeScript client from FastAPI's OpenAPI spec.
 # Boots the app in-process (no backend container required) → dumps openapi.json

@@ -1,16 +1,18 @@
 /**
- * Login page — email input → OTP sent.
+ * Login page — work email input → OTP sent. v2 terminal-modern.
+ *
+ * Behaviour preserved verbatim from pre-rebuild: TanStack mutation against
+ * loginUser; on success router.push('/verify?email=...&purpose=login').
  */
 
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
-import { loginUser, type LoginRequest } from "@/lib/api/auth";
 import { type AxiosError } from "axios";
-import type { ApiError } from "@/lib/api/auth";
-import Link from "next/link";
+import { loginUser, type ApiError, type LoginRequest } from "@/lib/api/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,10 +21,7 @@ export default function LoginPage() {
   const mutation = useMutation<unknown, AxiosError<ApiError>, LoginRequest>({
     mutationFn: loginUser,
     onSuccess: () => {
-      const params = new URLSearchParams({
-        email,
-        purpose: "login",
-      });
+      const params = new URLSearchParams({ email, purpose: "login" });
       router.push(`/verify?${params.toString()}`);
     },
   });
@@ -36,46 +35,102 @@ export default function LoginPage() {
 
   return (
     <>
-      <h2 className="mb-6 text-center text-xl font-semibold text-gray-800">Welcome back</h2>
+      <div className="tick" style={{ marginBottom: 14 }}>
+        SIGN IN · WORK EMAIL
+      </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="email" className="mb-1 block text-sm font-medium text-gray-700">
-            Work Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            required
-            autoComplete="email"
-            autoFocus
-            placeholder="you@company.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm
-              focus:border-navy-500 focus:outline-none focus:ring-2 focus:ring-navy-200"
-          />
-        </div>
+      <h1
+        className="serif"
+        style={{
+          fontSize: 28,
+          fontWeight: 500,
+          letterSpacing: "-0.015em",
+          lineHeight: 1.15,
+          marginBottom: 8,
+        }}
+      >
+        Welcome back.
+      </h1>
+      <p style={{ color: "var(--ink-3)", fontSize: 14, marginBottom: 24 }}>
+        Enter your registered work email and we&apos;ll send a one-time code.
+      </p>
+
+      <form onSubmit={handleSubmit} aria-label="login-form">
+        <label
+          htmlFor="email"
+          className="up"
+          style={{
+            display: "block",
+            fontFamily: "var(--font-mono)",
+            fontSize: 10.5,
+            color: "var(--ink-4)",
+            marginBottom: 6,
+          }}
+        >
+          Work email
+        </label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          required
+          autoComplete="email"
+          autoFocus
+          placeholder="you@company.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="input"
+          data-testid="auth-email"
+        />
 
         {errorMsg && (
-          <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{errorMsg}</div>
+          <div
+            role="alert"
+            data-testid="auth-error"
+            style={{
+              marginTop: 12,
+              padding: "10px 12px",
+              border: "1px solid transparent",
+              background: "var(--bad-bg)",
+              color: "var(--bad)",
+              fontSize: 12.5,
+              borderRadius: "var(--radius-2)",
+            }}
+          >
+            {errorMsg}
+          </div>
         )}
 
         <button
           type="submit"
-          disabled={mutation.isPending}
-          className="w-full rounded-lg bg-navy-600 px-4 py-2.5 text-sm font-medium text-white
-            transition-colors hover:bg-navy-700
-            disabled:cursor-not-allowed disabled:bg-gray-400"
+          disabled={mutation.isPending || !email}
+          className="btn primary"
+          data-testid="auth-submit"
+          style={{ width: "100%", marginTop: 20, justifyContent: "center", padding: "10px 14px" }}
         >
-          {mutation.isPending ? "Sending OTP..." : "Send OTP"}
+          {mutation.isPending ? "Requesting code…" : "Request code"}
         </button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-gray-500">
-        Don&apos;t have an account?{" "}
-        <Link href="/register" className="font-medium text-navy-600 hover:text-navy-800">
-          Register
+      <hr className="hr" style={{ margin: "24px 0 16px" }} />
+
+      <p
+        style={{
+          fontSize: 12.5,
+          color: "var(--ink-3)",
+          textAlign: "center",
+        }}
+      >
+        New here?{" "}
+        <Link
+          href="/register"
+          style={{
+            color: "var(--ink)",
+            fontWeight: 500,
+            borderBottom: "1px solid var(--signal)",
+          }}
+        >
+          Create an account
         </Link>
       </p>
     </>

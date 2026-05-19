@@ -17,6 +17,15 @@
 
 **How to prevent.** CI's `backend-test` job must run `pip install -r requirements-dev.txt` in a fresh container with no pre-installed deps, then `pytest`. If a test-time import isn't pinned in `requirements-dev.txt`, CI breaks — same wall as a new contributor.
 
+### LR3.1 — v2 design tokens via inline style for new ports, not Tailwind utilities
+**What bit us.** First instinct when porting `(auth)/*` to v2 was to add `bg-paper`, `text-ink` etc. as Tailwind utilities. They don't exist — and **must not** exist (ADR A18 / rule 15: tokens live in `globals.css` as CSS custom properties, never in `tailwind.config.ts`).
+
+**Root cause.** v2's design system treats tokens as runtime CSS variables so theme switches (light/dark via `html.dark`) work without rebuilding Tailwind. Forking them into Tailwind config would create two sources of truth.
+
+**Fix.** Inline `style={{ background: "var(--bg)", color: "var(--ink)" }}` plus the curated utility classes already defined in `globals.css` (`.tick`, `.input`, `.btn primary`, `.serif`, `.mono`, `.panel`, `.hr`, `.gridlines`). Net result: 0 Tailwind utility classes in the four ported files, but the visual is consistent with the rest of the v2 surface.
+
+**How to prevent.** Slice acceptance gate: `grep -rnE "bg-(navy|slate|gray|blue)-|text-(navy|slate)-" frontend/src/app/<group>` must return 0 hits in any newly-ported route. CI lint adds this assertion in slice 8.
+
 ### LR2.1 — FastAPI rejects `-> None` annotation on 204 status routes
 **What bit us.** First export of `openapi.json` crashed during app boot with `AssertionError: Status code 204 must not have a response body` on the stub delete endpoints. The handler had `status_code=status.HTTP_204_NO_CONTENT` AND `async def delete(...) -> None: raise HTTPException(501)` — FastAPI's route-registration assertion treats `None` as a declared response model, which conflicts with 204.
 

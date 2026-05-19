@@ -1,18 +1,23 @@
 /**
- * OTP verification page — 6 individual digit boxes.
+ * OTP verification — v2 terminal-modern.
  *
- * - Auto-advances on input, auto-submits on last digit.
- * - On success: stores tokens in Zustand (memory), redirects to dashboard.
+ * Behaviour preserved: 6 boxes, auto-advance, auto-submit on last digit,
+ * Suspense wrapper for useSearchParams. On success setAuth(user, accessToken)
+ * then router.push('/dashboard').
  */
 
 "use client";
 
-import { useState, useCallback, Suspense } from "react";
+import { Suspense, useCallback, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
-import { verifyOtp, type OTPVerifyRequest, type AuthResponse } from "@/lib/api/auth";
 import { type AxiosError } from "axios";
-import type { ApiError } from "@/lib/api/auth";
+import {
+  verifyOtp,
+  type ApiError,
+  type AuthResponse,
+  type OTPVerifyRequest,
+} from "@/lib/api/auth";
 import { useAuthStore } from "@/stores/authStore";
 import OTPInput from "@/components/OTPInput";
 
@@ -44,28 +49,47 @@ function VerifyContent() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (otp.length === 6) {
-      handleComplete(otp);
-    }
+    if (otp.length === 6) handleComplete(otp);
   };
 
   const errorMsg = mutation.error?.response?.data?.error || mutation.error?.message;
 
-  // Mask email for display: a***@domain.com
+  // a***@domain.com
   const maskedEmail = email
     ? `${email[0]}${"*".repeat(Math.max(0, email.indexOf("@") - 1))}${email.slice(email.indexOf("@"))}`
     : "";
 
   return (
     <>
-      <h2 className="mb-2 text-center text-xl font-semibold text-gray-800">
-        Enter verification code
-      </h2>
-      <p className="mb-8 text-center text-sm text-gray-500">
-        We sent a 6-digit code to <span className="font-medium text-gray-700">{maskedEmail}</span>
+      <div className="tick" style={{ marginBottom: 14 }}>
+        VERIFY · 6-DIGIT CODE
+      </div>
+
+      <h1
+        className="serif"
+        style={{
+          fontSize: 26,
+          fontWeight: 500,
+          letterSpacing: "-0.015em",
+          lineHeight: 1.2,
+          marginBottom: 8,
+        }}
+      >
+        Confirm your terminal.
+      </h1>
+      <p style={{ color: "var(--ink-3)", fontSize: 14, marginBottom: 24 }}>
+        We sent a code to{" "}
+        <span
+          className="mono"
+          style={{ color: "var(--ink)", background: "var(--panel-2)", padding: "1px 6px" }}
+          data-testid="auth-masked-email"
+        >
+          {maskedEmail}
+        </span>
+        . Enter it below — paste works too.
       </p>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} aria-label="verify-form">
         <OTPInput
           value={otp}
           onChange={setOtp}
@@ -74,7 +98,19 @@ function VerifyContent() {
         />
 
         {errorMsg && (
-          <div className="rounded-md bg-red-50 p-3 text-center text-sm text-red-700">
+          <div
+            role="alert"
+            data-testid="auth-error"
+            style={{
+              marginTop: 18,
+              padding: "10px 12px",
+              background: "var(--bad-bg)",
+              color: "var(--bad)",
+              fontSize: 12.5,
+              borderRadius: "var(--radius-2)",
+              textAlign: "center",
+            }}
+          >
             {errorMsg}
           </div>
         )}
@@ -82,22 +118,35 @@ function VerifyContent() {
         <button
           type="submit"
           disabled={mutation.isPending || otp.length < 6}
-          className="w-full rounded-lg bg-navy-600 px-4 py-2.5 text-sm font-medium text-white
-            transition-colors hover:bg-navy-700
-            disabled:cursor-not-allowed disabled:bg-gray-400"
+          className="btn primary"
+          data-testid="auth-verify-submit"
+          style={{ width: "100%", marginTop: 22, justifyContent: "center", padding: "10px 14px" }}
         >
-          {mutation.isPending ? "Verifying..." : "Verify OTP"}
+          {mutation.isPending ? "Verifying…" : "Verify"}
         </button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-gray-500">
+      <hr className="hr" style={{ margin: "20px 0 14px" }} />
+
+      <p style={{ fontSize: 12.5, color: "var(--ink-3)", textAlign: "center" }}>
         Didn&apos;t receive the code?{" "}
         <button
           type="button"
           onClick={() => router.back()}
-          className="font-medium text-navy-600 hover:text-navy-800"
+          style={{
+            color: "var(--ink)",
+            fontWeight: 500,
+            borderBottom: "1px solid var(--signal)",
+            background: "none",
+            border: 0,
+            borderBottomWidth: 1,
+            borderBottomStyle: "solid",
+            borderBottomColor: "var(--signal)",
+            cursor: "pointer",
+            padding: 0,
+          }}
         >
-          Try again
+          Send again
         </button>
       </p>
     </>
@@ -106,7 +155,20 @@ function VerifyContent() {
 
 export default function VerifyPage() {
   return (
-    <Suspense fallback={<div className="py-12 text-center text-gray-400">Loading...</div>}>
+    <Suspense
+      fallback={
+        <div
+          className="tick"
+          style={{
+            textAlign: "center",
+            padding: "32px 0",
+            color: "var(--ink-4)",
+          }}
+        >
+          LOADING…
+        </div>
+      }
+    >
       <VerifyContent />
     </Suspense>
   );

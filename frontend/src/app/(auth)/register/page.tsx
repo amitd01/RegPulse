@@ -1,18 +1,20 @@
 /**
- * Registration page — work email + profile info → OTP sent.
+ * Registration page — work email + profile → OTP sent. v2 terminal-modern.
+ *
+ * Behaviour preserved: TanStack mutation against registerUser, honeypot field
+ * hidden off-screen, on success router.push('/verify?email=...&purpose=register').
  */
 
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
-import { registerUser, type RegisterRequest } from "@/lib/api/auth";
 import { type AxiosError } from "axios";
-import type { ApiError } from "@/lib/api/auth";
-import Link from "next/link";
+import { registerUser, type ApiError, type RegisterRequest } from "@/lib/api/auth";
 
-const ORG_TYPES = [
+const ORG_TYPES: { value: string; label: string }[] = [
   { value: "BANK", label: "Bank" },
   { value: "NBFC", label: "NBFC" },
   { value: "COOPERATIVE", label: "Cooperative Bank" },
@@ -22,6 +24,18 @@ const ORG_TYPES = [
   { value: "INSURANCE", label: "Insurance" },
   { value: "OTHER", label: "Other" },
 ];
+
+const labelStyle: React.CSSProperties = {
+  display: "block",
+  fontFamily: "var(--font-mono)",
+  fontSize: 10.5,
+  color: "var(--ink-4)",
+  marginBottom: 6,
+  textTransform: "uppercase",
+  letterSpacing: ".05em",
+};
+
+const fieldStyle: React.CSSProperties = { marginBottom: 14 };
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -38,11 +52,7 @@ export default function RegisterPage() {
   const mutation = useMutation<unknown, AxiosError<ApiError>, RegisterRequest>({
     mutationFn: registerUser,
     onSuccess: () => {
-      // Navigate to OTP verification with context
-      const params = new URLSearchParams({
-        email: form.email,
-        purpose: "register",
-      });
+      const params = new URLSearchParams({ email: form.email, purpose: "register" });
       router.push(`/verify?${params.toString()}`);
     },
   });
@@ -56,99 +66,120 @@ export default function RegisterPage() {
 
   return (
     <>
-      <h2 className="mb-6 text-center text-xl font-semibold text-gray-800">Create your account</h2>
+      <div className="tick" style={{ marginBottom: 14 }}>
+        CREATE ACCOUNT · WORK EMAIL ONLY
+      </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Honeypot — hidden from real users, bots fill it */}
+      <h1
+        className="serif"
+        style={{
+          fontSize: 28,
+          fontWeight: 500,
+          letterSpacing: "-0.015em",
+          lineHeight: 1.15,
+          marginBottom: 8,
+        }}
+      >
+        Open your terminal.
+      </h1>
+      <p style={{ color: "var(--ink-3)", fontSize: 14, marginBottom: 22 }}>
+        Five lifetime credits to ask cited questions over RBI circulars. Your work email is the
+        only gate.
+      </p>
+
+      <form onSubmit={handleSubmit} aria-label="register-form">
+        {/* Honeypot — hidden from real users, bots fill it. */}
         <input
           type="text"
           name="honeypot"
           value={form.honeypot}
           onChange={(e) => setForm({ ...form, honeypot: e.target.value })}
-          className="absolute -left-[9999px] h-0 w-0"
+          style={{ position: "absolute", left: -9999, width: 0, height: 0 }}
           tabIndex={-1}
           autoComplete="off"
           aria-hidden="true"
         />
 
-        <div>
-          <label htmlFor="email" className="mb-1 block text-sm font-medium text-gray-700">
-            Work Email <span className="text-red-500">*</span>
+        <div style={fieldStyle}>
+          <label htmlFor="email" style={labelStyle}>
+            Work email *
           </label>
           <input
             id="email"
+            name="email"
             type="email"
             required
             autoComplete="email"
             placeholder="you@company.com"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm
-              focus:border-navy-500 focus:outline-none focus:ring-2 focus:ring-navy-200"
+            className="input"
+            data-testid="auth-email"
           />
         </div>
 
-        <div>
-          <label htmlFor="full_name" className="mb-1 block text-sm font-medium text-gray-700">
-            Full Name <span className="text-red-500">*</span>
+        <div style={fieldStyle}>
+          <label htmlFor="full_name" style={labelStyle}>
+            Full name *
           </label>
           <input
             id="full_name"
+            name="full_name"
             type="text"
             required
             autoComplete="name"
-            placeholder="Amit Sharma"
+            placeholder="Priya Menon"
             value={form.full_name}
             onChange={(e) => setForm({ ...form, full_name: e.target.value })}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm
-              focus:border-navy-500 focus:outline-none focus:ring-2 focus:ring-navy-200"
+            className="input"
+            data-testid="auth-fullname"
           />
         </div>
 
-        <div>
-          <label htmlFor="designation" className="mb-1 block text-sm font-medium text-gray-700">
+        <div style={fieldStyle}>
+          <label htmlFor="designation" style={labelStyle}>
             Designation
           </label>
           <input
             id="designation"
+            name="designation"
             type="text"
             autoComplete="organization-title"
             placeholder="Chief Compliance Officer"
             value={form.designation || ""}
             onChange={(e) => setForm({ ...form, designation: e.target.value })}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm
-              focus:border-navy-500 focus:outline-none focus:ring-2 focus:ring-navy-200"
+            className="input"
           />
         </div>
 
-        <div>
-          <label htmlFor="org_name" className="mb-1 block text-sm font-medium text-gray-700">
-            Organisation Name
+        <div style={fieldStyle}>
+          <label htmlFor="org_name" style={labelStyle}>
+            Organisation
           </label>
           <input
             id="org_name"
+            name="org_name"
             type="text"
             autoComplete="organization"
-            placeholder="HDFC Bank"
+            placeholder="Axis Bank Ltd."
             value={form.org_name || ""}
             onChange={(e) => setForm({ ...form, org_name: e.target.value })}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm
-              focus:border-navy-500 focus:outline-none focus:ring-2 focus:ring-navy-200"
+            className="input"
           />
         </div>
 
-        <div>
-          <label htmlFor="org_type" className="mb-1 block text-sm font-medium text-gray-700">
-            Organisation Type
+        <div style={fieldStyle}>
+          <label htmlFor="org_type" style={labelStyle}>
+            Organisation type
           </label>
           <select
             id="org_type"
+            name="org_type"
             value={form.org_type || ""}
             onChange={(e) => setForm({ ...form, org_type: e.target.value })}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm
-              focus:border-navy-500 focus:outline-none focus:ring-2 focus:ring-navy-200"
+            className="input"
           >
-            <option value="">Select type...</option>
+            <option value="">Select type…</option>
             {ORG_TYPES.map((t) => (
               <option key={t.value} value={t.value}>
                 {t.label}
@@ -158,24 +189,42 @@ export default function RegisterPage() {
         </div>
 
         {errorMsg && (
-          <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{errorMsg}</div>
+          <div
+            role="alert"
+            data-testid="auth-error"
+            style={{
+              marginTop: 4,
+              padding: "10px 12px",
+              background: "var(--bad-bg)",
+              color: "var(--bad)",
+              fontSize: 12.5,
+              borderRadius: "var(--radius-2)",
+            }}
+          >
+            {errorMsg}
+          </div>
         )}
 
         <button
           type="submit"
-          disabled={mutation.isPending}
-          className="w-full rounded-lg bg-navy-600 px-4 py-2.5 text-sm font-medium text-white
-            transition-colors hover:bg-navy-700
-            disabled:cursor-not-allowed disabled:bg-gray-400"
+          disabled={mutation.isPending || !form.email || !form.full_name}
+          className="btn primary"
+          data-testid="auth-submit"
+          style={{ width: "100%", marginTop: 16, justifyContent: "center", padding: "10px 14px" }}
         >
-          {mutation.isPending ? "Sending OTP..." : "Register with Work Email"}
+          {mutation.isPending ? "Requesting code…" : "Request code"}
         </button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-gray-500">
+      <hr className="hr" style={{ margin: "20px 0 14px" }} />
+
+      <p style={{ fontSize: 12.5, color: "var(--ink-3)", textAlign: "center" }}>
         Already have an account?{" "}
-        <Link href="/login" className="font-medium text-navy-600 hover:text-navy-800">
-          Log in
+        <Link
+          href="/login"
+          style={{ color: "var(--ink)", fontWeight: 500, borderBottom: "1px solid var(--signal)" }}
+        >
+          Sign in
         </Link>
       </p>
     </>
