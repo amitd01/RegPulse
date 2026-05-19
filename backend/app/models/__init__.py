@@ -9,6 +9,7 @@ class Base(DeclarativeBase):
 
 # Import all models so Alembic can discover them
 from app.models.admin import AdminAuditLog, AnalyticsEvent, PromptVersion  # noqa: E402, F401
+from app.models.annotation import Annotation  # noqa: E402, F401
 from app.models.circular import CircularDocument, DocumentChunk  # noqa: E402, F401
 from app.models.debate import Debate, DebateReply, DebateStance, DebateStatus  # noqa: E402, F401
 from app.models.kg import KGEntity, KGRelationship  # noqa: E402, F401

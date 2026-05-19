@@ -82,41 +82,6 @@ class _RemovedLearningsStub:
 # ---------------------------------------------------------------------------
 
 
-class TestAnnotationsStub:
-    @pytest.mark.asyncio
-    async def test_list_returns_empty(self, stub_client):
-        r = await stub_client.get(f"/api/v1/questions/{uuid.uuid4()}/annotations")
-        assert r.status_code == 200
-        assert r.json()["data"] == []
-
-    @pytest.mark.asyncio
-    async def test_create_returns_501(self, stub_client):
-        r = await stub_client.post(
-            f"/api/v1/questions/{uuid.uuid4()}/annotations",
-            json={"text_selection": "10% effective 1 April 2027", "note": "Verify glide-path"},
-        )
-        assert r.status_code == 501
-        assert r.json()["detail"]["code"] == "NOT_IMPLEMENTED_ANNOTATIONS"
-
-    @pytest.mark.asyncio
-    async def test_update_returns_501(self, stub_client):
-        r = await stub_client.patch(
-            f"/api/v1/annotations/{uuid.uuid4()}",
-            json={"resolved": True},
-        )
-        assert r.status_code == 501
-
-    @pytest.mark.asyncio
-    async def test_delete_returns_501(self, stub_client):
-        r = await stub_client.delete(f"/api/v1/annotations/{uuid.uuid4()}")
-        assert r.status_code == 501
-
-
-# ---------------------------------------------------------------------------
-# FeedbackRequest structured-categories contract
-# ---------------------------------------------------------------------------
-
-
 class TestStructuredFeedbackContract:
     def test_feedback_request_accepts_categories(self):
         from app.schemas.questions import FeedbackRequest
