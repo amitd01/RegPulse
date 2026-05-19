@@ -1,8 +1,10 @@
 # Claude Code Instructions — RegPulse
 
 > **Read `MEMORY.md` and `LEARNINGS.md` before starting any task.**
->
-> Sprint exit checklist: (1) re-run golden dataset eval if the sprint touched retrieval/answer code, (2) append new gotchas to `LEARNINGS.md`, (3) `git push origin main`, (4) refresh all 5 docs (README, CLAUDE, MEMORY, spec, context). All four must be green before declaring "done."
+
+## Project state — REBUILD in progress
+
+The pre-rebuild project shipped 50 build prompts + 8 sprints + Frontend v2 on `main` with CI green, but the ReBuild audit confirmed the MVP journey doesn't run end-to-end on real data, the v2 redesign covers only the `(app)` route group, the circular detail page dumps retrieval chunks instead of rendering documents, RAG/LLM orchestration is unit-tested only at the utility-function layer, and the production scraper has never run. The rebuild is sequenced as 1 freeze session + 1 contract session + 8 vertical-slice sessions. Foundation (schema, models, routers, services, auth, v2 tokens, AppShell) is reused; rewrite surface is the PDF extractor, the document renderer, all non-v2 routes (auth, admin, landing, snippet share, detail pages), and the test infrastructure (Playwright E2E + pgvector integration suite in CI).
 
 ## Rules
 
@@ -13,117 +15,55 @@
 5. Credits deducted only on success — `SELECT FOR UPDATE`
 6. Admin routers in `routers/admin/` sub-package
 7. Pydantic schemas in `schemas/` — not inline in routers
-8. SQLAlchemy models use 2.0 `Mapped[]` annotations — TIMESTAMPTZ columns must declare `DateTime(timezone=True)` or asyncpg will reject naive datetimes
+8. SQLAlchemy 2.0 `Mapped[]` annotations — TIMESTAMPTZ columns use `DateTime(timezone=True)`
 9. Services via `Depends()` — never instantiate in route bodies
 10. All errors return `{"success": false, "error": "message", "code": "ERROR_CODE"}`
 11. Public snippet sharing must NEVER expose `detailed_interpretation` — only `quick_answer` (truncated) + 1 citation, or the consult-expert fallback
-12. RSS news items are stored in `news_items` and surfaced in `/updates`, but they are **never** mixed into the RAG retrieval corpus — RAG-only-from-circulars is invariant
-13. After every prompt: update README.md, MEMORY.md, CLAUDE.md, context.md
+12. RSS news items live in `news_items` and surface in `/updates`, but are **never** mixed into the RAG retrieval corpus
+13. **No UI without an OpenAPI contract.** Mock-only frontend routes are not allowed past slice 2 — the backend stub must exist before the page ships
+14. **No DEMO_MODE quality regressions.** Reranker, citation validation, confidence scoring, KG expansion all stay on in every runnable mode
+15. **Every route uses v2 design tokens.** No `bg-navy-*` / `text-navy-*` / `slate-*` Tailwind utility classes anywhere in `frontend/src/app/` — design tokens are CSS custom properties in `globals.css`, dark mode via `html.dark`
+16. **Retrieval shape ≠ reading shape.** Never render `document_chunks.chunk_text` directly to users — use `circular_documents.structured_content` for human-facing rendering
+17. **Slice complete = integration-green + Playwright-green.** Unit-green plus manual UAT is not a quality gate
+18. Frontend API client is **generated** from OpenAPI; do not hand-edit `frontend/src/lib/api/generated/*`
+19. After each slice: update `MEMORY.md` + `spec.md` + `LEARNINGS.md` (if anything surprised us); commit with `SLICE-N:` prefix
 
 ## Quick Reference
 
 - **Python:** ruff + black (line-length=100), B008 suppressed globally
 - **TypeScript:** `strict: true`, ESLint + Prettier
-- **Tests:** pytest (backend), Next.js build (frontend)
-- **Env:** `.env.example` is the reference; `Settings` class loads all
+- **Backend tests:** pytest unit (SQLite + fakeredis); pytest integration (pgvector + Redis containers in CI); pytest evals (golden + retrieval, needs real OpenAI key)
+- **Frontend tests:** Playwright E2E against `docker compose up` stack
+- **Env:** `.env.example` ships dev defaults — `pytest` runs from a fresh clone without manual editing
+- **Codegen:** `make api-codegen` regenerates `frontend/src/lib/api/generated/*` from FastAPI's OpenAPI spec
 
-## Build Progress (50/50 done)
+## Rebuild Progress
 
-| Prompt | Description | Status |
-|--------|-------------|--------|
-| 01–04b | Infrastructure: monorepo, schema, config, FastAPI, embedding service | Done |
-| 05–10 | Scraper: crawl, PDF, metadata, chunking, Celery, supersession | Done |
-| 11–14 | Auth: email validation, OTP, JWT, frontend auth | Done |
-| 15–17 | Circular Library: hybrid search API, frontend, detail page | Done |
-| 18–23 | RAG Q&A: retrieval, LLM, SSE streaming, caching, ask/history | Done |
-| 24–27 | Subscriptions: Razorpay, plans, upgrade/account pages | Done |
-| 28–32 | Admin: dashboard, review, prompts, users, circulars, scraper | Done |
-| 33–36 | Action items + saved interpretations (backend + frontend) | Done |
-| 37–42 | Dashboard, updates, admin UI, analytics, summary services | Done |
-| 43–50 | PDF export, CI/CD, Nginx, Makefile, launch checks | Done |
-
-## Phase 2 Roadmap (Sprint 1-8 + Frontend v2)
-
-| Sprint | Description | Status |
-|--------|-------------|--------|
-| Sprint 1 | Hardening (HTTPOnly cookies, Scraper Embedder), Analytics (PostHog), Landing Page | ✅ Complete (`363b1ef`) |
-| Sprint 2 | Anti-Hallucination Guardrails, Golden Dataset Eval Pipeline, k6 Load Tests | ✅ Complete (`1858575`) |
-| Sprint 3 | Public Snippet Sharing, RSS/News Ingest, Knowledge Graph + RAG Expansion (flag-gated) | ✅ Complete (`5379c49`/`5d6dec3`/`52375b8`/`516acf9`) |
-| Sprint 4 | Premium UI Polish (Confidence Meter UI, Skeleton loaders, Dark mode, SSE jitter fix), A/B UX flag scaffolding + LLM SDK / fallback-model hardening | ✅ Complete (`f6c3a5a` + `fdc784c`) |
-| Sprint 5 | Admin Manual PDF Upload, Semantic Clustering Heatmaps | ✅ Complete (`5a8a77b` + CI fixes `33d9b8d`) |
-| Sprint 6 | Pre-Launch Hardening: SIGTERM shutdown, system user audit, scraper embeddings on insert, LLM exception tightening, KG expansion GA, retrieval eval, dev Dockerfile | ✅ Complete |
-| Sprint 7 | DPDP Compliance (account deletion + data export), subscription auto-renewal, low-credit notifications | ✅ Complete |
-| Sprint 8 | Updates feed tracking, action items stats/overdue, admin Q&A sandbox, question suggestions, PDF export w/ QR codes | ✅ Complete |
-| Frontend v2 | Terminal-modern redesign — design tokens, AppShell, editorial Ask, list pages, Learnings, Debate, Upgrade, Account | ✅ Complete (`49cde9c`) |
-| Post-Build | Real data migration, GCP deployment, Beta launch | ⏳ Planned |
-
-## Localhost Demo
-
-Status: **Running + UAT passed** (2026-04-14). All 6 containers via `docker compose up --build -d`. UAT: 81/81 tests passed.
-
-- `DEMO_MODE=true` — fixed OTP `123456`, no email/payment, no cross-encoder
-- LLM: Claude Sonnet + extended thinking (10k budget) primary, GPT-4o fallback
-- Auth: HttpOnly cookie refresh tokens, RS256 JWT, jti blacklist
-- RAG: vector+BM25 RRF fusion, cross-encoder rerank (skipped in demo), KG expansion ON by default
-- Anti-hallucination: confidence scoring (0-1.0), "Consult Expert" fallback at < 0.5
-- Migrations: `001`–`005` (initial → Sprint 6 system user)
-- Evals: golden dataset 21/21, retrieval 8/8, k6 load tests (smoke/load/spike)
-- Key Sprint features: snippet sharing (`/s/[slug]`), RSS news (69 items), KG (95 entities), Confidence Meter UI, dark mode (WCAG-AA), skeleton loaders, admin PDF upload, semantic heatmaps, DPDP compliance, auto-renewal, low-credit alerts
-- **Frontend v2 ("terminal-modern")**: design tokens (paper/ink/amber palette, serif editorial, mono data), AppShell with TopBar + Sidebar + Ticker + CommandPalette + TweaksPanel, editorial Ask brief with SSE, 2-col library, dtable list pages, Learnings + Debate new routes, 3-col Upgrade, DPDP Account panel. 27 routes. Design source in `files/design-v2/`.
-- See `UAT_RESULTS.md` for full test results, `PRODUCTION_PLAN.md` for GCP deploy
-
-## Next Steps (Post-Sprint 8)
-
-Sprint 7 resolved G-01 (DPDP deletion), G-02 (DPDP export), G-04 (auto-renewal), G-05 (low-credit notifications). Sprint 8 resolved G-03 (updates tracking), G-06 (action stats), G-07 (admin sandbox), G-08 (suggestions), G-09 (PDF QR), G-12 (overdue). See `DEVELOPMENT_PLAN.md` for the unified implementation plan.
-
-### Pre-Launch (GCP Phases A–C)
-| Phase | Work |
-|-------|------|
-| Phase A | GCP infra provisioning: Cloud SQL, Memorystore, Artifact Registry, Secret Manager |
-| Phase B | CI/CD hardening: WIF, staging env, security baseline, integration tests |
-| Phase C | Data migration (full RBI scrape), observability, pre-launch testing, v1.0.0 launch |
-
-### Post-Launch (Sprint 9+)
-| Phase | Work |
-|-------|------|
-| Sprint 9 | pybreaker circuit breaker, TD-01/TD-03/TD-09, mobile responsive polish |
-| Sprint 10–12 | Conversational Q&A, team seats, shared interpretations |
-| Sprint 13–15 | Multi-regulator (SEBI), cross-regulator RAG, email digests |
-| Sprint 16–18 | Enterprise API, batch export, circular version diff |
-
-### Remaining Tech Debt
-| Size | Items |
-|------|-------|
-| Medium | TD-01 (scraper DB isolation), TD-03 (OpenAPI codegen), TD-09 (BACKEND_PUBLIC_URL) |
-
-### PRD v2.0 → v3.0 Gap Summary (12 gaps)
-| Priority | Gaps |
-|----------|------|
-| ~~**Before Launch**~~ | ~~G-01 (DPDP deletion), G-02 (DPDP export)~~ — ✅ Sprint 7 |
-| ~~**Sprint 7**~~ | ~~G-04 (auto-renewal), G-05 (low-credit emails)~~ — ✅ Sprint 7 |
-| ~~**Sprint 8**~~ | ~~G-03 (updates tracking), G-06 (action stats), G-07 (admin sandbox), G-08 (suggestions), G-09 (PDF QR), G-12 (overdue)~~ — ✅ Sprint 8 |
-| **Sprint 9** | G-10 (circuit breaker) |
-| **Deferred** | G-11 (query expansion — KG expansion serves same purpose) |
+| Session | Slice | Description | Status |
+|---|---|---|---|
+| S1 | — | Foundation freeze: lock schema/models/migrations; regenerate `.env.example`; install full dep set; seed script populates 10 circulars with real embeddings | Pending |
+| S2 | — | OpenAPI contract + `openapi-typescript` codegen; stub routers for `/learnings`, `/debate`, `/annotations`, `/feedback/structured` | Pending |
+| S3 | 1 | Auth journey on v2: rewrite `(auth)/{login,register,verify}` + layout; Playwright `auth.spec.ts` | Pending |
+| S4 | 2 | Real-data circular reading: structural PDF extractor; `circular_documents.structured_content` migration; 20 real RBI circulars scraped; rewrite `/library/[id]` with document renderer; Playwright `library.spec.ts` | Pending |
+| S5 | 3 | RAG Q&A end-to-end on real data: integration test suite for `RAGService.answer_question`; reverse DEMO_MODE reranker skip; Playwright `ask.spec.ts` | Pending |
+| S6 | 4 | Loop closure: rewrite `/history/[id]` with same renderer; Save → list → reopen Playwright `save-history.spec.ts` | Pending |
+| S7 | 5 | Admin to v2: port all 8 admin routes + heatmap component; visual regression snapshots | Pending |
+| S8 | 6 | Public surfaces to v2: landing + snippet share; `grep navy-` repo-wide returns 0 | Pending |
+| S9 | 7 | Learnings + Debates + structured Feedback backend (G-13/14/16/17) — implement S2 stubs for real | Pending |
+| S10 | 8 | Annotations + Sprint 9 polish: `pybreaker` (G-10), `BACKEND_PUBLIC_URL` (TD-09), mobile responsive | Pending |
+| S11+ | — | GCP Phases A → B → C per `PRODUCTION_PLAN.md`; tag `v1.0.0` | Pending |
 
 ## File Reference
 
 | File | Purpose |
-|------|---------|
-| `TEAM_HANDOVER.md` | **Start here** if you're new — one-page orientation + reading order |
-| `MEMORY.md` | Architecture, schema, business rules, patterns |
-| `context.md` | Project state — inventory, verification results |
+|---|---|
+| `MEMORY.md` | Architecture, schema, business rules, patterns, ADRs |
+| `LEARNINGS.md` | Mistakes + root causes + prevention rules — append every slice |
 | `spec.md` | Full technical spec — schema, API, RAG pipeline, security |
-| `README.md` | External docs — build progress, API ref, setup |
-| `LEARNINGS.md` | Phase 2 mistakes, root causes, and prevention rules — read before any sprint |
-| `TESTCASES.md` | Complete test inventory — functional, technical, eval, load, stress |
-| `PRODUCTION_PLAN.md` | GCP deployment roadmap and cost estimates |
-| `DEVELOPMENT_PLAN.md` | Unified implementation plan — gap closure, infra, roadmap |
-| `RegPulse_PRD_v4.md` | Product requirements v4.0 — Frontend v2 + Learnings/Debates/Annotations |
-| `RegPulse_FSD_v4.md` | Functional specification v4.0 — schema, endpoints, design system |
-| `RegPulse_PRD_v3.md` | Product requirements v3.0 (superseded by v4.0) |
-| `RegPulse_FSD_v3.md` | Functional specification v3.0 (superseded by v4.0) |
-| `TECHNICAL_DOCS.md` | Full technical documentation — architecture, DB, API, RAG, security, runbook |
-| `UAT_PLAN.md` | 208 manual UAT test scenarios across 28 categories |
-| `UAT_RESULTS.md` | Automated UAT results — 81/81 passed (2026-04-14) |
-| `HANDOVER.md` | Session handover — what was done, what's next, environment state |
-| `HANDOVER_DESIGN_V2.md` | Frontend v2 redesign handover — chunks, design source, constraints |
+| `README.md` | External docs — setup, status, API reference |
+| `RegPulse_PRD_v4.md` | Product requirements v4.0 (current) |
+| `RegPulse_FSD_v4.md` | Functional specification v4.0 (current) |
+| `TEAM_HANDOVER.md` | Orientation doc for engineers joining mid-rebuild |
+| `TECHNICAL_DOCS.md` | Deep technical reference (architecture, DB, API, RAG, security, runbook) |
+| `PRODUCTION_PLAN.md` | GCP deployment roadmap (Phases A → C) |
+| `files/design-v2/project/` | v2 design source bundle — JSX, mock data, tokens (reference only) |
