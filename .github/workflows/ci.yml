@@ -29,11 +29,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install dependencies
-        run: |
-          pip install -r backend/requirements.txt
-          pip install pytest pytest-asyncio aiosqlite fakeredis httpx cryptography
-      - name: Run tests
+      - name: Install dependencies (incl. test extras from requirements-dev.txt)
+        run: pip install -r backend/requirements-dev.txt
+      - name: Run unit tests
         env:
           DATABASE_URL: "sqlite+aiosqlite:///:memory:"
           REDIS_URL: "redis://localhost:6379/0"
@@ -52,6 +50,73 @@ jobs:
           FRONTEND_URL: "http://localhost:3000"
         run: |
           PYTHONPATH=backend pytest backend/tests/unit/ -v
+
+  backend-integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: regpulse
+          POSTGRES_PASSWORD: regpulse
+          POSTGRES_DB: regpulse_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U regpulse"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r backend/requirements-dev.txt
+      - name: Apply migrations
+        env:
+          PGPASSWORD: regpulse
+        run: |
+          psql -h localhost -U regpulse -d regpulse_test -c 'CREATE EXTENSION IF NOT EXISTS vector;'
+          for f in backend/migrations/[0-9][0-9][0-9]_*.sql; do
+            echo "Applying $f..."
+            psql -h localhost -U regpulse -d regpulse_test -f "$f"
+          done
+      - name: Run integration tests
+        env:
+          REGPULSE_INTEGRATION_DB_URL: "postgresql+asyncpg://regpulse:regpulse@localhost:5432/regpulse_test"
+          REGPULSE_INTEGRATION_REDIS_URL: "redis://localhost:6379/15"
+          # auth fixture still needs these (used by conftest)
+          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+          REDIS_URL: "redis://localhost:6379/0"
+          JWT_PRIVATE_KEY: "test"
+          JWT_PUBLIC_KEY: "test"
+          OPENAI_API_KEY: "test"
+          ANTHROPIC_API_KEY: "test"
+          RAZORPAY_KEY_ID: "test"
+          RAZORPAY_KEY_SECRET: "test"
+          RAZORPAY_WEBHOOK_SECRET: "test"
+          SMTP_HOST: "localhost"
+          SMTP_PORT: "587"
+          SMTP_USER: "test"
+          SMTP_PASS: "test"
+          SMTP_FROM: "test@test.com"
+          FRONTEND_URL: "http://localhost:3000"
+        run: |
+          # RAG orchestration tests need real OpenAI/Anthropic keys — they will
+          # skip with "Set OPENAI_API_KEY" reasons in CI. The auth_flow.py
+          # integration tests run unconditionally.
+          PYTHONPATH=backend pytest backend/tests/integration/test_auth_flow.py -v
 
   frontend-build:
     runs-on: ubuntu-latest
@@ -74,6 +139,15 @@ jobs:
       - name: ESLint
         working-directory: frontend
         run: npx next lint
+      - name: v2 design-system lint (rule 15)
+        run: |
+          # Repo-wide assertion that no Tailwind navy/slate/gray/blue/emerald/rose/amber/orange
+          # utility classes exist in frontend/src/app/. The rebuild's S8 closed F1
+          # (split-brain design); this gate prevents regressions.
+          if grep -rnE '(class.*["'"'"' ])(bg|text|border|hover:bg|hover:text|focus:border|focus:ring|dark:bg|dark:text|dark:border)-(navy|slate|gray|blue|emerald|rose|amber|orange)-' frontend/src/app/; then
+            echo "::error::Found forbidden Tailwind utility classes in frontend/src/app/. See CLAUDE.md rule 15."
+            exit 1
+          fi
       - name: Build
         working-directory: frontend
         run: npx next build
