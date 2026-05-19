@@ -1,3 +1,11 @@
+/**
+ * Heatmap — semantic cluster × time grid. v2 terminal-modern (S7b2b).
+ *
+ * Cells are coloured by question count using a paper → signal interpolation
+ * (light) / panel-2 → signal (dark). Hover tooltip shows cluster + date +
+ * count; clicking a cluster row toggles the representative-questions block.
+ */
+
 "use client";
 
 import { useState } from "react";
@@ -13,22 +21,27 @@ interface HeatmapProps {
   matrix: number[][];
 }
 
-function interpolateColor(value: number, max: number, isDark: boolean): string {
+// Interpolate from (paper bg) → (signal amber) on light mode,
+// and from (panel-2) → (signal) on dark. The "no data" cell stays at the
+// base background.
+function cellColor(value: number, max: number, isDark: boolean): string {
   if (max === 0 || value === 0) {
-    return isDark ? "rgb(31, 41, 55)" : "rgb(249, 250, 251)"; // gray-800 / gray-50
+    // panel-2 in light = #f1efe7 ; in dark = #1a1c20
+    return isDark ? "#1a1c20" : "#f1efe7";
   }
   const ratio = Math.min(value / max, 1);
+  // signal in light = #c25a11 (rgb 194,90,17), in dark = #f0a24a (rgb 240,162,74)
   if (isDark) {
-    // dark mode: gray-800 → navy-600
-    const r = Math.round(31 + (30 - 31) * ratio);
-    const g = Math.round(41 + (64 - 41) * ratio);
-    const b = Math.round(55 + (175 - 55) * ratio);
+    // dark base (26,28,32) → signal (240,162,74)
+    const r = Math.round(26 + (240 - 26) * ratio);
+    const g = Math.round(28 + (162 - 28) * ratio);
+    const b = Math.round(32 + (74 - 32) * ratio);
     return `rgb(${r}, ${g}, ${b})`;
   }
-  // light mode: gray-50 → navy-700
-  const r = Math.round(249 + (26 - 249) * ratio);
-  const g = Math.round(250 + (54 - 250) * ratio);
-  const b = Math.round(251 + (148 - 251) * ratio);
+  // light base (241,239,231) → signal (194,90,17)
+  const r = Math.round(241 + (194 - 241) * ratio);
+  const g = Math.round(239 + (90 - 239) * ratio);
+  const b = Math.round(231 + (17 - 231) * ratio);
   return `rgb(${r}, ${g}, ${b})`;
 }
 
@@ -49,13 +62,19 @@ export default function Heatmap({ clusters, time_buckets, matrix }: HeatmapProps
 
   if (clusters.length === 0) {
     return (
-      <p className="text-sm text-gray-500 dark:text-gray-400">
+      <div
+        className="panel"
+        style={{
+          padding: 24,
+          textAlign: "center",
+          color: "var(--ink-3)",
+        }}
+      >
         No clustering data available. Run clustering first.
-      </p>
+      </div>
     );
   }
 
-  // Detect dark mode
   const isDark =
     typeof document !== "undefined" &&
     document.documentElement.classList.contains("dark");
@@ -63,71 +82,111 @@ export default function Heatmap({ clusters, time_buckets, matrix }: HeatmapProps
   const maxVal = Math.max(...matrix.flat(), 1);
 
   return (
-    <div className="overflow-x-auto">
-      {/* Legend */}
-      <div className="mb-3 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-        <span>Less</span>
+    <div style={{ overflowX: "auto" }} data-testid="heatmap-grid">
+      <div
+        className="mono up"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          marginBottom: 12,
+          fontSize: 10,
+          color: "var(--ink-4)",
+          letterSpacing: ".06em",
+        }}
+      >
+        <span>LESS</span>
         {[0, 0.25, 0.5, 0.75, 1].map((ratio) => (
           <div
             key={ratio}
-            className="h-3 w-3 rounded-sm border border-gray-200 dark:border-gray-600"
             style={{
-              backgroundColor: interpolateColor(
-                ratio * maxVal,
-                maxVal,
-                isDark
-              ),
+              width: 12,
+              height: 12,
+              borderRadius: 2,
+              border: "1px solid var(--line)",
+              backgroundColor: cellColor(ratio * maxVal, maxVal, isDark),
             }}
           />
         ))}
-        <span>More</span>
+        <span>MORE</span>
       </div>
 
-      {/* Grid */}
       <div
-        className="grid gap-px"
         style={{
-          gridTemplateColumns: `200px repeat(${time_buckets.length}, minmax(28px, 1fr))`,
+          display: "grid",
+          gap: 1,
+          gridTemplateColumns: `220px repeat(${time_buckets.length}, minmax(28px, 1fr))`,
+          background: "var(--line)",
+          padding: 1,
+          borderRadius: 2,
         }}
       >
-        {/* Header row — date labels */}
-        <div /> {/* empty top-left cell */}
+        <div style={{ background: "var(--panel)" }} />
         {time_buckets.map((d) => (
           <div
             key={d}
-            className="text-center text-[10px] text-gray-500 dark:text-gray-400"
+            className="mono"
+            style={{
+              background: "var(--panel)",
+              textAlign: "center",
+              fontSize: 10,
+              color: "var(--ink-4)",
+              padding: "4px 0",
+            }}
           >
             {formatDateShort(d)}
           </div>
         ))}
 
-        {/* Data rows */}
         {clusters.map((cluster, ci) => (
-          <>
-            {/* Cluster label */}
-            <div
-              key={`label-${cluster.id}`}
-              className="flex cursor-pointer items-center truncate pr-2 text-xs font-medium text-gray-700 hover:text-navy-700 dark:text-gray-300 dark:hover:text-navy-400"
-              title={cluster.label}
+          <div key={cluster.id} style={{ display: "contents" }}>
+            <button
               onClick={() =>
                 setExpandedCluster(expandedCluster === ci ? null : ci)
               }
+              data-testid="heatmap-cluster-label"
+              title={cluster.label}
+              style={{
+                background: "var(--panel)",
+                display: "flex",
+                alignItems: "center",
+                padding: "6px 10px",
+                fontSize: 12,
+                fontWeight: 500,
+                color: "var(--ink-2)",
+                textAlign: "left",
+                overflow: "hidden",
+                cursor: "pointer",
+                border: 0,
+                whiteSpace: "nowrap",
+                textOverflow: "ellipsis",
+              }}
             >
-              {cluster.label}
-              <span className="ml-1 text-[10px] text-gray-400">
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                {cluster.label}
+              </span>
+              <span
+                className="mono tnum"
+                style={{
+                  marginLeft: 6,
+                  fontSize: 10,
+                  color: "var(--ink-4)",
+                }}
+              >
                 ({cluster.question_count})
               </span>
-            </div>
+            </button>
 
-            {/* Heatmap cells */}
             {time_buckets.map((d, di) => {
               const count = matrix[ci]?.[di] ?? 0;
               return (
                 <div
                   key={`${cluster.id}-${d}`}
-                  className="relative h-7 rounded-sm border border-gray-100 dark:border-gray-700"
+                  data-testid="heatmap-cell"
                   style={{
-                    backgroundColor: interpolateColor(count, maxVal, isDark),
+                    height: 28,
+                    background: cellColor(count, maxVal, isDark),
+                    cursor: "default",
                   }}
                   onMouseEnter={(e) => {
                     const rect = (
@@ -146,20 +205,38 @@ export default function Heatmap({ clusters, time_buckets, matrix }: HeatmapProps
               );
             })}
 
-            {/* Expanded representative questions */}
             {expandedCluster === ci && (
               <div
-                key={`expand-${cluster.id}`}
-                className="col-span-full rounded bg-gray-50 px-4 py-2 dark:bg-gray-800"
+                style={{
+                  gridColumn: "1 / -1",
+                  background: "var(--panel-2)",
+                  padding: "10px 14px",
+                  color: "var(--ink-2)",
+                }}
               >
-                <p className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
-                  Representative questions:
-                </p>
-                <ul className="list-inside list-disc space-y-0.5">
+                <div
+                  className="mono up"
+                  style={{
+                    fontSize: 10,
+                    color: "var(--ink-4)",
+                    letterSpacing: ".08em",
+                    marginBottom: 6,
+                  }}
+                >
+                  REPRESENTATIVE QUESTIONS
+                </div>
+                <ul
+                  style={{
+                    listStyleType: "disc",
+                    paddingLeft: 18,
+                    margin: 0,
+                  }}
+                >
                   {cluster.representative_questions.map((q, qi) => (
                     <li
                       key={qi}
-                      className="text-xs text-gray-700 dark:text-gray-300"
+                      className="serif"
+                      style={{ fontSize: 13, marginBottom: 4 }}
                     >
                       {q}
                     </li>
@@ -167,22 +244,30 @@ export default function Heatmap({ clusters, time_buckets, matrix }: HeatmapProps
                 </ul>
               </div>
             )}
-          </>
+          </div>
         ))}
       </div>
 
-      {/* Tooltip */}
       {tooltip && (
         <div
-          className="pointer-events-none fixed z-50 rounded bg-gray-900 px-2 py-1 text-xs text-white shadow-lg dark:bg-gray-100 dark:text-gray-900"
+          className="mono"
           style={{
+            position: "fixed",
+            zIndex: 50,
+            pointerEvents: "none",
+            background: "var(--ink)",
+            color: "var(--bg)",
+            padding: "5px 10px",
+            fontSize: 11,
+            borderRadius: 2,
+            boxShadow: "var(--shadow-lg)",
             left: tooltip.x,
             top: tooltip.y,
             transform: "translate(-50%, -100%)",
           }}
         >
-          {tooltip.label} &middot; {tooltip.date} &middot;{" "}
-          <strong>{tooltip.count}</strong> questions
+          {tooltip.label} · {tooltip.date} ·{" "}
+          <strong className="tnum">{tooltip.count}</strong> questions
         </div>
       )}
     </div>

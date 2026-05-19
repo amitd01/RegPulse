@@ -1,11 +1,19 @@
+/**
+ * Admin heatmap — v2 terminal-modern (S7b2b).
+ *
+ * Semantic-clustering visualisation: question clusters × time buckets.
+ * Backend computes via sklearn weekly Celery beat; admin can also trigger
+ * an on-demand refresh.
+ */
+
 "use client";
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import api from "@/lib/api";
-import { Spinner } from "@/components/ui/Spinner";
-import Heatmap from "@/components/admin/Heatmap";
 import toast from "react-hot-toast";
+import api from "@/lib/api";
+import { Btn } from "@/components/design/Primitives";
+import Heatmap from "@/components/admin/Heatmap";
 
 interface ClusterInfo {
   id: string;
@@ -46,14 +54,15 @@ export default function HeatmapPage() {
 
   const refresh = useMutation({
     mutationFn: async () => {
-      const { data } = await api.post("/admin/dashboard/heatmap/refresh", null, {
-        params: { period_days: periodDays },
-      });
-      return data;
+      const { data } = await api.post(
+        "/admin/dashboard/heatmap/refresh",
+        null,
+        { params: { period_days: periodDays } },
+      );
+      return data as { message?: string };
     },
     onSuccess: (data) => {
-      toast.success(data.message || "Clustering queued");
-      // Refresh data after a delay (clustering takes time)
+      toast.success(data.message ?? "Clustering queued");
       setTimeout(() => {
         qc.invalidateQueries({ queryKey: ["admin", "heatmap"] });
       }, 3000);
@@ -61,30 +70,65 @@ export default function HeatmapPage() {
   });
 
   return (
-    <div className="p-6">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-          Query Heatmap
-        </h1>
-        <button
-          onClick={() => refresh.mutate()}
+    <div style={{ padding: "24px 32px 64px" }} data-testid="admin-heatmap">
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 16,
+          flexWrap: "wrap",
+          marginBottom: 4,
+        }}
+      >
+        <div>
+          <div className="tick" style={{ marginBottom: 8 }}>
+            ADMIN · QUESTION CLUSTERS × TIME · SEMANTIC GROUPS
+          </div>
+          <h1
+            className="serif"
+            style={{
+              fontSize: 26,
+              fontWeight: 500,
+              letterSpacing: "-0.015em",
+            }}
+          >
+            Query heatmap.
+          </h1>
+        </div>
+        <Btn
+          variant="primary"
+          size="sm"
           disabled={refresh.isPending}
-          className="rounded bg-navy-700 px-3 py-1.5 text-xs text-white hover:bg-navy-800 disabled:opacity-50"
+          onClick={() => refresh.mutate()}
+          data-testid="heatmap-refresh"
         >
-          {refresh.isPending ? "Queuing..." : "Refresh Clusters"}
-        </button>
+          {refresh.isPending ? "Queuing…" : "Refresh clusters"}
+        </Btn>
       </div>
 
-      {/* Controls */}
-      <div className="mb-6 flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
-            Period:
-          </label>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 18,
+          margin: "20px 0 22px",
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span
+            className="mono up"
+            style={{ fontSize: 10, color: "var(--ink-4)", letterSpacing: ".06em" }}
+          >
+            Period
+          </span>
           <select
             value={periodDays}
             onChange={(e) => setPeriodDays(Number(e.target.value))}
-            className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+            className="input"
+            data-testid="heatmap-period"
+            style={{ width: 130, padding: "6px 8px", fontSize: 12.5 }}
           >
             {PERIOD_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -93,20 +137,36 @@ export default function HeatmapPage() {
             ))}
           </select>
         </div>
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
-            Group by:
-          </label>
-          <div className="flex rounded border border-gray-300 dark:border-gray-600">
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span
+            className="mono up"
+            style={{ fontSize: 10, color: "var(--ink-4)", letterSpacing: ".06em" }}
+          >
+            Group by
+          </span>
+          <div
+            style={{
+              display: "inline-flex",
+              border: "1px solid var(--line-2)",
+              borderRadius: 2,
+              overflow: "hidden",
+            }}
+          >
             {(["day", "week"] as const).map((bucket) => (
               <button
                 key={bucket}
                 onClick={() => setTimeBucket(bucket)}
-                className={`px-3 py-1 text-xs capitalize ${
-                  timeBucket === bucket
-                    ? "bg-navy-700 text-white"
-                    : "bg-white text-gray-600 hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300"
-                }`}
+                data-testid={`heatmap-bucket-${bucket}`}
+                style={{
+                  padding: "6px 12px",
+                  fontSize: 11.5,
+                  textTransform: "capitalize",
+                  background:
+                    timeBucket === bucket ? "var(--ink)" : "var(--panel)",
+                  color: timeBucket === bucket ? "var(--bg)" : "var(--ink-3)",
+                  cursor: "pointer",
+                  border: 0,
+                }}
               >
                 {bucket}
               </button>
@@ -115,10 +175,12 @@ export default function HeatmapPage() {
         </div>
       </div>
 
-      {/* Heatmap */}
       {isLoading ? (
-        <div className="flex justify-center p-20">
-          <Spinner size="lg" />
+        <div
+          className="tick"
+          style={{ padding: 48, textAlign: "center", color: "var(--ink-4)" }}
+        >
+          LOADING CLUSTERS…
         </div>
       ) : data ? (
         <Heatmap
