@@ -111,6 +111,7 @@ export default function SavedPage() {
             <div
               key={s.id}
               className="panel"
+              data-testid="saved-card"
               style={{ padding: 14, cursor: "pointer" }}
             >
               <div

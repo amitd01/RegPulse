@@ -75,6 +75,7 @@ export default function AskPage() {
   const [thumb, setThumb] = useState<"up" | "down" | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
   const [savedAsLearning, setSavedAsLearning] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [learningNote, setLearningNote] = useState("");
   const [showLearningModal, setShowLearningModal] = useState(false);
   const [annotations] = useState<Annotation[]>([
@@ -690,8 +691,32 @@ export default function AskPage() {
                     <Icon.Spark />{" "}
                     {savedAsLearning ? "Saved as learning" : "Save as team learning"}
                   </Btn>
-                  <Btn variant="ghost" size="sm">
-                    <Icon.Bookmark /> Save
+                  <Btn
+                    variant="ghost"
+                    size="sm"
+                    disabled={!state.questionId || saved}
+                    data-testid="ask-save"
+                    onClick={async () => {
+                      if (!state.questionId) return;
+                      try {
+                        await api.post("/saved", {
+                          question_id: state.questionId,
+                          name: question.slice(0, 200),
+                        });
+                        setSaved(true);
+                        toast.push({
+                          tag: "SAVED",
+                          text: "Question saved. Find it under /saved.",
+                        });
+                      } catch {
+                        toast.push({
+                          tag: "ERROR",
+                          text: "Could not save — try again.",
+                        });
+                      }
+                    }}
+                  >
+                    <Icon.Bookmark /> {saved ? "Saved" : "Save"}
                   </Btn>
                   <Btn
                     variant="ghost"

@@ -1,15 +1,40 @@
+/**
+ * Question history detail — v2 terminal-modern (slice 4 / S6).
+ *
+ * Closes the MVP journey loop: a saved or historical question reopens with
+ * the same editorial prose + citations + recommended-actions layout as the
+ * live Ask page, just hydrated from the persisted Question row instead of
+ * an SSE stream.
+ *
+ * Wiring preserved verbatim: useQuestionDetail, useSubmitFeedback,
+ * ShareSnippetDialog, trackEvent on confidence-meter-viewed.
+ */
+
 "use client";
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import { Btn, Icon, Pill } from "@/components/design/Primitives";
 import { ShareSnippetDialog } from "@/components/ShareSnippetDialog";
-import { Badge, impactVariant } from "@/components/ui/Badge";
 import { ConfidenceMeter } from "@/components/ui/ConfidenceMeter";
-import { Spinner } from "@/components/ui/Spinner";
 import { trackEvent } from "@/lib/analytics";
 import { useQuestionDetail, useSubmitFeedback } from "@/hooks/useQuestions";
+
+const riskTone = (risk?: string | null): "amber" | "warn" | "good" | "" => {
+  if (risk === "HIGH") return "amber";
+  if (risk === "MEDIUM") return "warn";
+  if (risk === "LOW") return "good";
+  return "";
+};
+
+const priorityTone = (p: string): "amber" | "warn" | "good" | "" => {
+  if (p === "HIGH") return "amber";
+  if (p === "MEDIUM") return "warn";
+  if (p === "LOW") return "good";
+  return "";
+};
 
 export default function QuestionDetailPage() {
   const params = useParams();
@@ -19,18 +44,12 @@ export default function QuestionDetailPage() {
   const { data, isLoading, isError } = useQuestionDetail(id);
   const feedbackMutation = useSubmitFeedback();
 
-  // Fire `confidence_meter_viewed` once per question, after the data
-  // resolves. The `firedFor` ref guards against the analytics event
-  // being re-emitted on every re-render of the same question.
   const firedForRef = useRef<string | null>(null);
   useEffect(() => {
     if (!data?.data) return;
     if (firedForRef.current === data.data.id) return;
     firedForRef.current = data.data.id;
-    if (
-      data.data.confidence_score !== null ||
-      data.data.consult_expert
-    ) {
+    if (data.data.confidence_score !== null || data.data.consult_expert) {
       trackEvent("confidence_meter_viewed", {
         confidence_score: data.data.confidence_score,
         consult_expert: data.data.consult_expert,
@@ -41,23 +60,39 @@ export default function QuestionDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <Spinner size="lg" />
+      <div
+        className="tick"
+        style={{ padding: 48, textAlign: "center", color: "var(--ink-4)" }}
+      >
+        LOADING QUESTION…
       </div>
     );
   }
 
   if (isError || !data) {
     return (
-      <div className="px-6 py-6 lg:px-8">
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+      <div style={{ padding: "24px 32px" }} data-testid="history-detail-error">
+        <div
+          className="panel"
+          style={{
+            padding: 20,
+            borderColor: "var(--bad)",
+            background: "var(--bad-bg)",
+            color: "var(--bad)",
+          }}
+        >
           Question not found or failed to load.
         </div>
         <Link
           href="/history"
-          className="mt-4 inline-block text-sm font-medium text-navy-600"
+          style={{
+            marginTop: 16,
+            display: "inline-block",
+            color: "var(--ink-2)",
+            borderBottom: "1px solid var(--signal)",
+          }}
         >
-          Back to History
+          ← Back to history
         </Link>
       </div>
     );
@@ -65,105 +100,176 @@ export default function QuestionDetailPage() {
 
   const q = data.data;
 
+  const formattedTime = new Date(q.created_at).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
   return (
-    <div className="px-6 py-6 lg:px-8">
-      {/* Back link */}
+    <div
+      style={{ padding: "20px 32px 64px", maxWidth: 1000, margin: "0 auto" }}
+      data-testid="history-detail"
+    >
+      {/* Breadcrumb */}
       <Link
         href="/history"
-        className="mb-4 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+        className="tick"
+        style={{ marginBottom: 18, display: "inline-flex" }}
       >
-        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M15 19l-7-7 7-7"
-          />
-        </svg>
-        Back to History
+        ← HISTORY · ALL QUESTIONS
       </Link>
 
-      {/* Question */}
-      <div className="mb-6">
-        <h1 className="text-lg font-bold text-gray-900">{q.question_text}</h1>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          {q.risk_level && (
-            <Badge variant={impactVariant(q.risk_level)}>
-              Risk: {q.risk_level}
-            </Badge>
-          )}
-          {q.model_used && (
-            <span className="text-xs text-gray-400">{q.model_used}</span>
-          )}
-          <span className="text-xs text-gray-400">
-            {new Date(q.created_at).toLocaleDateString("en-IN", {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
+      {/* Identification strip */}
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          gap: 8,
+          marginBottom: 14,
+        }}
+      >
+        <span
+          className="mono"
+          style={{
+            fontSize: 11,
+            color: "var(--ink-3)",
+            background: "var(--panel-2)",
+            padding: "3px 8px",
+            borderRadius: 2,
+          }}
+        >
+          {formattedTime}
+        </span>
+        {q.risk_level && (
+          <Pill tone={riskTone(q.risk_level)}>
+            RISK · {q.risk_level}
+          </Pill>
+        )}
+        {q.model_used && (
+          <span className="tick" style={{ marginLeft: 6 }}>
+            {q.model_used}
           </span>
-          {q.latency_ms && (
-            <span className="text-xs text-gray-400">{q.latency_ms}ms</span>
-          )}
-        </div>
+        )}
+        {q.latency_ms && (
+          <span
+            className="mono"
+            style={{ fontSize: 10.5, color: "var(--ink-4)" }}
+          >
+            {q.latency_ms}ms
+          </span>
+        )}
       </div>
 
-      {/* Confidence meter (Sprint 4 — only present on questions persisted
-          after the migration; older questions render nothing) */}
+      {/* The question itself — editorial headline */}
+      <h1
+        className="serif"
+        style={{
+          fontSize: 28,
+          fontWeight: 500,
+          letterSpacing: "-0.015em",
+          lineHeight: 1.2,
+          marginBottom: 22,
+          color: "var(--ink)",
+        }}
+        data-testid="history-question-text"
+      >
+        {q.question_text}
+      </h1>
+
+      {/* Confidence meter (Sprint 4+ persistence) */}
       {(q.confidence_score !== null || q.consult_expert) && (
-        <div className="mb-6">
+        <div style={{ marginBottom: 22 }}>
           <ConfidenceMeter
             score={q.confidence_score}
             consultExpert={q.consult_expert}
+            data-testid="history-confidence"
           />
         </div>
       )}
 
-      {/* Quick answer */}
+      {/* Quick answer — editorial deck */}
       {q.quick_answer && (
-        <div className="mb-6 rounded-lg border border-navy-100 bg-navy-50 p-4 dark:border-navy-800 dark:bg-navy-900/40">
-          <h3 className="mb-1 text-xs font-semibold uppercase text-navy-600 dark:text-navy-300">
-            Quick Answer
-          </h3>
-          <p className="text-sm text-gray-800 dark:text-gray-100">{q.quick_answer}</p>
+        <div className="prose" style={{ marginBottom: 24 }}>
+          <p className="dek" data-testid="history-quick-answer">
+            {q.quick_answer}
+          </p>
         </div>
       )}
 
       {/* Affected teams */}
       {q.affected_teams && q.affected_teams.length > 0 && (
-        <div className="mb-4 flex flex-wrap gap-2">
-          {q.affected_teams.map((team) => (
-            <Badge key={team}>{team}</Badge>
-          ))}
+        <div style={{ marginBottom: 22 }}>
+          <div className="tick" style={{ marginBottom: 6 }}>
+            AFFECTED TEAMS
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {q.affected_teams.map((team) => (
+              <Pill key={team}>{team}</Pill>
+            ))}
+          </div>
         </div>
       )}
 
-      {/* Full answer */}
+      {/* Full answer body — serif prose */}
       {q.answer_text && (
-        <div className="prose prose-sm mb-8 max-w-none">
-          <ReactMarkdown>{q.answer_text}</ReactMarkdown>
-        </div>
+        <>
+          <hr className="hr" style={{ margin: "12px 0 18px" }} />
+          <div className="tick" style={{ marginBottom: 12 }}>
+            ANSWER · CITED INTERPRETATION
+          </div>
+          <div
+            className="prose"
+            style={{ maxWidth: 720, marginBottom: 32 }}
+            data-testid="history-answer-body"
+          >
+            <ReactMarkdown>{q.answer_text}</ReactMarkdown>
+          </div>
+        </>
       )}
 
       {/* Citations */}
       {q.citations && q.citations.length > 0 && (
-        <div className="mb-8">
-          <h3 className="mb-2 text-sm font-semibold text-gray-700">
-            Citations
-          </h3>
-          <div className="space-y-2">
+        <div style={{ marginBottom: 32 }} data-testid="history-citations">
+          <div className="tick" style={{ marginBottom: 10 }}>
+            CITATIONS · {q.citations.length}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {q.citations.map((c, i) => (
               <div
                 key={i}
-                className="rounded-lg border border-gray-200 bg-white p-3"
+                className="panel"
+                style={{ padding: 12 }}
               >
-                <div className="text-xs font-semibold text-navy-600">
+                <div
+                  className="mono"
+                  style={{
+                    fontSize: 11.5,
+                    color: "var(--ink-2)",
+                    fontWeight: 600,
+                    marginBottom: 4,
+                  }}
+                >
                   {c.circular_number}
-                  {c.section_reference && ` — ${c.section_reference}`}
+                  {c.section_reference && (
+                    <span style={{ color: "var(--ink-4)", fontWeight: 400 }}>
+                      {" · "}
+                      {c.section_reference}
+                    </span>
+                  )}
                 </div>
-                <p className="mt-1 text-xs italic text-gray-600">
+                <p
+                  className="serif"
+                  style={{
+                    fontSize: 13.5,
+                    fontStyle: "italic",
+                    color: "var(--ink-2)",
+                    lineHeight: 1.5,
+                  }}
+                >
                   &ldquo;{c.verbatim_quote}&rdquo;
                 </p>
               </div>
@@ -174,89 +280,90 @@ export default function QuestionDetailPage() {
 
       {/* Recommended actions */}
       {q.recommended_actions && q.recommended_actions.length > 0 && (
-        <div className="mb-8">
-          <h3 className="mb-2 text-sm font-semibold text-gray-700">
-            Recommended Actions
-          </h3>
-          <div className="space-y-2">
+        <div style={{ marginBottom: 32 }}>
+          <div className="tick" style={{ marginBottom: 10 }}>
+            RECOMMENDED ACTIONS
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {q.recommended_actions.map((a, i) => (
               <div
                 key={i}
-                className="flex items-start gap-3 rounded-lg border border-gray-200 bg-white p-3"
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "100px 120px 1fr",
+                  gap: 12,
+                  padding: "10px 14px",
+                  border: "1px solid var(--line)",
+                  background: "var(--bg)",
+                  borderRadius: 3,
+                  alignItems: "center",
+                }}
               >
-                <Badge variant={impactVariant(a.priority)}>{a.priority}</Badge>
-                <div>
-                  <div className="text-xs font-medium text-gray-500">
-                    {a.team}
-                  </div>
-                  <div className="text-sm text-gray-700">{a.action_text}</div>
-                </div>
+                <Pill tone={priorityTone(a.priority)}>{a.priority}</Pill>
+                <span
+                  className="mono"
+                  style={{ fontSize: 11.5, color: "var(--ink-3)" }}
+                >
+                  {a.team}
+                </span>
+                <span style={{ fontSize: 13.5, color: "var(--ink-2)" }}>
+                  {a.action_text}
+                </span>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Feedback + Share */}
-      <div className="border-t border-gray-200 pt-4">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h3 className="mb-2 text-sm font-semibold text-gray-700">
-              Was this helpful?
-            </h3>
-            <div className="flex gap-3">
-              <button
-                onClick={() =>
-                  feedbackMutation.mutate({ questionId: id, feedback: 1 })
-                }
-                disabled={q.feedback !== null}
-                className={`rounded-lg border px-4 py-2 text-sm ${
-                  q.feedback === 1
-                    ? "border-green-300 bg-green-50 text-green-700"
-                    : "border-gray-300 text-gray-600 hover:bg-gray-50"
-                } disabled:cursor-not-allowed`}
-              >
-                &#128077; Yes
-              </button>
-              <button
-                onClick={() =>
-                  feedbackMutation.mutate({ questionId: id, feedback: -1 })
-                }
-                disabled={q.feedback !== null}
-                className={`rounded-lg border px-4 py-2 text-sm ${
-                  q.feedback === -1
-                    ? "border-red-300 bg-red-50 text-red-700"
-                    : "border-gray-300 text-gray-600 hover:bg-gray-50"
-                } disabled:cursor-not-allowed`}
-              >
-                &#128078; No
-              </button>
-            </div>
+      {/* Feedback + share */}
+      <hr className="hr" style={{ margin: "12px 0 18px" }} />
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 24,
+          alignItems: "flex-end",
+          justifyContent: "space-between",
+        }}
+      >
+        <div>
+          <div className="tick" style={{ marginBottom: 10 }}>
+            FEEDBACK · WAS THIS HELPFUL?
           </div>
-
-          <button
-            onClick={() => {
-              trackEvent("share_snippet_dialog_opened", { question_id: id });
-              setShareOpen(true);
-            }}
-            className="inline-flex items-center gap-2 rounded-lg border border-navy-300 bg-white px-4 py-2 text-sm font-medium text-navy-700 hover:bg-navy-50 dark:border-navy-600 dark:bg-gray-900 dark:text-navy-200 dark:hover:bg-navy-900/40"
-          >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+          <div style={{ display: "flex", gap: 10 }}>
+            <Btn
+              variant={q.feedback === 1 ? "primary" : ""}
+              disabled={q.feedback !== null}
+              onClick={() =>
+                feedbackMutation.mutate({ questionId: id, feedback: 1 })
+              }
+              data-testid="history-feedback-yes"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
-              />
-            </svg>
-            Share
-          </button>
+              <Icon.Thumb /> Yes
+            </Btn>
+            <Btn
+              variant={q.feedback === -1 ? "primary" : ""}
+              disabled={q.feedback !== null}
+              onClick={() =>
+                feedbackMutation.mutate({ questionId: id, feedback: -1 })
+              }
+              data-testid="history-feedback-no"
+            >
+              <Icon.ThumbDown /> No
+            </Btn>
+          </div>
         </div>
+
+        <Btn
+          variant=""
+          onClick={() => {
+            trackEvent("share_snippet_dialog_opened", { question_id: id });
+            setShareOpen(true);
+          }}
+          data-testid="history-share-button"
+        >
+          <Icon.Arrow /> Share snippet
+        </Btn>
       </div>
 
       <ShareSnippetDialog

@@ -17,6 +17,15 @@
 
 **How to prevent.** CI's `backend-test` job must run `pip install -r requirements-dev.txt` in a fresh container with no pre-installed deps, then `pytest`. If a test-time import isn't pinned in `requirements-dev.txt`, CI breaks — same wall as a new contributor.
 
+### LR6.1 — Pre-rebuild "Save" button on the Ask page was a no-op
+**What bit us.** S6's job was "ask → save → /saved → reopen via /history/[id]". The Ask page had a Save button (`<Btn>Save</Btn>`) that rendered fine — but had no `onClick` handler. Clicking it did nothing. A user could go through the whole MVP journey, click Save, and the question would never appear in `/saved`.
+
+**Root cause.** Pre-rebuild commit history shows the Save button was scaffolded in the v2 redesign chunk 2 but never wired. The pre-rebuild "code complete" status didn't notice because no E2E test exercised the loop end-to-end.
+
+**Fix.** Wired the button to `POST /saved {question_id, name}` using the existing API client. Disabled until `state.questionId` is set (i.e. after the answer stream finishes and the persisted ID is known); toast confirms on success. Tracked via the new `ask-save` data-testid so the Playwright spec asserts the flow works.
+
+**How to prevent.** Every action button on the v2 surface needs an onClick handler OR an explicit `disabled` reason. CI lint can grep for `<Btn[^>]*>(?![^<]*onClick)` and flag bare-decorative buttons. Bigger picture: the rebuild's "no slice complete without Playwright green on the named journey" rule (CLAUDE.md rule 17) would have caught this in slice 4 of the original plan — exactly the kind of integration gap S6 exists to close.
+
 ### LR5.1 — Skipping reranker in DEMO_MODE hid the only quality differentiator
 **What bit us.** Pre-rebuild, `app/main.py` had `if settings.DEMO_MODE: app.state.cross_encoder = None`. The comment claimed it was to avoid HuggingFace download hangs in Docker. The net effect: every demo, every UAT, every local-dev session ran the RAG pipeline WITHOUT the cross-encoder rerank step — i.e. without the very thing that distinguishes a citation-locked answer from a vanilla hybrid-search result.
 

@@ -12,13 +12,14 @@ interface ConfidenceMeterProps {
   /** Compact variant — used inside list items. */
   compact?: boolean;
   className?: string;
+  /** Optional data-testid that gets forwarded to the root element. */
+  "data-testid"?: string;
 }
 
 /**
- * Compute the band from a confidence score. The thresholds match
+ * Compute the band from a confidence score. Thresholds match
  * `llm_service._compute_confidence` semantics: < 0.5 already triggers
- * the consult-expert fallback in the backend, so any score below that
- * here is paired with `consultExpert=true` from the API.
+ * the consult-expert fallback in the backend.
  */
 export function bandFor(
   score: number | null,
@@ -38,34 +39,36 @@ const bandLabel: Record<ConfidenceBand, string> = {
   fallback: "Consult an expert",
 };
 
-// WCAG-AA: every text colour below has ≥ 4.5:1 contrast against the
-// fill colour AND its dark-mode counterpart.
-const bandFill: Record<ConfidenceBand, string> = {
-  high: "bg-emerald-500 dark:bg-emerald-400",
-  medium: "bg-amber-500 dark:bg-amber-400",
-  low: "bg-orange-500 dark:bg-orange-400",
-  fallback: "bg-rose-500 dark:bg-rose-400",
-};
-
-const bandText: Record<ConfidenceBand, string> = {
-  high: "text-emerald-700 dark:text-emerald-200",
-  medium: "text-amber-700 dark:text-amber-200",
-  low: "text-orange-700 dark:text-orange-200",
-  fallback: "text-rose-700 dark:text-rose-200",
-};
-
-const bandRing: Record<ConfidenceBand, string> = {
-  high: "border-emerald-200 dark:border-emerald-700",
-  medium: "border-amber-200 dark:border-amber-700",
-  low: "border-orange-200 dark:border-orange-700",
-  fallback: "border-rose-200 dark:border-rose-700",
-};
-
-const bandTint: Record<ConfidenceBand, string> = {
-  high: "bg-emerald-50 dark:bg-emerald-900/30",
-  medium: "bg-amber-50 dark:bg-amber-900/30",
-  low: "bg-orange-50 dark:bg-orange-900/30",
-  fallback: "bg-rose-50 dark:bg-rose-900/30",
+// v2 tokens — every value resolves through CSS custom properties in
+// globals.css so light/dark mode + theme switches stay coherent.
+const bandTokens: Record<
+  ConfidenceBand,
+  { fill: string; tint: string; ink: string; ring: string }
+> = {
+  high: {
+    fill: "var(--good)",
+    tint: "var(--good-bg)",
+    ink: "var(--good)",
+    ring: "var(--good)",
+  },
+  medium: {
+    fill: "var(--warn)",
+    tint: "var(--warn-bg)",
+    ink: "var(--warn)",
+    ring: "var(--warn)",
+  },
+  low: {
+    fill: "var(--signal)",
+    tint: "var(--signal-bg)",
+    ink: "var(--signal-ink)",
+    ring: "var(--signal)",
+  },
+  fallback: {
+    fill: "var(--bad)",
+    tint: "var(--bad-bg)",
+    ink: "var(--bad)",
+    ring: "var(--bad)",
+  },
 };
 
 export function ConfidenceMeter({
@@ -73,76 +76,114 @@ export function ConfidenceMeter({
   consultExpert,
   compact = false,
   className,
+  "data-testid": testId,
 }: ConfidenceMeterProps) {
   // Pre-Sprint-4 questions have no score and no fallback. Render nothing
   // rather than misrepresent the answer with a fake number.
   if (score === null && !consultExpert) return null;
 
   const band = bandFor(score, consultExpert);
+  const tokens = bandTokens[band];
   const displayScore = consultExpert ? 0 : score ?? 0;
   const pct = Math.round(displayScore * 100);
 
   if (compact) {
     return (
       <span
-        className={cn(
-          "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium",
-          bandTint[band],
-          bandRing[band],
-          bandText[band],
-          className,
-        )}
+        className={cn("mono", className)}
+        data-testid={testId}
         aria-label={`${bandLabel[band]} ${consultExpert ? "" : `(${pct}%)`}`}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          padding: "2px 8px",
+          borderRadius: 2,
+          fontSize: 11,
+          fontWeight: 500,
+          background: tokens.tint,
+          color: tokens.ink,
+          border: `1px solid ${tokens.ring}`,
+          letterSpacing: ".02em",
+        }}
       >
         <span
-          className={cn("h-1.5 w-1.5 rounded-full", bandFill[band])}
           aria-hidden="true"
+          style={{
+            width: 6,
+            height: 6,
+            borderRadius: "50%",
+            background: tokens.fill,
+            flexShrink: 0,
+          }}
         />
-        {consultExpert ? "Consult expert" : `${pct}%`}
+        {consultExpert ? "CONSULT EXPERT" : `${pct}%`}
       </span>
     );
   }
 
   return (
     <section
-      className={cn(
-        "rounded-lg border p-4",
-        bandTint[band],
-        bandRing[band],
-        className,
-      )}
+      className={cn("panel", className)}
+      data-testid={testId}
       aria-label="Answer confidence"
       role="group"
+      style={{
+        background: tokens.tint,
+        borderColor: tokens.ring,
+        padding: 14,
+      }}
     >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span
-            className={cn("text-xs font-semibold uppercase", bandText[band])}
-          >
-            {bandLabel[band]}
-          </span>
-        </div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <span
+          className="mono up"
+          style={{ fontSize: 11, fontWeight: 600, color: tokens.ink, letterSpacing: ".08em" }}
+        >
+          {bandLabel[band]}
+        </span>
         {!consultExpert && (
-          <span className={cn("text-sm font-semibold tabular-nums", bandText[band])}>
+          <span
+            className="mono tnum"
+            style={{ fontSize: 14, fontWeight: 600, color: tokens.ink }}
+          >
             {pct}%
           </span>
         )}
       </div>
 
       <div
-        className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/60 dark:bg-black/30"
         role="progressbar"
         aria-valuenow={pct}
         aria-valuemin={0}
         aria-valuemax={100}
+        className="bar"
+        style={{ marginTop: 10, background: "var(--line)" }}
       >
-        <div
-          className={cn("h-full rounded-full transition-all", bandFill[band])}
-          style={{ width: consultExpert ? "100%" : `${pct}%` }}
+        <span
+          style={{
+            display: "block",
+            height: "100%",
+            background: tokens.fill,
+            width: consultExpert ? "100%" : `${pct}%`,
+            transition: "width .2s",
+          }}
         />
       </div>
 
-      <p className={cn("mt-2 text-xs leading-relaxed", bandText[band])}>
+      <p
+        style={{
+          marginTop: 10,
+          fontSize: 12,
+          lineHeight: 1.45,
+          color: tokens.ink,
+        }}
+      >
         {consultExpert
           ? "RegPulse could not find sufficient evidence in the indexed RBI circulars. Validate this answer with your Chief Compliance Officer before acting."
           : band === "high"
