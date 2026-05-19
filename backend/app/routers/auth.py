@@ -73,11 +73,13 @@ def _set_refresh_cookie(response: Response, token: str, settings: Settings) -> N
     )
 
 
-def _clear_refresh_cookie(response: Response) -> None:
+def _clear_refresh_cookie(response: Response, settings: Settings) -> None:
+    # secure flag must match the flag used when the cookie was set, otherwise
+    # browsers treat them as different cookies and the delete is a no-op.
     response.delete_cookie(
         key="refresh_token",
         httponly=True,
-        secure=True,  # Always secure on clear
+        secure=settings.ENVIRONMENT == "prod",
         samesite="lax",
         path="/",
     )
@@ -342,7 +344,7 @@ async def logout(
     settings: Settings = Depends(get_settings),
 ) -> MessageResponse:
     """Revoke refresh token and blacklist its jti."""
-    _clear_refresh_cookie(response)
+    _clear_refresh_cookie(response, settings)
 
     if not refresh_token:
         return MessageResponse(message="Logged out successfully")
