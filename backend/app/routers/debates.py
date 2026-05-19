@@ -25,9 +25,11 @@ from app.schemas.debates import (
     DebateDetailResponse,
     DebateItem,
     DebateListResponse,
-    DebateReply as DebateReplySchema,
     DebateReplyRequest,
     DebateResolveRequest,
+)
+from app.schemas.debates import (
+    DebateReply as DebateReplySchema,
 )
 from app.schemas.debates import (
     DebateStance as DebateStanceSchema,
@@ -52,9 +54,7 @@ def _initials(user: User | None) -> str:
     return name[:2].upper()
 
 
-async def _user_lookup(
-    db: AsyncSession, user_ids: set[uuid.UUID]
-) -> dict[uuid.UUID, User]:
+async def _user_lookup(db: AsyncSession, user_ids: set[uuid.UUID]) -> dict[uuid.UUID, User]:
     if not user_ids:
         return {}
     stmt = select(User).where(User.id.in_(user_ids))
@@ -131,9 +131,7 @@ async def list_debates(
     open_count = int(
         (
             await db.execute(
-                select(func.count(Debate.id)).where(
-                    Debate.status == DebateStatus.OPEN
-                )
+                select(func.count(Debate.id)).where(Debate.status == DebateStatus.OPEN)
             )
         ).scalar_one()
         or 0
@@ -148,14 +146,12 @@ async def list_debates(
         reply_stmt = (
             select(
                 DebateReply.debate_id,
-                func.sum(
-                    case((DebateReply.stance == DebateStance.AGREE, 1), else_=0)
-                ).label("agree"),
-                func.sum(
-                    case(
-                        (DebateReply.stance == DebateStance.DISAGREE, 1), else_=0
-                    )
-                ).label("disagree"),
+                func.sum(case((DebateReply.stance == DebateStance.AGREE, 1), else_=0)).label(
+                    "agree"
+                ),
+                func.sum(case((DebateReply.stance == DebateStance.DISAGREE, 1), else_=0)).label(
+                    "disagree"
+                ),
                 func.count(DebateReply.id).label("count"),
             )
             .where(DebateReply.debate_id.in_([r.id for r in rows]))
@@ -171,7 +167,8 @@ async def list_debates(
     items = []
     for d in rows:
         a, dis, cnt = aggs.get(d.id, (0, 0, 0))
-        items.append(_to_item(d, owners.get(d.user_id) if d.user_id else None, agree=a, disagree=dis, reply_count=cnt))
+        owner = owners.get(d.user_id) if d.user_id else None
+        items.append(_to_item(d, owner, agree=a, disagree=dis, reply_count=cnt))
 
     return DebateListResponse(data=items, total=total, open_count=open_count)
 
@@ -208,9 +205,7 @@ async def get_debate(
     )
 
 
-@router.post(
-    "", response_model=DebateDetailResponse, status_code=status.HTTP_201_CREATED
-)
+@router.post("", response_model=DebateDetailResponse, status_code=status.HTTP_201_CREATED)
 async def create_debate(
     body: DebateCreateRequest,
     user: User = Depends(require_verified_user),
@@ -329,7 +324,9 @@ async def resolve_debate(
     await db.refresh(d)
 
     rep_stmt = (
-        select(DebateReply).where(DebateReply.debate_id == debate_id).order_by(DebateReply.created_at)
+        select(DebateReply)
+        .where(DebateReply.debate_id == debate_id)
+        .order_by(DebateReply.created_at)
     )
     replies = (await db.execute(rep_stmt)).scalars().all()
     user_ids = {d.user_id, d.resolved_by} | {r.user_id for r in replies if r.user_id}

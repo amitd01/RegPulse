@@ -239,7 +239,8 @@ class RAGService:
         """pgvector cosine ANN search on active circulars."""
         embedding_str = "[" + ",".join(str(v) for v in query_embedding) + "]"
 
-        stmt = text("""
+        stmt = text(
+            """
             SELECT
                 dc.id AS chunk_id,
                 dc.document_id,
@@ -256,7 +257,8 @@ class RAGService:
                 AND dc.embedding IS NOT NULL
             ORDER BY cosine_dist
             LIMIT :top_k
-        """)
+        """
+        )
 
         result = await self._db.execute(stmt, {"emb": embedding_str, "top_k": top_k})
         rows = result.all()
@@ -287,7 +289,8 @@ class RAGService:
         top_k: int,
     ) -> list[RetrievedChunk]:
         """PostgreSQL full-text search on chunk text, filtered to active docs."""
-        stmt = text("""
+        stmt = text(
+            """
             SELECT
                 dc.id AS chunk_id,
                 dc.document_id,
@@ -308,7 +311,8 @@ class RAGService:
                     @@ plainto_tsquery('english', :query)
             ORDER BY fts_rank DESC
             LIMIT :top_k
-        """)
+        """
+        )
 
         result = await self._db.execute(stmt, {"query": question, "top_k": top_k})
         rows = result.all()
@@ -414,7 +418,8 @@ class RAGService:
             return chunks
 
         # Pull up to `max_per_doc` chunks per neighbour circular
-        stmt = text("""
+        stmt = text(
+            """
             SELECT
                 dc.id, dc.document_id, dc.chunk_index, dc.chunk_text,
                 dc.token_count, cd.circular_number, cd.title, cd.rbi_url
@@ -425,7 +430,8 @@ class RAGService:
               AND dc.embedding IS NOT NULL
             ORDER BY dc.chunk_index
             LIMIT :hard_limit
-            """)
+            """
+        )
         result = await self._db.execute(
             stmt,
             {

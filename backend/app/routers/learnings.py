@@ -92,9 +92,7 @@ async def learnings_stats(
 
     stmt = select(
         func.count(Learning.id).label("total"),
-        func.sum(
-            case((Learning.created_at >= week_ago, 1), else_=0)
-        ).label("this_week"),
+        func.sum(case((Learning.created_at >= week_ago, 1), else_=0)).label("this_week"),
         func.count(func.distinct(Learning.user_id)).label("contributors"),
     )
     result = await db.execute(stmt)
@@ -123,9 +121,7 @@ async def list_learnings(
     user: User = Depends(require_verified_user),
     db: AsyncSession = Depends(get_db),
 ) -> LearningListResponse:
-    stmt = select(Learning).order_by(
-        Learning.pinned.desc(), Learning.created_at.desc()
-    )
+    stmt = select(Learning).order_by(Learning.pinned.desc(), Learning.created_at.desc())
     if pinned is True:
         stmt = stmt.where(Learning.pinned.is_(True))
     if tag:
@@ -176,9 +172,7 @@ async def get_learning(
     return LearningDetailResponse(data=_to_item(row, owner))
 
 
-@router.post(
-    "", response_model=LearningDetailResponse, status_code=status.HTTP_201_CREATED
-)
+@router.post("", response_model=LearningDetailResponse, status_code=status.HTTP_201_CREATED)
 async def create_learning(
     body: LearningCreateRequest,
     user: User = Depends(require_verified_user),

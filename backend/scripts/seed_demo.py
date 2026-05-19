@@ -175,7 +175,8 @@ async def main() -> None:
             doc_id = str(uuid.uuid4())
 
             await conn.execute(
-                text("""
+                text(
+                    """
                     INSERT INTO circular_documents (
                         id, circular_number, title, rbi_url, status, doc_type,
                         impact_level, pending_admin_review,
@@ -190,7 +191,8 @@ async def main() -> None:
                         :ai_summary,
                         CAST(:structured_content AS JSONB)
                     )
-                """),
+                """
+                ),
                 {
                     "id": doc_id,
                     "cn": cn,
@@ -233,7 +235,8 @@ async def main() -> None:
             ):
                 emb_str = "[" + ",".join(str(x) for x in embedding) + "]"
                 await conn.execute(
-                    text("""
+                    text(
+                        """
                         INSERT INTO document_chunks (
                             id, document_id, chunk_index, chunk_text,
                             token_count, embedding
@@ -241,7 +244,8 @@ async def main() -> None:
                             :id, :doc_id, :idx, :text, :tokens,
                             CAST(:emb AS vector)
                         )
-                    """),
+                    """
+                    ),
                     {
                         "id": str(uuid.uuid4()),
                         "doc_id": doc_id,

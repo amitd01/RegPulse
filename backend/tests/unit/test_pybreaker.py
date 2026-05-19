@@ -46,8 +46,12 @@ class TestBreakerConfiguration:
         # ValueError/TypeError/AttributeError should NOT count toward the fail
         # counter — those are bugs, not provider outages
         for exc in (ValueError("bug"), TypeError("bug"), AttributeError("bug")):
+
+            def _raise(e=exc):
+                raise e
+
             try:
-                ANTHROPIC_BREAKER.call(lambda: (_ for _ in ()).throw(exc))
+                ANTHROPIC_BREAKER.call(_raise)
             except type(exc):
                 pass
         assert ANTHROPIC_BREAKER.fail_counter == 0
@@ -59,9 +63,7 @@ class TestBreakerTripping:
             raise anthropic.APIConnectionError(request=None)  # type: ignore[arg-type]
 
         for _ in range(3):
-            with pytest.raises(
-                (anthropic.APIConnectionError, pybreaker.CircuitBreakerError)
-            ):
+            with pytest.raises((anthropic.APIConnectionError, pybreaker.CircuitBreakerError)):
                 ANTHROPIC_BREAKER.call(_raise)
 
         assert ANTHROPIC_BREAKER.current_state == "open"
@@ -73,9 +75,7 @@ class TestBreakerTripping:
 
         # Trip the breaker (3 consecutive failures)
         for _ in range(3):
-            with pytest.raises(
-                (anthropic.APITimeoutError, pybreaker.CircuitBreakerError)
-            ):
+            with pytest.raises((anthropic.APITimeoutError, pybreaker.CircuitBreakerError)):
                 ANTHROPIC_BREAKER.call(_raise)
 
         # Next call should be short-circuited (no provider call made)

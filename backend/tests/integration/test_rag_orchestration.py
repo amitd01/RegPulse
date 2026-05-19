@@ -39,9 +39,7 @@ pytestmark = pytest.mark.asyncio
 # ---------------------------------------------------------------------------
 
 
-GOLDEN_DATASET_PATH = (
-    pathlib.Path(__file__).resolve().parents[1] / "evals" / "golden_dataset.json"
-)
+GOLDEN_DATASET_PATH = pathlib.Path(__file__).resolve().parents[1] / "evals" / "golden_dataset.json"
 
 
 async def _seed_one_circular(
@@ -58,7 +56,8 @@ async def _seed_one_circular(
 
     doc_id = uuid.uuid4()
     await session.execute(
-        text("""
+        text(
+            """
             INSERT INTO circular_documents (
                 id, circular_number, title, rbi_url, status, doc_type,
                 impact_level, pending_admin_review, regulator, upload_source
@@ -66,7 +65,8 @@ async def _seed_one_circular(
                 :id, :cn, :title, :url, 'ACTIVE', 'MASTER_DIRECTION',
                 'HIGH', FALSE, 'RBI', 'scraper'
             )
-        """),
+        """
+        ),
         {"id": doc_id, "cn": circular_number, "title": title, "url": rbi_url},
     )
 
@@ -76,16 +76,19 @@ async def _seed_one_circular(
         dimensions=3072,
     )
 
-    for idx, (chunk, emb) in enumerate(zip(chunk_texts, [d.embedding for d in resp.data])):
+    embeddings = [d.embedding for d in resp.data]
+    for idx, (chunk, emb) in enumerate(zip(chunk_texts, embeddings, strict=False)):
         vec_literal = "[" + ",".join(str(x) for x in emb) + "]"
         await session.execute(
-            text("""
+            text(
+                """
                 INSERT INTO document_chunks (
                     id, document_id, chunk_index, chunk_text, token_count, embedding
                 ) VALUES (
                     :id, :doc, :idx, :text, :tokens, CAST(:emb AS vector)
                 )
-            """),
+            """
+            ),
             {
                 "id": uuid.uuid4(),
                 "doc": doc_id,
@@ -167,9 +170,9 @@ class TestRetrieval:
         # KYC circular (RBI/2024-25/42) should be the top retrieval source.
         assert len(chunks) > 0, "retrieval returned nothing"
         circular_numbers = {c.circular_number for c in chunks}
-        assert "RBI/2024-25/42" in circular_numbers, (
-            f"expected RBI/2024-25/42 in top results, got {circular_numbers}"
-        )
+        assert (
+            "RBI/2024-25/42" in circular_numbers
+        ), f"expected RBI/2024-25/42 in top results, got {circular_numbers}"
 
     async def test_retrieves_for_digital_lending_question(self, rag_service):
         chunks = await rag_service.retrieve(
@@ -271,19 +274,14 @@ class TestFullOrchestration:
         score = answer.get("confidence_score")
         assert score is None or 0.0 <= score <= 1.0
 
-    async def test_off_domain_question_triggers_consult_expert(
-        self, rag_service, llm_service
-    ):
+    async def test_off_domain_question_triggers_consult_expert(self, rag_service, llm_service):
         """Insufficient context guard: < 2 chunks → consult-expert fallback (no LLM call)."""
         chunks = await rag_service.retrieve("What is the capital of France?")
         if len(chunks) >= 2:
-            pytest.skip(
-                "off-domain retrieval found ≥ 2 chunks; check FTS over-matching"
-            )
+            pytest.skip("off-domain retrieval found ≥ 2 chunks; check FTS over-matching")
 
-        answer, model_used = await llm_service.generate(
-            "What is the capital of France?", chunks
+        answer, model_used = await llm_service.generate("What is the capital of France?", chunks)
+        assert (
+            answer.get("consult_expert") is True
+            or "consult" in str(answer.get("quick_answer", "")).lower()
         )
-        assert answer.get("consult_expert") is True or "consult" in str(
-            answer.get("quick_answer", "")
-        ).lower()

@@ -54,9 +54,7 @@ class TestFeedbackEnvelope:
         }
 
     def test_categories_without_comment_envelope_has_empty_comment(self):
-        env = _envelope(
-            FeedbackRequest(feedback=-1, categories=["WRONG_TEAM"])
-        )
+        env = _envelope(FeedbackRequest(feedback=-1, categories=["WRONG_TEAM"]))
         assert env is not None
         data = json.loads(env)
         assert data["categories"] == ["WRONG_TEAM"]

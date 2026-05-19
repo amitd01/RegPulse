@@ -142,9 +142,9 @@ class TestSeedStructuredFile:
             if cn.startswith("_"):
                 continue
             blocks = raw["blocks"]
-            assert any(b["type"] == "heading" for b in blocks), (
-                f"{cn} should start with at least one heading"
-            )
+            assert any(
+                b["type"] == "heading" for b in blocks
+            ), f"{cn} should start with at least one heading"
 
 
 class TestRetrievalShapeNotRenderedToUsers:
@@ -174,9 +174,9 @@ class TestRetrievalShapeNotRenderedToUsers:
             pytest.skip("frontend not present in this build context")
         src = page.read_text()
         # Guards: the renderer must not loop chunk_text into the DOM
-        assert "chunk_text" not in src, (
-            "Library detail must not render chunk_text — use structured_content"
-        )
+        assert (
+            "chunk_text" not in src
+        ), "Library detail must not render chunk_text — use structured_content"
         assert "chunks.map" not in src and "chunks.length" not in src.replace(
             "chunks: ChunkResponse", ""
         ), "Library detail must not iterate chunks for display"

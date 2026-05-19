@@ -341,7 +341,8 @@ class CircularLibraryService:
             distance_map = {row[0]: row[1] for row in rows}
 
             # Get best chunk per document for snippet
-            snippet_stmt = text("""
+            snippet_stmt = text(
+                """
                 SELECT DISTINCT ON (dc.document_id)
                     dc.document_id,
                     dc.chunk_text
@@ -350,7 +351,8 @@ class CircularLibraryService:
                     AND dc.embedding IS NOT NULL
                 ORDER BY dc.document_id,
                     dc.embedding <=> cast(:emb AS vector)
-            """)
+            """
+            )
             snippet_result = await self._db.execute(
                 snippet_stmt, {"doc_ids": doc_ids, "emb": embedding_str}
             )

@@ -100,8 +100,9 @@ class TestStructuredFeedbackContract:
         assert fb.categories is None
 
     def test_feedback_request_caps_categories(self):
-        from app.schemas.questions import FeedbackRequest
         from pydantic import ValidationError
+
+        from app.schemas.questions import FeedbackRequest
 
         with pytest.raises(ValidationError):
             FeedbackRequest(feedback=-1, categories=["A"] * 7)

@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
+import json as _json
 import os
 import sqlite3
 import uuid
 from datetime import UTC, datetime
-
-import json as _json
 
 # SQLite native sqlite3 driver doesn't know how to bind a Python uuid.UUID
 # parameter (Mapped[uuid.UUID] default=uuid.uuid4 in our ORM models produces

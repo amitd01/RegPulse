@@ -153,13 +153,15 @@ def seeded_circulars(async_engine, embedding_service, event_loop):
 
                 # Insert circular_documents row
                 await conn.execute(
-                    sa_text("""
+                    sa_text(
+                        """
                         INSERT INTO circular_documents (
                             id, circular_number, title, rbi_url, status, doc_type
                         ) VALUES (
                             :id, :cn, :title, :url, 'ACTIVE', 'Circular'
                         )
-                    """),
+                    """
+                    ),
                     {
                         "id": doc_id,
                         "cn": circ["circular_number"],
@@ -177,7 +179,8 @@ def seeded_circulars(async_engine, embedding_service, event_loop):
                 ):
                     emb_str = "[" + ",".join(str(x) for x in embedding) + "]"
                     await conn.execute(
-                        sa_text("""
+                        sa_text(
+                            """
                             INSERT INTO document_chunks (
                                 id, document_id, chunk_index, chunk_text,
                                 token_count, embedding
@@ -185,7 +188,8 @@ def seeded_circulars(async_engine, embedding_service, event_loop):
                                 :id, :doc_id, :idx, :text, :tokens,
                                 CAST(:emb AS vector)
                             )
-                        """),
+                        """
+                        ),
                         {
                             "id": str(uuid.uuid4()),
                             "doc_id": doc_id,
@@ -337,12 +341,14 @@ class TestRetrieval:
         """Verify all seeded chunks have non-null embeddings (TD-08 verification)."""
         async with async_engine.connect() as conn:
             result = await conn.execute(
-                sa_text("""
+                sa_text(
+                    """
                     SELECT count(*) FILTER (WHERE embedding IS NULL) AS null_count,
                            count(*) AS total
                     FROM document_chunks
                     WHERE document_id = ANY(:doc_ids)
-                """),
+                """
+                ),
                 {"doc_ids": list(seeded_circulars.values())},
             )
             row = result.one()

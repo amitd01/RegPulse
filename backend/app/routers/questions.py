@@ -380,7 +380,8 @@ async def question_suggestions(
         return QuestionSuggestionListResponse(data=[])
 
     embedding_str = "[" + ",".join(str(v) for v in embedding) + "]"
-    sql = text("""
+    sql = text(
+        """
         SELECT id, question_text, quick_answer
         FROM questions
         WHERE user_id = :user_id
@@ -388,7 +389,8 @@ async def question_suggestions(
           AND streaming_completed = TRUE
         ORDER BY question_embedding <=> CAST(:vec AS vector)
         LIMIT :limit
-        """)
+        """
+    )
     rows = (
         await db.execute(
             sql,

@@ -182,7 +182,6 @@ class TestDebates:
                 json={"text": f"My take ({stance})", "stance": stance},
             )
             assert rp.status_code == 200, f"reply failed: {rp.status_code} {rp.text}"
-            print(f"REPLY {stance} response:", rp.json()["data"].get("reply_count"))
 
         # Detail reflects counts
         rd = await client.get(f"/api/v1/debates/{did}")

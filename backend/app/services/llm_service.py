@@ -55,6 +55,7 @@ def _raise_for_breaker_count(exc: Exception) -> None:
     import in 1.2.0, so we use the synchronous interface to manage state."""
     raise exc
 
+
 _SYSTEM_PROMPT = """You are RegPulse, an AI assistant that answers regulatory compliance questions \
 for Indian banking professionals. You ONLY answer based on the RBI circular excerpts provided below.
 
@@ -162,7 +163,7 @@ def _compute_confidence(
     """
     # Signal 1: LLM self-reported confidence
     llm_confidence = response.get("confidence_score")
-    if isinstance(llm_confidence, (int, float)):
+    if isinstance(llm_confidence, int | float):
         llm_confidence = max(0.0, min(1.0, float(llm_confidence)))
     else:
         llm_confidence = 0.5  # neutral if not reported

@@ -166,9 +166,7 @@ class TestAnnotations:
         )
         aid = r.json()["data"]["id"]
 
-        ru = await client.patch(
-            f"/api/v1/annotations/{aid}", json={"resolved": True}
-        )
+        ru = await client.patch(f"/api/v1/annotations/{aid}", json={"resolved": True})
         assert ru.status_code == 200
         assert ru.json()["data"]["resolved"] is True
 
@@ -179,9 +177,7 @@ class TestAnnotations:
             json={"text_selection": "abc", "note": "Initial note"},
         )
         aid = r.json()["data"]["id"]
-        ru = await client.patch(
-            f"/api/v1/annotations/{aid}", json={"note": "Revised note"}
-        )
+        ru = await client.patch(f"/api/v1/annotations/{aid}", json={"note": "Revised note"})
         assert ru.status_code == 200
         assert ru.json()["data"]["note"] == "Revised note"
 
@@ -199,9 +195,7 @@ class TestAnnotations:
         assert rl.json()["total"] == 0
 
     async def test_patch_nonexistent_returns_404(self, client):
-        r = await client.patch(
-            f"/api/v1/annotations/{uuid.uuid4()}", json={"resolved": True}
-        )
+        r = await client.patch(f"/api/v1/annotations/{uuid.uuid4()}", json={"resolved": True})
         assert r.status_code == 404
         assert r.json()["detail"]["code"] == "ANNOTATION_NOT_FOUND"
 

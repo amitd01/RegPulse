@@ -115,7 +115,8 @@ async def get_cluster_heatmap(
     ]
 
     # Generate time buckets — two static queries to avoid f-string in SQL (S608)
-    _HEATMAP_SQL_DAY = text("""
+    _HEATMAP_SQL_DAY = text(
+        """
         SELECT
             q.cluster_id::text,
             date_trunc('day', q.created_at)::date AS bucket_date,
@@ -125,8 +126,10 @@ async def get_cluster_heatmap(
           AND q.created_at >= :start_date
         GROUP BY q.cluster_id, bucket_date
         ORDER BY bucket_date, q.cluster_id
-    """)
-    _HEATMAP_SQL_WEEK = text("""
+    """
+    )
+    _HEATMAP_SQL_WEEK = text(
+        """
         SELECT
             q.cluster_id::text,
             date_trunc('week', q.created_at)::date AS bucket_date,
@@ -136,7 +139,8 @@ async def get_cluster_heatmap(
           AND q.created_at >= :start_date
         GROUP BY q.cluster_id, bucket_date
         ORDER BY bucket_date, q.cluster_id
-    """)
+    """
+    )
     bucket_query = _HEATMAP_SQL_WEEK if time_bucket == "week" else _HEATMAP_SQL_DAY
 
     rows = (await db.execute(bucket_query, {"start_date": start_date})).fetchall()

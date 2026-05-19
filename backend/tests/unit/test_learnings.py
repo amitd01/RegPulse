@@ -10,7 +10,7 @@ import uuid
 from datetime import UTC, datetime
 
 import pytest
-from fastapi import Depends, FastAPI
+from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import String, event
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -31,8 +31,8 @@ _TABLE_NAMES = ["users", "questions", "circular_documents", "learnings"]
 
 
 def _sqlite_compat_tables():
-    """Module-level swap, idempotent on repeat calls."""
-    """Build SQLite-friendly copies of the tables we need."""
+    """Module-level swap, idempotent on repeat calls. Build SQLite-friendly
+    copies of the tables we need."""
     tables = []
     for name in _TABLE_NAMES:
         if name not in Base.metadata.tables:
@@ -219,9 +219,7 @@ class TestLearnings:
         assert body["tags"] == ["NEW"]
 
     async def test_delete(self, client):
-        r = await client.post(
-            "/api/v1/learnings", json={"title": "Throwaway"}
-        )
+        r = await client.post("/api/v1/learnings", json={"title": "Throwaway"})
         lid = r.json()["data"]["id"]
 
         rd = await client.delete(f"/api/v1/learnings/{lid}")
@@ -238,12 +236,8 @@ class TestLearnings:
         assert r.json()["detail"]["code"] == "LEARNING_NOT_FOUND"
 
     async def test_pinned_filter(self, client):
-        r1 = await client.post(
-            "/api/v1/learnings", json={"title": "Plain learning"}
-        )
-        r2 = await client.post(
-            "/api/v1/learnings", json={"title": "Pinned learning"}
-        )
+        await client.post("/api/v1/learnings", json={"title": "Plain learning"})
+        r2 = await client.post("/api/v1/learnings", json={"title": "Pinned learning"})
         # Pin the second one
         await client.post(f"/api/v1/learnings/{r2.json()['data']['id']}/pin")
 
