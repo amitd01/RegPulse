@@ -6,6 +6,12 @@
 
 ## Status
 
+**REBUILD slice plan S1→S10 complete.** Outstanding: S4b (structural PDF
+extractor + real RBI scrape; needs Docker + real LLM keys) and GCP Phases
+A/B/C (infra + launch). 155 unit tests pass; v2 design tokens on every
+route; integration scaffold in `backend/tests/integration/` ready for the
+docker-compose CI run.
+
 **REBUILD in progress.** The pre-rebuild project shipped 50 build prompts + 8 sprints + a Frontend v2 redesign on `main` with CI green, but a ReBuild audit (2026-05) found the MVP journey doesn't run end-to-end on real data, the v2 design system covers only the `(app)` route group, the circular detail page renders retrieval chunks rather than structured documents, RAG/LLM orchestration was unit-tested only at the utility-function layer, and the production scraper had never been run. The rebuild keeps ~165 files, rewrites/modifies ~45, discards 21 — and is sequenced as 10 sessions to land the MVP journey on real RBI data, in unified v2 design, with Playwright + integration tests gating every slice in CI.
 
 See `MEMORY.md` § Status for the full audit findings (F1–F8) and `CLAUDE.md` § Rebuild Progress for slice status.

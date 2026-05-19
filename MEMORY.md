@@ -4,6 +4,37 @@
 
 ---
 
+## Status (rebuild S1→S10 complete; S4b + GCP infra outstanding)
+
+ReBuild slice plan executed S1 through S10 — 10 commits totaling ~6,000 LoC
+of edits. Foundation kept (~165 files); rewrite surface (~45 files) ported
+in vertical slices, each gated by `pytest` + `tsc --noEmit` + a `grep` for
+navy/slate/gray Tailwind classes returning zero hits.
+
+| Phase | Status |
+|---|---|
+| F1 (visual split-brain) | **Closed** — all 27 routes on v2 tokens; repo-wide grep returns 0 |
+| F2 (RAG orchestration untested) | **Scaffolded** — integration suite in `tests/integration/` skips without `REGPULSE_INTEGRATION_DB_URL`; tests execute against real PG when set |
+| F3 (DEMO_MODE skips reranker) | **Closed** — ADR A29 reversed; cross-encoder always on; Dockerfile pre-bakes model |
+| F4 (chunk-dump renderer) | **Closed** — `circular_documents.structured_content` JSONB column + StructuredRenderer in `/library/[id]` + `/history/[id]` |
+| F5 (PDF extractor flattens structure) | **Schema-ready** — column + renderer landed; structural extractor itself is S4b (needs Docker) |
+| F6 (no real RBI corpus) | **Pending S4b** |
+| F7 (no E2E tests) | **Closed** — Playwright config + 10 E2E tests across auth/ask/save-history specs |
+| F8 (integration suite not in CI) | **Closed** — `make test-integration` wired; CI invocation per slice 9 |
+
+Backend gaps closed: G-13 (Learnings), G-14 (Debates), G-15 (Annotations),
+G-16 (structured Feedback), G-10 (pybreaker LLM circuit breaker), G-12
+(overdue compute), TD-09 (BACKEND_PUBLIC_URL warning wired).
+
+Outstanding work (not blocking code-complete state):
+- **S4b** — structural PDF extractor + dual-output chunker + real RBI scrape
+  of ≥20 circulars + Playwright `library.spec.ts` against real data. Needs
+  Docker daemon + real OPENAI_API_KEY + internet.
+- **GCP Phases A/B/C** — Cloud SQL + Memorystore + Artifact Registry +
+  Cloud Run deploys + WIF + `v1.0.0` tag. Tracked in `PRODUCTION_PLAN.md`.
+
+---
+
 ## Status (rebuild in progress)
 
 The pre-rebuild codebase shipped 50 build prompts + 8 sprints + a Frontend v2 redesign on `main` with CI green and 106 unit tests passing — but did **not** demonstrate an end-to-end MVP journey on real RBI data. ReBuild audit identified:
