@@ -132,26 +132,30 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except Exception:
         log.error("redis_connection_failed", exc_info=True)
 
-    # 4. Load cross-encoder (skip in demo mode — download can hang in Docker)
-    if settings.DEMO_MODE:
-        app.state.cross_encoder = None
-        log.info("cross_encoder_skipped_demo_mode")
-    else:
-        loop = asyncio.get_running_loop()
-        try:
-            with ProcessPoolExecutor(max_workers=1) as pool:
-                app.state.cross_encoder = await asyncio.wait_for(
-                    loop.run_in_executor(pool, _load_cross_encoder),
-                    timeout=_CROSS_ENCODER_LOAD_TIMEOUT,
-                )
-            log.info("cross_encoder_loaded", model=_CROSS_ENCODER_MODEL)
-        except Exception:
-            app.state.cross_encoder = None
-            log.warning(
-                "cross_encoder_load_failed",
-                model=_CROSS_ENCODER_MODEL,
+    # 4. Load cross-encoder reranker.
+    # ADR A29 (REVERSED): pre-rebuild this was skipped in DEMO_MODE because the
+    # HuggingFace download could hang in Docker. The skip hid the only quality
+    # differentiator from every runnable demo. Reversed in S5: the dev
+    # Dockerfile pre-bakes the model into the image cache (~90MB), so the load
+    # is offline + sub-second. If the model truly can't be loaded (e.g. CI
+    # without the pre-bake), we degrade to None and log a warning — never an
+    # outright skip keyed on DEMO_MODE.
+    loop = asyncio.get_running_loop()
+    try:
+        with ProcessPoolExecutor(max_workers=1) as pool:
+            app.state.cross_encoder = await asyncio.wait_for(
+                loop.run_in_executor(pool, _load_cross_encoder),
                 timeout=_CROSS_ENCODER_LOAD_TIMEOUT,
             )
+        log.info("cross_encoder_loaded", model=_CROSS_ENCODER_MODEL)
+    except Exception:
+        app.state.cross_encoder = None
+        log.warning(
+            "cross_encoder_load_failed_degraded",
+            model=_CROSS_ENCODER_MODEL,
+            timeout=_CROSS_ENCODER_LOAD_TIMEOUT,
+            demo_mode=settings.DEMO_MODE,
+        )
 
     # 5. Init LLM clients → app.state
     import anthropic

@@ -17,6 +17,24 @@
 
 **How to prevent.** CI's `backend-test` job must run `pip install -r requirements-dev.txt` in a fresh container with no pre-installed deps, then `pytest`. If a test-time import isn't pinned in `requirements-dev.txt`, CI breaks — same wall as a new contributor.
 
+### LR5.1 — Skipping reranker in DEMO_MODE hid the only quality differentiator
+**What bit us.** Pre-rebuild, `app/main.py` had `if settings.DEMO_MODE: app.state.cross_encoder = None`. The comment claimed it was to avoid HuggingFace download hangs in Docker. The net effect: every demo, every UAT, every local-dev session ran the RAG pipeline WITHOUT the cross-encoder rerank step — i.e. without the very thing that distinguishes a citation-locked answer from a vanilla hybrid-search result.
+
+**Root cause.** Performance optimisation (avoiding a 90MB download at container start) was applied via a quality-destroying skip rather than a build-time pre-bake. The pattern was invisible because no automated test asserted "reranker is loaded".
+
+**Fix.** ADR A29 reversed. `app/main.py` always tries to load the cross-encoder. `backend/Dockerfile` runs `python -c "CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')"` at image-build time so the runtime load is offline + sub-second. If the load still fails (e.g. CI without the pre-bake layer cached), we degrade to `None` and log a warning — but we never key the skip on DEMO_MODE.
+
+**How to prevent.** Quality flags must be wired to evidence (an automated test that exercises the feature), not to environment names. Rule 14 in CLAUDE.md ("No DEMO_MODE quality regressions") makes this explicit; the integration test `TestRerankerAlwaysOn::test_reranker_loaded_when_pre_baked` is the guard.
+
+### LR5.2 — Integration tests must skip LOUDLY, not silently
+**What bit us.** First draft of `test_rag_orchestration.py` returned a no-op when `REGPULSE_INTEGRATION_DB_URL` wasn't set. That's how the pre-rebuild "21/21 golden eval PASS" claim was sustained for so long without anyone running the evals — they no-op'd silently in CI.
+
+**Root cause.** `pytest.skip()` without a reason or with a vague reason looks identical to "test passed" in CI summary.
+
+**Fix.** Skip messages are explicit and actionable: `pytest.skip("Set REGPULSE_INTEGRATION_DB_URL (Postgres+pgvector) to enable")`. CI runs `pytest -m integration` AND asserts `pytest` doesn't report "skipped" — any skip in the integration job is a build failure, not a soft warning.
+
+**How to prevent.** Two-layer assertion: tests skip with actionable reasons; CI asserts skip count == 0 in the integration job.
+
 ### LR4.1 — MagicMock auto-creates attributes, breaking Pydantic from_attributes
 **What bit us.** Adding `structured_content` to `CircularDetail` schema broke an existing router test (`test_get_detail_returns_200`) with a 500 response. The pre-existing test fixture used `MagicMock()` and `setattr(mock, k, v)` only for the keys it cared about. Pydantic v2 with `from_attributes=True` calls `getattr(obj, "structured_content")` — and MagicMock cheerfully returns a new MagicMock for any missing attribute. Pydantic then tries to validate that MagicMock against `StructuredContent | None` and explodes.
 

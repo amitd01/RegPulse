@@ -49,6 +49,12 @@ test-backend:
 	PYTHONPATH=backend pytest backend/tests/unit/ -v
 
 test-integration:
+	@if [ -z "$$REGPULSE_INTEGRATION_DB_URL" ]; then \
+		echo "WARNING: REGPULSE_INTEGRATION_DB_URL not set — RAG orchestration tests will skip."; \
+		echo "         Start docker compose and export:"; \
+		echo "         export REGPULSE_INTEGRATION_DB_URL=postgresql+asyncpg://regpulse:...@localhost:5432/regpulse"; \
+		echo "         export REGPULSE_INTEGRATION_REDIS_URL=redis://localhost:6379/15"; \
+	fi
 	PYTHONPATH=backend pytest backend/tests/integration/ -v
 
 test-frontend:

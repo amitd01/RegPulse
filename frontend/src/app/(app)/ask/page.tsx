@@ -363,6 +363,7 @@ export default function AskPage() {
                 onFocus={() => setShowSuggestions(true)}
                 onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
                 className="input"
+                data-testid="ask-question-input"
                 placeholder="e.g., What are the latest KYC requirements for banks under the SBR framework?"
                 style={{
                   flex: 1,
@@ -431,6 +432,7 @@ export default function AskPage() {
                 variant="accent"
                 onClick={handleAsk}
                 disabled={streaming || question.trim().length < 5}
+                data-testid="ask-submit"
               >
                 {streaming ? "Thinking\u2026" : "Ask"} <Icon.Arrow />
               </Btn>
@@ -523,7 +525,11 @@ export default function AskPage() {
             </h2>
 
             {/* Body */}
-            <div className="rp-prose" style={{ maxWidth: 680 }}>
+            <div
+              className="rp-prose"
+              style={{ maxWidth: 680 }}
+              data-testid={state.consultExpert ? "consult-expert" : "answer-body"}
+            >
               {showMock ? (
                 <>
                   <p className="dek">{fa.dek}</p>
@@ -748,6 +754,7 @@ export default function AskPage() {
         {/* Confidence radial */}
         {displayConfidence !== null && displayConfidence !== undefined && (
           <div
+            data-testid="confidence-meter"
             style={{
               padding: "14px 16px",
               borderBottom: "1px solid var(--line)",
@@ -777,6 +784,7 @@ export default function AskPage() {
         {/* Citations */}
         {displayCitations.length > 0 && (
           <div
+            data-testid="citations"
             style={{
               padding: "14px 16px",
               borderBottom: "1px solid var(--line)",
