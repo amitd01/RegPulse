@@ -1,9 +1,19 @@
+/**
+ * Admin review queue — v2 terminal-modern (S7a).
+ *
+ * Each flagged question rendered as a panel with the question (serif), the
+ * quick answer (mono small), an override textarea (.input), and the
+ * Save Override / Mark Reviewed actions as v2 Btns.
+ *
+ * Wiring preserved: useFlaggedQuestions, useOverride, useMarkReviewed.
+ */
+
 "use client";
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
-import { Spinner } from "@/components/ui/Spinner";
+import { Btn } from "@/components/design/Primitives";
 import type { QuestionSummary } from "@/types";
 
 function useFlaggedQuestions(page: number) {
@@ -45,42 +55,116 @@ export default function ReviewPage() {
   const markReviewed = useMarkReviewed();
   const [overrideText, setOverrideText] = useState<Record<string, string>>({});
 
-  if (isLoading) return <div className="flex justify-center p-20"><Spinner size="lg" /></div>;
+  if (isLoading) {
+    return (
+      <div
+        className="tick"
+        style={{ padding: 48, textAlign: "center", color: "var(--ink-4)" }}
+      >
+        LOADING REVIEW QUEUE…
+      </div>
+    );
+  }
+
+  const total = data?.total ?? 0;
+  const items = data?.data ?? [];
 
   return (
-    <div className="p-6">
-      <h1 className="mb-6 text-xl font-bold text-gray-900">
-        Review Flagged Questions ({data?.total ?? 0})
+    <div style={{ padding: "24px 32px 64px" }} data-testid="admin-review">
+      <div className="tick" style={{ marginBottom: 8 }}>
+        ADMIN · REVIEW QUEUE · FLAGGED QUESTIONS
+      </div>
+      <h1
+        className="serif"
+        style={{
+          fontSize: 26,
+          fontWeight: 500,
+          letterSpacing: "-0.015em",
+          marginBottom: 4,
+        }}
+      >
+        Flagged for review.
       </h1>
-      {data?.data.length === 0 && <p className="text-sm text-gray-500">No flagged questions.</p>}
-      <div className="space-y-4">
-        {data?.data.map((q) => (
-          <div key={q.id} className="rounded-lg border border-gray-200 bg-white p-4">
-            <p className="text-sm font-medium text-gray-900">{q.question_text}</p>
-            {q.quick_answer && <p className="mt-1 text-xs text-gray-500">{q.quick_answer}</p>}
-            <div className="mt-3 flex gap-2">
-              <textarea
-                placeholder="Override answer..."
-                value={overrideText[q.id] ?? ""}
-                onChange={(e) => setOverrideText((p) => ({ ...p, [q.id]: e.target.value }))}
-                className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs"
-                rows={2}
-              />
-            </div>
-            <div className="mt-2 flex gap-2">
-              <button
-                onClick={() => override.mutate({ id: q.id, text: overrideText[q.id] ?? "" })}
-                disabled={!overrideText[q.id]}
-                className="rounded bg-navy-700 px-3 py-1 text-xs text-white disabled:opacity-50"
+      <p
+        className="mono"
+        style={{ fontSize: 11.5, color: "var(--ink-3)", marginBottom: 22 }}
+      >
+        {total} OPEN · THUMBS-DOWN FEEDBACK, AWAITING ADMIN OVERRIDE
+      </p>
+
+      {items.length === 0 && (
+        <div
+          className="panel"
+          style={{ padding: 24, textAlign: "center", color: "var(--ink-3)" }}
+        >
+          No flagged questions in the queue. Good day.
+        </div>
+      )}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {items.map((q) => (
+          <div
+            key={q.id}
+            className="panel"
+            style={{ padding: 16 }}
+            data-testid="admin-review-row"
+          >
+            <p
+              className="serif"
+              style={{
+                fontSize: 16,
+                fontWeight: 500,
+                color: "var(--ink)",
+                lineHeight: 1.35,
+              }}
+            >
+              {q.question_text}
+            </p>
+            {q.quick_answer && (
+              <p
+                style={{
+                  fontSize: 12.5,
+                  color: "var(--ink-3)",
+                  marginTop: 6,
+                  lineHeight: 1.45,
+                }}
               >
-                Save Override
-              </button>
-              <button
+                {q.quick_answer}
+              </p>
+            )}
+
+            <textarea
+              placeholder="Override answer…"
+              value={overrideText[q.id] ?? ""}
+              onChange={(e) =>
+                setOverrideText((p) => ({ ...p, [q.id]: e.target.value }))
+              }
+              rows={3}
+              className="input"
+              data-testid="admin-override-input"
+              style={{ marginTop: 12, fontFamily: "var(--font-serif)", fontSize: 14 }}
+            />
+
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <Btn
+                variant="primary"
+                size="sm"
+                disabled={!overrideText[q.id] || override.isPending}
+                onClick={() =>
+                  override.mutate({ id: q.id, text: overrideText[q.id] ?? "" })
+                }
+                data-testid="admin-save-override"
+              >
+                {override.isPending ? "Saving…" : "Save override"}
+              </Btn>
+              <Btn
+                size="sm"
+                disabled={markReviewed.isPending}
                 onClick={() => markReviewed.mutate(q.id)}
-                className="rounded border border-gray-300 px-3 py-1 text-xs text-gray-600"
+                data-testid="admin-mark-reviewed"
               >
-                Mark Reviewed
-              </button>
+                Mark reviewed
+              </Btn>
             </div>
           </div>
         ))}

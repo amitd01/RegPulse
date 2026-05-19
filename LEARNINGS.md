@@ -17,6 +17,13 @@
 
 **How to prevent.** CI's `backend-test` job must run `pip install -r requirements-dev.txt` in a fresh container with no pre-installed deps, then `pytest`. If a test-time import isn't pinned in `requirements-dev.txt`, CI breaks — same wall as a new contributor.
 
+### LR7.1 — Mono nav codes give the admin sidebar a terminal feel without bloating real estate
+**What bit us — almost.** First draft of the v2 admin sidebar borrowed the (app)-shell pattern with full text labels and icons. At 224px wide the result felt visually heavy compared to the rest of the v2 surface, which lives on tight 10.5px mono labels.
+
+**Fix.** Used 3-letter mono codes (`DASH`, `REV`, `PRM`, `USR`, `CIR`, `SCR`, `UPL`, `HTM`) as `<span class="mono" 9.5px>` prefixes next to the human-readable label. Active route gets a `var(--signal)` 2px left border + `var(--panel-2)` background. Same density as the main AppShell ticker, same family as the dashboard's `MiniStat` labels.
+
+**How to prevent.** When porting an under-used surface (admin, audit, internals), default to the densest pattern in `globals.css` first; expand to icons only if real users need them. The v2 design source bundle has this idiom in `dashboard.jsx` — re-read the bundle before guessing.
+
 ### LR6.1 — Pre-rebuild "Save" button on the Ask page was a no-op
 **What bit us.** S6's job was "ask → save → /saved → reopen via /history/[id]". The Ask page had a Save button (`<Btn>Save</Btn>`) that rendered fine — but had no `onClick` handler. Clicking it did nothing. A user could go through the whole MVP journey, click Save, and the question would never appear in `/saved`.
 

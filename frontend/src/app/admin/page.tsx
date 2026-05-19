@@ -1,8 +1,14 @@
+/**
+ * Admin dashboard — v2 terminal-modern (S7a).
+ *
+ * Editorial spec sheet: 8 metrics laid out in a panel grid with mono labels
+ * and tnum values. Pending reviews highlighted via var(--bad).
+ */
+
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
-import { Spinner } from "@/components/ui/Spinner";
 
 interface DashboardStats {
   total_users: number;
@@ -31,8 +37,11 @@ export default function AdminDashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <Spinner size="lg" />
+      <div
+        className="tick"
+        style={{ padding: 48, textAlign: "center", color: "var(--ink-4)" }}
+      >
+        LOADING ADMIN DASHBOARD…
       </div>
     );
   }
@@ -40,40 +49,86 @@ export default function AdminDashboardPage() {
   const stats = data?.data;
 
   return (
-    <div className="p-6">
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+    <div style={{ padding: "24px 32px 64px" }} data-testid="admin-dashboard">
+      <div className="tick" style={{ marginBottom: 8 }}>
+        ADMIN · OVERVIEW · LIVE
+      </div>
+      <h1
+        className="serif"
+        style={{
+          fontSize: 28,
+          fontWeight: 500,
+          letterSpacing: "-0.015em",
+          marginBottom: 22,
+          color: "var(--ink)",
+        }}
+      >
+        Operations dashboard.
+      </h1>
+
       {stats && (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Stat label="Total Users" value={stats.total_users} />
-          <Stat label="Active (30d)" value={stats.active_users_30d} />
-          <Stat label="Total Questions" value={stats.total_questions} />
-          <Stat label="Questions Today" value={stats.questions_today} />
-          <Stat label="Circulars" value={stats.total_circulars} />
-          <Stat label="Pending Reviews" value={stats.pending_reviews} highlight />
-          <Stat
-            label="Avg Feedback"
-            value={stats.avg_feedback_score !== null ? stats.avg_feedback_score.toFixed(2) : "N/A"}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+            gap: 14,
+          }}
+        >
+          <Cell label="TOTAL USERS" value={stats.total_users} />
+          <Cell label="ACTIVE (30D)" value={stats.active_users_30d} />
+          <Cell label="QUESTIONS · TOTAL" value={stats.total_questions} />
+          <Cell label="QUESTIONS · TODAY" value={stats.questions_today} signal />
+          <Cell label="CIRCULARS" value={stats.total_circulars} />
+          <Cell
+            label="PENDING REVIEWS"
+            value={stats.pending_reviews}
+            tone={stats.pending_reviews > 0 ? "bad" : undefined}
           />
-          <Stat label="Credits Used (30d)" value={stats.credits_consumed_30d} />
+          <Cell
+            label="AVG FEEDBACK"
+            value={
+              stats.avg_feedback_score !== null
+                ? stats.avg_feedback_score.toFixed(2)
+                : "—"
+            }
+          />
+          <Cell label="CREDITS USED (30D)" value={stats.credits_consumed_30d} />
         </div>
       )}
     </div>
   );
 }
 
-function Stat({
+function Cell({
   label,
   value,
-  highlight,
+  signal = false,
+  tone,
 }: {
   label: string;
   value: string | number;
-  highlight?: boolean;
+  signal?: boolean;
+  tone?: "bad";
 }) {
+  const color =
+    tone === "bad" ? "var(--bad)" : signal ? "var(--signal)" : "var(--ink)";
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4">
-      <div className="text-xs text-gray-500">{label}</div>
-      <div className={`mt-1 text-xl font-bold ${highlight ? "text-red-600" : "text-gray-900"}`}>
+    <div className="panel" style={{ padding: 16 }} data-testid="admin-stat-cell">
+      <div
+        className="mono up"
+        style={{
+          fontSize: 10,
+          color: "var(--ink-4)",
+          letterSpacing: ".08em",
+          marginBottom: 8,
+        }}
+      >
+        {label}
+      </div>
+      <div
+        className="tnum"
+        style={{ fontSize: 26, fontWeight: 600, color, letterSpacing: "-0.02em" }}
+      >
         {value}
       </div>
     </div>
