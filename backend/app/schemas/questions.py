@@ -28,8 +28,22 @@ class QuestionRequest(BaseModel):
 
 
 class FeedbackRequest(BaseModel):
+    """Feedback on a question. Supports both classic thumbs and v4 structured chips.
+
+    `categories` is the closed-vocabulary set behind the structured-feedback form
+    on the Ask page. Until the full backend lands in slice 9 (G-16), values are
+    persisted as JSON metadata in `feedback_comment`. Allowed values:
+    MISSING_CIRCULAR, MISINTERPRETED_CITATION, CONFIDENCE_OFF, WRONG_TEAM,
+    UNCLEAR_LANGUAGE, OTHER.
+    """
+
     feedback: int = Field(ge=-1, le=1, description="-1=thumbs down, 1=thumbs up")
     comment: str | None = Field(default=None, max_length=2000)
+    categories: list[str] | None = Field(
+        default=None,
+        max_length=6,
+        description="Structured-feedback chips (v4)",
+    )
 
 
 # --- Question Responses ---

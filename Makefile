@@ -65,10 +65,14 @@ eval:
 e2e:
 	cd frontend && npx playwright test
 
-# Slice 2 — regenerate TypeScript client from FastAPI's OpenAPI spec
+# Regenerate TypeScript client from FastAPI's OpenAPI spec.
+# Boots the app in-process (no backend container required) → dumps openapi.json
+# → runs openapi-typescript → writes generated types to frontend.
 api-codegen:
-	@echo "Slice 2 deliverable: install openapi-typescript and add the codegen pipeline here"
-	@false
+	@mkdir -p frontend/src/lib/api/generated
+	PYTHONPATH=backend python3 backend/scripts/export_openapi.py --out frontend/src/lib/api/generated/openapi.json
+	cd frontend && npx openapi-typescript src/lib/api/generated/openapi.json -o src/lib/api/generated/schema.d.ts
+	@echo "Generated frontend/src/lib/api/generated/schema.d.ts"
 
 # ---------------------------------------------------------------------------
 # One-time dev setup: generate an RSA keypair into .env so the app boots

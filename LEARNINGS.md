@@ -6,7 +6,7 @@
 
 ---
 
-## ReBuild Session 1 — Foundation freeze
+## ReBuild Sessions 1–2
 
 ### LR1.1 — Dependency drift: `pytest` didn't run from a clean clone
 **What bit us.** During the ReBuild audit, `pip install -r backend/requirements-dev.txt && pytest` failed twice: once on missing `fakeredis`, once on missing `aiosqlite`. Both are used by `backend/tests/conftest.py` (fakeredis patches `get_redis`; aiosqlite is the SQLite async driver for in-memory tests).
@@ -16,6 +16,15 @@
 **Fix.** Added `aiosqlite==0.20.0` and `fakeredis==2.26.1` to `requirements-dev.txt`. Verified `pytest backend/tests/unit` runs 106/106 green after `pip install -r requirements-dev.txt` from a clean Python env.
 
 **How to prevent.** CI's `backend-test` job must run `pip install -r requirements-dev.txt` in a fresh container with no pre-installed deps, then `pytest`. If a test-time import isn't pinned in `requirements-dev.txt`, CI breaks — same wall as a new contributor.
+
+### LR2.1 — FastAPI rejects `-> None` annotation on 204 status routes
+**What bit us.** First export of `openapi.json` crashed during app boot with `AssertionError: Status code 204 must not have a response body` on the stub delete endpoints. The handler had `status_code=status.HTTP_204_NO_CONTENT` AND `async def delete(...) -> None: raise HTTPException(501)` — FastAPI's route-registration assertion treats `None` as a declared response model, which conflicts with 204.
+
+**Root cause.** FastAPI 0.115 uses `is_body_allowed_for_status_code` at registration time; the `-> None` annotation is interpreted as "void body" but still triggers the body-allowed check.
+
+**Fix.** Removed the `-> None` return annotation from the two delete stubs. Keep the explicit `status_code=204` (semantically correct) and let the handler raise an HTTPException for the 501 transitional response. When the real impl lands, the success path will return None implicitly.
+
+**How to prevent.** For any 204 / 205 / 304 route: never put a return annotation. Keep the status code in the decorator and let the handler return implicitly (`pass` or just raise).
 
 ### LR1.2 — `.env.example` couldn't boot the app without manual OpenSSL gymnastics
 **What bit us.** Original `.env.example` had `JWT_PRIVATE_KEY=your-rsa-private-key-pem` as a placeholder. Anyone running `docker compose up` had to know to generate an RSA keypair via OpenSSL and paste a multi-line PEM into a `.env` file — exactly the multi-line dotenv parsing footgun that L1.2 already warned about.

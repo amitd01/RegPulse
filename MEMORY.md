@@ -156,7 +156,7 @@ Retrieval and reading never share the same data shape. The pre-rebuild pattern o
 - Credit balance updates without re-auth: `useAuthStore.setState({user: {...user, credit_balance: n}})`
 - TanStack Query for data fetching; `QueryProvider` wraps app in root layout
 - SSE via `fetch` + `ReadableStream` — never `EventSource`
-- API client is **generated from OpenAPI** (`make api-codegen`) — no hand-rolled `api.ts` (TD-03 resolved)
+- API client is **generated from OpenAPI** (`make api-codegen` → `frontend/src/lib/api/generated/schema.d.ts` via `openapi-typescript`); never hand-edit generated files. `backend/scripts/export_openapi.py` boots `app.main:app` in-process and dumps `openapi.json` — no running backend needed for codegen.
 - Library browsable without auth; search/ask require verified user
 - Middleware checks protected routes (cookie auto-sent by browser)
 - **All v2 tokens.** No `bg-navy-*` / `text-navy-*` Tailwind utility classes in `app/`. Design tokens are CSS custom properties in `globals.css`. Dark mode via `html.dark` class (never `[data-theme]`).
