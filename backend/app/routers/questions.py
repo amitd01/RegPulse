@@ -541,8 +541,27 @@ async def submit_feedback(
 
         raise QuestionNotFoundError("Question not found")
 
+    # Persist the structured-feedback categories alongside the comment (v4
+    # G-16, slice 9d). Until a proper `feedback_categories` column lands, we
+    # serialise it into feedback_comment as a JSON envelope so the contract
+    # is real without a new migration. The envelope shape is:
+    #
+    #   {"comment": "<user text>", "categories": ["MISINTERPRETED_CITATION", ...]}
+    #
+    # Plain string comments stay plain so legacy rows don't break.
     question.feedback = body.feedback
-    question.feedback_comment = body.comment
+    if body.categories:
+        import json as _json
+
+        question.feedback_comment = _json.dumps(
+            {"comment": body.comment or "", "categories": body.categories}
+        )
+    else:
+        question.feedback_comment = body.comment
     await db.commit()
 
-    return {"success": True, "message": "Feedback recorded"}
+    return {
+        "success": True,
+        "message": "Feedback recorded",
+        "categories": body.categories or [],
+    }
