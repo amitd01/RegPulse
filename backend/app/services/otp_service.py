@@ -57,8 +57,10 @@ class OTPService:
         domain = email.rsplit("@", 1)[-1] if "@" in email else "unknown"
 
         # --- Rate-limit check (sliding window, 1 hour) ---
-        rate_key = _KEY_RATE.format(email=email)
-        await self._enforce_rate_limit(redis, rate_key, domain)
+        # Skip in dev/demo environments to avoid friction during testing
+        if self._settings.ENVIRONMENT not in ("dev", "test") and not self._settings.DEMO_MODE:
+            rate_key = _KEY_RATE.format(email=email)
+            await self._enforce_rate_limit(redis, rate_key, domain)
 
         # --- Generate OTP ---
         if self._settings.DEMO_MODE:

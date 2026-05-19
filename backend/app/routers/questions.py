@@ -90,6 +90,20 @@ async def ask_question(
     cached = await rag.check_cache(question_text)
     if cached:
         logger.info("question_cache_hit")
+        accept = request.headers.get("accept", "")
+        if "text/event-stream" in accept:
+            # Frontend always uses SSE — return cached data as SSE events
+            # so the stream parser receives the same event sequence as a
+            # live answer. No credit is deducted on a cache hit.
+            return StreamingResponse(
+                _stream_cached_response(cached, user.credit_balance),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "X-Accel-Buffering": "no",
+                },
+            )
         return QuestionResponse(
             data=QuestionDetail(**cached),
             credit_balance=user.credit_balance,  # No deduction for cache hit
@@ -211,6 +225,38 @@ async def ask_question(
         data=QuestionDetail.model_validate(question),
         credit_balance=new_balance,
     )
+
+
+async def _stream_cached_response(cached: dict, credit_balance: int):
+    """Yield SSE events for a Redis cache hit.
+
+    Emits the same event sequence the frontend expects from a live stream
+    (token → citations → done) so the SSE parser works identically.
+    No credit is deducted; credit_balance is passed through unchanged.
+    """
+    # token event — emit the stored detailed answer so the frontend renders it
+    answer_text = cached.get("answer_text") or ""
+    yield f"event: token\ndata: {json.dumps({'token': answer_text})}\n\n"
+
+    # citations event — all metadata the frontend needs for the answer card
+    citations_payload = {
+        "citations": cached.get("citations") or [],
+        "risk_level": cached.get("risk_level"),
+        "confidence_score": cached.get("confidence_score"),
+        "consult_expert": bool(cached.get("consult_expert", False)),
+        "affected_teams": cached.get("affected_teams") or [],
+        "recommended_actions": cached.get("recommended_actions") or [],
+        "quick_answer": cached.get("quick_answer"),
+        "model_used": cached.get("model_used"),
+    }
+    yield f"event: citations\ndata: {json.dumps(citations_payload)}\n\n"
+
+    # done event — question_id so history link works; credit unchanged
+    done_payload = {
+        "question_id": cached.get("id"),
+        "credit_balance": credit_balance,
+    }
+    yield f"event: done\ndata: {json.dumps(done_payload)}\n\n"
 
 
 async def _stream_response(
