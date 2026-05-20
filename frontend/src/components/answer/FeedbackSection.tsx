@@ -54,11 +54,11 @@ export function FeedbackSection({
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+    <div className="rounded-xl border border-cream-300 bg-white shadow-sm">
       {/* Header */}
-      <div className="border-b border-gray-100 px-5 py-4">
-        <h3 className="text-sm font-semibold text-gray-900">Share Your Feedback</h3>
-        <p className="mt-0.5 text-xs text-gray-500">
+      <div className="border-b border-cream-200 px-5 py-4">
+        <h3 className="text-[13.5px] font-semibold text-[#1A2B40]">Share Your Feedback</h3>
+        <p className="mt-0.5 text-[12px] text-[#7A95AD]">
           Help us improve by sharing your thoughts on this interpretation.
         </p>
       </div>
@@ -109,7 +109,7 @@ export function FeedbackSection({
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-crimson-500 focus:outline-none focus:ring-1 focus:ring-crimson-500"
+            className="w-full rounded-lg border border-cream-300 bg-white px-3 py-2 text-[13px] text-[#1A2B40] focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500/30"
           >
             <option value="">Select a category…</option>
             {FEEDBACK_CATEGORIES.map((c) => (
@@ -131,7 +131,7 @@ export function FeedbackSection({
             placeholder="Share your feedback regarding this interpretation…"
             rows={4}
             maxLength={2000}
-            className="w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-crimson-500 focus:outline-none focus:ring-1 focus:ring-crimson-500"
+            className="w-full resize-none rounded-lg border border-cream-300 bg-white px-3 py-2 text-[13px] text-[#1A2B40] placeholder-[#7A95AD] focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500/30"
           />
           <div className="mt-1 text-right text-xs text-gray-400">
             {comment.length}/2000
@@ -142,7 +142,7 @@ export function FeedbackSection({
         <button
           type="submit"
           disabled={(!comment.trim() && rating === null) || isSubmitting}
-          className="w-full rounded-lg bg-crimson-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-crimson-800 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+          className="w-full rounded-lg bg-[linear-gradient(135deg,#1B3A5C,#0F1C2E)] px-4 py-2.5 text-[13px] font-semibold text-white shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isSubmitting ? "Submitting…" : "Submit Feedback"}
         </button>

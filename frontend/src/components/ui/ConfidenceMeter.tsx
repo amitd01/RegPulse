@@ -44,28 +44,28 @@ const bandFill: Record<ConfidenceBand, string> = {
   high: "bg-emerald-500 dark:bg-emerald-400",
   medium: "bg-amber-500 dark:bg-amber-400",
   low: "bg-orange-500 dark:bg-orange-400",
-  fallback: "bg-rose-500 dark:bg-rose-400",
+  fallback: "bg-amber-500 dark:bg-amber-400",
 };
 
 const bandText: Record<ConfidenceBand, string> = {
   high: "text-emerald-700 dark:text-emerald-200",
   medium: "text-amber-700 dark:text-amber-200",
   low: "text-orange-700 dark:text-orange-200",
-  fallback: "text-rose-700 dark:text-rose-200",
+  fallback: "text-amber-800 dark:text-amber-200",
 };
 
 const bandRing: Record<ConfidenceBand, string> = {
   high: "border-emerald-200 dark:border-emerald-700",
   medium: "border-amber-200 dark:border-amber-700",
   low: "border-orange-200 dark:border-orange-700",
-  fallback: "border-rose-200 dark:border-rose-700",
+  fallback: "border-amber-300 dark:border-amber-700",
 };
 
 const bandTint: Record<ConfidenceBand, string> = {
   high: "bg-emerald-50 dark:bg-emerald-900/30",
   medium: "bg-amber-50 dark:bg-amber-900/30",
   low: "bg-orange-50 dark:bg-orange-900/30",
-  fallback: "bg-rose-50 dark:bg-rose-900/30",
+  fallback: "bg-amber-50 border-l-4 border-l-amber-500 dark:bg-amber-900/20",
 };
 
 export function ConfidenceMeter({

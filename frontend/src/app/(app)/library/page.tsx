@@ -19,12 +19,12 @@ const DEFAULT_FILTERS: CircularFilters = {
 
 export default function LibraryPage() {
   const [filters, setFilters] = useState<CircularFilters>(DEFAULT_FILTERS);
+  const [pendingFilters, setPendingFilters] = useState<CircularFilters>(DEFAULT_FILTERS);
   const [searchQuery, setSearchQuery] = useState("");
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   const isSearchMode = searchQuery.length >= 3;
 
-  // Use search hook when searching, list hook otherwise
   const listQuery = useCircularList(filters);
   const searchResults = useCircularSearch(
     searchQuery,
@@ -35,9 +35,9 @@ export default function LibraryPage() {
   const activeQuery = isSearchMode && isAuthenticated ? searchResults : listQuery;
   const { data, isLoading, isError, error } = activeQuery;
 
-  const handleFilterChange = useCallback(
+  const handlePendingFilterChange = useCallback(
     (key: keyof CircularFilters, value: string) => {
-      setFilters((prev) => ({
+      setPendingFilters((prev) => ({
         ...prev,
         [key]: value || undefined,
         page: key === "page" ? Number(value) || 1 : 1,
@@ -46,8 +46,13 @@ export default function LibraryPage() {
     [],
   );
 
+  const handleApplyFilters = useCallback(() => {
+    setFilters({ ...pendingFilters, page: 1 });
+  }, [pendingFilters]);
+
   const handleResetFilters = useCallback(() => {
     setFilters(DEFAULT_FILTERS);
+    setPendingFilters(DEFAULT_FILTERS);
     setSearchQuery("");
   }, []);
 
@@ -61,113 +66,119 @@ export default function LibraryPage() {
   }, []);
 
   return (
-    <div className="px-6 py-6 lg:px-8">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-50">
-          Circular Library
-        </h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Browse and search RBI circulars, master directions, and notifications.
-        </p>
-      </div>
+    <div className="min-h-screen">
+      {/* Page body */}
+      <div className="px-8 py-8">
+        <h2 className="mb-6 font-serif text-[26px] text-[#1A2B40] dark:text-gray-100">
+          Regulatory Document Library
+        </h2>
 
-      {/* Search bar */}
-      <div className="mb-4">
-        <SearchInput
-          value={searchQuery}
-          onChange={handleSearchChange}
-          placeholder={
-            isAuthenticated
-              ? "Search circulars with AI-powered hybrid search..."
-              : "Log in to enable AI-powered search. Browse below."
-          }
-          className="max-w-2xl"
-        />
-        {isSearchMode && !isAuthenticated && (
-          <p className="mt-1 text-xs text-amber-600">
-            Sign in to use hybrid search. Showing filtered list instead.
-          </p>
-        )}
-      </div>
-
-      {/* Filters */}
-      <div className="mb-6">
-        <FilterPanel
-          filters={filters}
-          onFilterChange={handleFilterChange}
-          onReset={handleResetFilters}
-        />
-      </div>
-
-      {/* Results count */}
-      {data && (
-        <div className="mb-4 text-sm text-gray-500 dark:text-gray-400">
-          {data.total === 0
-            ? "No circulars found"
-            : `Showing ${(data.page - 1) * data.page_size + 1}–${Math.min(
-                data.page * data.page_size,
-                data.total,
-              )} of ${data.total} circulars`}
-        </div>
-      )}
-
-      {/* Loading state */}
-      {isLoading && <CardListSkeleton rows={6} />}
-
-      {/* Error state */}
-      {isError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          Failed to load circulars.{" "}
-          {error instanceof Error ? error.message : "Please try again."}
-        </div>
-      )}
-
-      {/* Results grid */}
-      {data && data.data.length > 0 && (
-        <div className="space-y-3">
-          {data.data.map((circular) => (
-            <CircularCard key={circular.id} circular={circular} />
-          ))}
-        </div>
-      )}
-
-      {/* Empty state */}
-      {data && data.data.length === 0 && !isLoading && (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <svg
-            className="mb-4 h-12 w-12 text-gray-300"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m5.231 13.481L15 17.25m-4.5-15H5.625c-.621 0-1.125.504-1.125 1.125v16.5c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9zm3.75 11.625a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"
-            />
-          </svg>
-          <p className="text-sm text-gray-500">No circulars match your filters.</p>
-          <button
-            onClick={handleResetFilters}
-            className="mt-2 text-sm font-medium text-navy-600 hover:text-navy-700"
-          >
-            Clear all filters
-          </button>
-        </div>
-      )}
-
-      {/* Pagination */}
-      {data && data.total_pages > 1 && (
-        <div className="mt-6">
-          <Pagination
-            page={data.page}
-            totalPages={data.total_pages}
-            onPageChange={handlePageChange}
+        <div className="flex gap-8 items-start">
+          {/* Left filter sidebar */}
+          <FilterPanel
+            filters={pendingFilters}
+            onFilterChange={handlePendingFilterChange}
+            onApply={handleApplyFilters}
+            onReset={handleResetFilters}
           />
+
+          {/* Right content area */}
+          <div className="min-w-0 flex-1">
+            {/* Top bar: results count + search */}
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+              <div className="text-[13px] text-[#4D6480]">
+                {isLoading ? (
+                  <span className="animate-pulse">Loading documents…</span>
+                ) : data ? (
+                  <span>
+                    Showing{" "}
+                    <strong className="text-[#1A2B40] dark:text-gray-200">
+                      {data.total}
+                    </strong>{" "}
+                    active documents
+                  </span>
+                ) : null}
+              </div>
+
+              <div className="w-72">
+                <SearchInput
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  placeholder={
+                    isAuthenticated
+                      ? "Search documents…"
+                      : "Log in to enable AI search"
+                  }
+                />
+                {isSearchMode && !isAuthenticated && (
+                  <p className="mt-1 text-xs text-amber-600">
+                    Sign in to use hybrid search.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Loading */}
+            {isLoading && <CardListSkeleton rows={6} />}
+
+            {/* Error */}
+            {isError && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
+                Failed to load documents.{" "}
+                {error instanceof Error ? error.message : "Please try again."}
+              </div>
+            )}
+
+            {/* Results */}
+            {data && data.data.length > 0 && (
+              <div className="space-y-4">
+                {data.data.map((circular) => (
+                  <CircularCard key={circular.id} circular={circular} />
+                ))}
+              </div>
+            )}
+
+            {/* Empty state */}
+            {data && data.data.length === 0 && !isLoading && (
+              <div className="flex flex-col items-center justify-center py-24 text-center">
+                <svg
+                  className="mb-4 h-12 w-12 text-gray-300 dark:text-gray-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m5.231 13.481L15 17.25m-4.5-15H5.625c-.621 0-1.125.504-1.125 1.125v16.5c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9zm3.75 11.625a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"
+                  />
+                </svg>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  No circulars match your filters.
+                </p>
+                <button
+                  onClick={handleResetFilters}
+                  className="mt-2 text-[13px] font-medium text-gold-600 hover:text-gold-500"
+                >
+                  Clear all filters
+                </button>
+              </div>
+            )}
+
+            {/* Pagination */}
+            {data && data.total_pages > 1 && (
+              <div className="mt-6">
+                <Pagination
+                  page={data.page}
+                  totalPages={data.total_pages}
+                  onPageChange={handlePageChange}
+                />
+              </div>
+            )}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

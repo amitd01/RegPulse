@@ -6,7 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { useAuthStore } from "@/stores/authStore";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { useThemeStore } from "@/stores/themeStore";
+import { useEffect, useState } from "react";
 
 function useUpdatesUnreadCount(enabled: boolean) {
   return useQuery<{ unread_count: number }>({
@@ -22,31 +23,41 @@ function useUpdatesUnreadCount(enabled: boolean) {
   });
 }
 
-const navigation = [
-  {
-    name: "Library",
-    href: "/library",
-    icon: (
-      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={1.5}
-          d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-        />
-      </svg>
-    ),
-  },
+function useActionItemsCount(enabled: boolean) {
+  return useQuery<{ total: number }>({
+    queryKey: ["action-items-badge"],
+    queryFn: async () => {
+      const { data } = await api.get("/action-items", {
+        params: { page: 1, page_size: 1, status: "open" },
+      });
+      return { total: data.total ?? 0 };
+    },
+    staleTime: 60_000,
+    enabled,
+  });
+}
+
+const WORKSPACE_NAV = [
   {
     name: "Ask RegPulse",
     href: "/ask",
     icon: (
-      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="8" strokeWidth={1.8} />
+        <path d="m21 21-4.35-4.35" strokeWidth={1.8} />
+      </svg>
+    ),
+  },
+  {
+    name: "Document Repository",
+    href: "/library",
+    icon: (
+      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
-          strokeWidth={1.5}
-          d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"
+          strokeWidth={1.8}
+          d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"
         />
       </svg>
     ),
@@ -55,26 +66,30 @@ const navigation = [
     name: "History",
     href: "/history",
     icon: (
-      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
-          strokeWidth={1.5}
-          d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
+          strokeWidth={1.8}
+          d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"
         />
       </svg>
     ),
   },
+];
+
+const MONITOR_NAV = [
   {
     name: "Updates",
     href: "/updates",
+    badge: "updates",
     icon: (
-      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
-          strokeWidth={1.5}
-          d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"
+          strokeWidth={1.8}
+          d="M15 17h5l-1.405-1.405A2.032 2.032 0 0 1 18 14.158V11a6.002 6.002 0 0 0-4-5.659V5a2 2 0 1 0-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9"
         />
       </svg>
     ),
@@ -82,98 +97,218 @@ const navigation = [
   {
     name: "Action Items",
     href: "/action-items",
+    badge: "actions",
     icon: (
-      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
-          strokeWidth={1.5}
-          d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          strokeWidth={1.8}
+          d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9 2 2 4-4"
         />
       </svg>
     ),
   },
   {
-    name: "Saved",
+    name: "Saved Interpretations",
     href: "/saved",
     icon: (
-      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
-          strokeWidth={1.5}
-          d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z"
+          strokeWidth={1.8}
+          d="M5 5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16l-7-3.5L5 21V5z"
         />
       </svg>
     ),
   },
 ];
 
+function NavItem({
+  item,
+  isActive,
+  badge,
+}: {
+  item: { name: string; href: string; icon: React.ReactNode };
+  isActive: boolean;
+  badge?: number;
+}) {
+  return (
+    <Link
+      href={item.href}
+      className={cn(
+        "relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13.5px] transition-all duration-150",
+        isActive
+          ? "border border-[#C9972E30] bg-[linear-gradient(135deg,rgba(201,151,46,0.09),rgba(201,151,46,0.04))] font-medium text-white"
+          : "font-normal text-[#8FA8C4] hover:bg-navy-700 hover:text-[#D0DFF0]",
+      )}
+    >
+      {/* Gold left-bar indicator for active */}
+      <span
+        className={cn(
+          "absolute left-0 top-1/2 -translate-y-1/2 w-[3px] rounded-r-full bg-gold-500 transition-all duration-150",
+          isActive ? "h-8 opacity-100" : "h-0 opacity-0",
+        )}
+      />
+      <span className={cn("flex-shrink-0", isActive ? "opacity-100" : "opacity-75")}>
+        {item.icon}
+      </span>
+      <span className="flex-1">{item.name}</span>
+      {badge !== undefined && badge > 0 && (
+        <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-gold-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-navy-900">
+          {badge > 99 ? "99+" : badge}
+        </span>
+      )}
+    </Link>
+  );
+}
+
+function ThemeToggleInline() {
+  const theme = useThemeStore((s) => s.theme);
+  const toggle = useThemeStore((s) => s.toggle);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) return <div className="h-9" />;
+
+  const isDark = theme === "dark";
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-[#7A95AD] transition-colors hover:bg-navy-700 hover:text-[#D0DFF0]"
+    >
+      <svg className="h-3.5 w-3.5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+      </svg>
+      <span>{isDark ? "Dark Mode" : "Light Mode"}</span>
+      <span className="relative ml-auto inline-flex h-4.5 w-9 items-center rounded-full bg-navy-600 transition-colors">
+        <span
+          className={cn(
+            "inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform",
+            isDark ? "translate-x-5" : "translate-x-1",
+          )}
+        />
+      </span>
+    </button>
+  );
+}
+
 export function AppSidebar() {
   const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
   const { data: badge } = useUpdatesUnreadCount(!!user);
+  const { data: actionBadge } = useActionItemsCount(!!user);
   const unread = badge?.unread_count ?? 0;
+  const actionCount = actionBadge?.total ?? 0;
+
+  const initials = user?.full_name
+    ? user.full_name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : "?";
+
+  const creditBalance = user?.credit_balance ?? 0;
+  const creditPct = Math.min(100, Math.round((creditBalance / 500) * 100));
 
   return (
-    <aside className="flex h-screen w-64 flex-col border-r border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
+    <aside
+      className="flex h-screen w-64 flex-shrink-0 flex-col shadow-[4px_0_24px_rgba(0,0,0,0.25)]"
+      style={{ background: "#0F1C2E" }}
+    >
       {/* Logo */}
-      <div className="flex h-16 items-center border-b border-gray-200 px-6 dark:border-gray-800">
-        <Link
-          href="/library"
-          className="text-xl font-bold text-navy-800 dark:text-navy-200"
-        >
-          RegPulse
+      <div className="border-b border-[#253B57] px-6 pb-5 pt-7">
+        <Link href="/library" className="block">
+          <div className="font-serif text-[22px] tracking-wide text-white">
+            Reg<span className="text-gold-400">Pulse</span>
+          </div>
+          <div className="mt-0.5 text-[10.5px] font-medium uppercase tracking-[0.12em] text-[#7A95AD]">
+            Compliance Intelligence
+          </div>
         </Link>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 px-3 py-4">
-        {navigation.map((item) => {
-          const isActive = pathname.startsWith(item.href);
-          const showBadge = item.href === "/updates" && unread > 0;
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-navy-50 text-navy-700 dark:bg-navy-900/40 dark:text-navy-200"
-                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-gray-100",
-              )}
-            >
-              {item.icon}
-              <span className="flex-1">{item.name}</span>
-              {showBadge && (
-                <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-red-600 px-1.5 text-[10px] font-semibold leading-5 text-white">
-                  {unread > 99 ? "99+" : unread}
-                </span>
-              )}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 overflow-y-auto px-3 py-5">
+        {/* Workspace section */}
+        <div className="mb-1.5 px-3 text-[9px] font-semibold uppercase tracking-[0.16em] text-[#7A95AD]">
+          Workspace
+        </div>
+        <div className="space-y-0.5">
+          {WORKSPACE_NAV.map((item) => (
+            <NavItem
+              key={item.href}
+              item={item}
+              isActive={pathname === item.href || pathname.startsWith(item.href + "/")}
+            />
+          ))}
+        </div>
+
+        {/* Monitor section */}
+        <div className="mb-1.5 mt-5 px-3 text-[9px] font-semibold uppercase tracking-[0.16em] text-[#7A95AD]">
+          Monitor
+        </div>
+        <div className="space-y-0.5">
+          {MONITOR_NAV.map((item) => (
+            <NavItem
+              key={item.href}
+              item={item}
+              isActive={pathname === item.href || pathname.startsWith(item.href + "/")}
+              badge={
+                item.badge === "updates"
+                  ? unread
+                  : item.badge === "actions"
+                    ? actionCount
+                    : undefined
+              }
+            />
+          ))}
+        </div>
       </nav>
 
-      {/* Theme toggle */}
-      <div className="border-t border-gray-200 px-3 py-3 dark:border-gray-800">
-        <ThemeToggle />
-      </div>
+      {/* Footer */}
+      <div className="border-t border-[#253B57] px-4 pb-5 pt-4">
+        {/* Credits bar */}
+        {user && (
+          <div className="mb-3 rounded-lg bg-navy-700 px-3 py-2.5">
+            <div className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.08em] text-[#7A95AD]">
+              Credits
+            </div>
+            <div className="h-1 overflow-hidden rounded-full bg-[#253B57]">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-gold-600 to-gold-400 transition-[width] duration-500"
+                style={{ width: `${creditPct}%` }}
+              />
+            </div>
+            <div className="mt-1.5 text-[11px] font-semibold text-gold-400">
+              {creditBalance} / 500 remaining
+            </div>
+          </div>
+        )}
 
-      {/* User info */}
-      {user && (
-        <div className="border-t border-gray-200 p-4 dark:border-gray-800">
-          <div className="text-sm font-medium text-gray-900 truncate dark:text-gray-100">
-            {user.full_name}
+        {/* Theme toggle */}
+        <ThemeToggleInline />
+
+        {/* User card */}
+        {user && (
+          <div className="mt-2 flex items-center gap-2.5">
+            <div className="flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-gold-600 to-gold-500 text-[13px] font-bold text-navy-900">
+              {initials}
+            </div>
+            <div className="min-w-0">
+              <div className="truncate text-[12.5px] font-medium text-[#C8D8E8]">
+                {user.full_name}
+              </div>
+              <div className="truncate text-[10.5px] text-[#7A95AD]">{user.email}</div>
+            </div>
           </div>
-          <div className="text-xs text-gray-500 truncate dark:text-gray-400">
-            {user.email}
-          </div>
-          <div className="mt-1 text-xs text-navy-600 dark:text-navy-300">
-            {user.credit_balance} credits
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </aside>
   );
 }

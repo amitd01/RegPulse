@@ -110,10 +110,10 @@ export default function OTPInput({ value, onChange, onComplete, disabled = false
           maxLength={1}
           value={digits[i]?.trim() || ""}
           disabled={disabled}
-          className="h-14 w-12 rounded-lg border-2 border-gray-300 bg-white text-center text-2xl font-semibold
-            text-navy-800 transition-colors
-            focus:border-navy-500 focus:outline-none focus:ring-2 focus:ring-navy-200
-            disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+          className="h-14 w-12 rounded-lg border-2 border-reg-border bg-white text-center text-2xl font-semibold
+            font-serif text-reg-navy transition-colors
+            focus:border-reg-gold focus:outline-none focus:ring-2 focus:ring-reg-gold/20
+            disabled:cursor-not-allowed disabled:bg-reg-section disabled:text-reg-text-muted"
           onChange={(e) => handleChange(i, e.target.value)}
           onKeyDown={(e) => handleKeyDown(i, e)}
           onPaste={handlePaste}

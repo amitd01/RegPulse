@@ -1,3 +1,50 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    --reg-bg: #f5f3ee;
+    --reg-border: #ddd9d0;
+    --reg-navy: #1c2b3a;
+    --reg-gold: #b8851a;
+    --reg-gold-bg: #fbf3e2;
+    --reg-gold-bdr: rgba(184, 133, 26, 0.2);
+    --reg-text-sub: #4a5f74;
+    --reg-text-muted: #7a90a6;
+  }
+
+  html {
+    font-family: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+  }
+
+  /* Thin scrollbar matching the HTML design */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: var(--reg-bg); }
+  ::-webkit-scrollbar-thumb { background: var(--reg-border); border-radius: 99px; }
+}
+
+@layer components {
+  .auth-page-bg {
+    background-color: var(--reg-bg);
+    background-image:
+      radial-gradient(ellipse 70% 50% at 50% 0%, rgba(184, 133, 26, 0.08) 0%, transparent 65%),
+      radial-gradient(ellipse 50% 40% at 85% 80%, rgba(28, 42, 56, 0.04) 0%, transparent 60%);
+  }
+
+  .auth-page-grid {
+    position: relative;
+  }
+
+  .auth-page-grid::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0, 0, 0, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    mask-image: radial-gradient(ellipse 70% 70% at 50% 40%, black 40%, transparent 100%);
+  }
+}

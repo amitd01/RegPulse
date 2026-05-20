@@ -77,38 +77,27 @@ export default function UpdatesPage() {
   }, []);
 
   return (
-    <div className="px-6 py-6 lg:px-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-50">
+    <div className="flex min-h-screen flex-col">
+      <div className="flex-1 px-8 py-8">
+        <h2 className="mb-6 font-serif text-[26px] text-[#1A2B40] dark:text-gray-100">
           Regulatory Updates
-        </h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          RBI circulars and curated banking news.
-        </p>
-      </div>
+        </h2>
 
       {/* Tabs */}
-      <div className="mb-6 flex gap-2 border-b border-gray-200 dark:border-gray-800">
-        <button
-          onClick={() => setTab("circulars")}
-          className={`border-b-2 px-3 pb-2 text-sm font-medium ${
-            tab === "circulars"
-              ? "border-navy-600 text-navy-700 dark:border-navy-300 dark:text-navy-200"
-              : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-          }`}
-        >
-          Circulars
-        </button>
-        <button
-          onClick={() => setTab("news")}
-          className={`border-b-2 px-3 pb-2 text-sm font-medium ${
-            tab === "news"
-              ? "border-navy-600 text-navy-700 dark:border-navy-300 dark:text-navy-200"
-              : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-          }`}
-        >
-          Market News
-        </button>
+      <div className="mb-6 flex gap-2 border-b border-cream-300 dark:border-navy-700">
+        {(["circulars", "news"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`border-b-2 px-3 pb-2 text-[13.5px] font-medium transition-colors ${
+              tab === t
+                ? "border-navy-900 text-[#1A2B40] dark:border-gold-400 dark:text-gold-400"
+                : "border-transparent text-[#7A95AD] hover:text-[#1A2B40] dark:text-gray-400 dark:hover:text-gray-200"
+            }`}
+          >
+            {t === "circulars" ? "Circulars" : "Market News"}
+          </button>
+        ))}
       </div>
 
       {/* Circulars tab */}
@@ -131,8 +120,8 @@ export default function UpdatesPage() {
                 }}
                 className={`rounded-full border px-3 py-1 text-xs font-medium ${
                   filter === f.key
-                    ? "border-navy-600 bg-navy-50 text-navy-700 dark:border-navy-300 dark:bg-navy-900/40 dark:text-navy-200"
-                    : "border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:text-gray-300"
+                    ? "border-crimson-600 bg-crimson-50 text-crimson-700 dark:border-crimson-500 dark:bg-crimson-900/40 dark:text-crimson-300"
+                    : "border-gray-200 text-gray-600 hover:border-crimson-300 hover:text-crimson-700 dark:border-gray-700 dark:text-gray-300"
                 }`}
               >
                 {f.label}
@@ -154,11 +143,11 @@ export default function UpdatesPage() {
                 <Link
                   key={c.id}
                   href={`/library/${c.id}`}
-                  className="block rounded-lg border border-gray-200 bg-white p-4 hover:shadow-sm dark:border-gray-800 dark:bg-gray-900"
-                >
-                  <div className="flex flex-wrap items-center gap-2 mb-2">
+              className="block rounded-xl border border-cream-300 bg-white p-4 transition-all hover:-translate-y-px hover:border-[#C9972E40] hover:shadow-[0_2px_12px_rgba(0,0,0,0.06)] dark:border-navy-700 dark:bg-navy-800"
+            >
+              <div className="flex flex-wrap items-center gap-2 mb-2">
                     {c.circular_number && (
-                      <span className="text-xs font-semibold text-navy-600">
+                      <span className="text-[11.5px] font-semibold text-gold-600 dark:text-gold-400">
                         {c.circular_number}
                       </span>
                     )}
@@ -230,7 +219,7 @@ export default function UpdatesPage() {
                   href={item.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="block rounded-lg border border-gray-200 bg-white p-4 hover:shadow-sm dark:border-gray-800 dark:bg-gray-900"
+                  className="block rounded-xl border border-cream-300 bg-white p-4 transition-all hover:-translate-y-px hover:shadow-[0_2px_12px_rgba(0,0,0,0.06)] dark:border-navy-700 dark:bg-navy-800"
                 >
                   <div className="mb-2 flex flex-wrap items-center gap-2">
                     <Badge>{sourceLabel(item.source)}</Badge>
@@ -278,6 +267,8 @@ export default function UpdatesPage() {
           )}
         </>
       )}
+
+      </div>
     </div>
   );
 }

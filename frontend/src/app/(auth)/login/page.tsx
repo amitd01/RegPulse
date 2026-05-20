@@ -11,6 +11,15 @@ import { loginUser, type LoginRequest } from "@/lib/api/auth";
 import { type AxiosError } from "axios";
 import type { ApiError } from "@/lib/api/auth";
 import Link from "next/link";
+import {
+  authErrorClass,
+  authHeadingClass,
+  authInputClass,
+  authLabelClass,
+  authLinkClass,
+  authPrimaryBtnClass,
+  authSubheadingClass,
+} from "@/components/auth/authStyles";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -36,11 +45,16 @@ export default function LoginPage() {
 
   return (
     <>
-      <h2 className="mb-6 text-center text-xl font-semibold text-gray-800">Welcome back</h2>
+      <h2 className={`${authHeadingClass} mb-2 text-center`}>
+        Welcome <span className="text-reg-gold">back</span>
+      </h2>
+      <p className={`${authSubheadingClass} mb-8 text-center`}>
+        Enter your work email and we&apos;ll send a one-time code to sign in.
+      </p>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <label htmlFor="email" className="mb-1 block text-sm font-medium text-gray-700">
+          <label htmlFor="email" className={authLabelClass}>
             Work Email
           </label>
           <input
@@ -52,29 +66,20 @@ export default function LoginPage() {
             placeholder="you@company.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm
-              focus:border-navy-500 focus:outline-none focus:ring-2 focus:ring-navy-200"
+            className={authInputClass}
           />
         </div>
 
-        {errorMsg && (
-          <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{errorMsg}</div>
-        )}
+        {errorMsg && <div className={authErrorClass}>{errorMsg}</div>}
 
-        <button
-          type="submit"
-          disabled={mutation.isPending}
-          className="w-full rounded-lg bg-navy-600 px-4 py-2.5 text-sm font-medium text-white
-            transition-colors hover:bg-navy-700
-            disabled:cursor-not-allowed disabled:bg-gray-400"
-        >
+        <button type="submit" disabled={mutation.isPending} className={authPrimaryBtnClass}>
           {mutation.isPending ? "Sending OTP..." : "Send OTP"}
         </button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-gray-500">
+      <p className="mt-8 text-center text-sm text-reg-text-muted">
         Don&apos;t have an account?{" "}
-        <Link href="/register" className="font-medium text-navy-600 hover:text-navy-800">
+        <Link href="/register" className={authLinkClass}>
           Register
         </Link>
       </p>
