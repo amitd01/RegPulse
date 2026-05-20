@@ -1,5 +1,7 @@
 "use client";
 
+"use client";
+
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
@@ -24,16 +26,16 @@ export default function DashboardPage() {
   const { data: recent, isLoading } = useRecentQuestions();
 
   return (
-    <div className="px-6 py-6 lg:px-8">
-      {/* Welcome */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">
-          Welcome{user ? `, ${user.full_name}` : ""}
-        </h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Your RBI regulatory intelligence dashboard.
-        </p>
-      </div>
+    <div className="flex min-h-screen flex-col">
+      <div className="flex-1 px-8 py-8">
+        <div className="mb-8">
+          <h2 className="font-serif text-[26px] text-[#1A2B40] dark:text-gray-100">
+            Welcome{user ? `, ${user.full_name?.split(" ")[0]}` : ""}
+          </h2>
+          <p className="mt-1 text-[13.5px] text-[#4D6480]">
+            Your RBI regulatory intelligence dashboard.
+          </p>
+        </div>
 
       {/* Quick stats */}
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -69,7 +71,7 @@ export default function DashboardPage() {
       <div>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-gray-700">Recent Questions</h2>
-          <Link href="/history" className="text-xs font-medium text-navy-600 hover:text-navy-700">
+          <Link href="/history" className="text-xs font-medium text-crimson-700 hover:text-crimson-800 dark:text-crimson-400">
             View all
           </Link>
         </div>
@@ -79,7 +81,7 @@ export default function DashboardPage() {
         {recent && recent.data.length === 0 && (
           <p className="text-sm text-gray-500">
             No questions yet.{" "}
-            <Link href="/ask" className="text-navy-600 hover:text-navy-700">
+            <Link href="/ask" className="text-crimson-700 hover:text-crimson-800 dark:text-crimson-400">
               Ask your first question
             </Link>
           </p>
@@ -91,9 +93,9 @@ export default function DashboardPage() {
               <Link
                 key={q.id}
                 href={`/history/${q.id}`}
-                className="block rounded-lg border border-gray-200 bg-white p-3 hover:shadow-sm"
+                className="block rounded-xl border border-cream-300 bg-white p-3.5 transition-all hover:border-[#C9972E40] hover:shadow-[0_2px_12px_rgba(0,0,0,0.06)] dark:border-navy-700 dark:bg-navy-800"
               >
-                <p className="text-sm font-medium text-gray-900 line-clamp-1">
+                <p className="text-[13.5px] font-medium text-[#1A2B40] dark:text-gray-100 line-clamp-1">
                   {q.question_text}
                 </p>
                 <div className="mt-1 flex items-center gap-2">
@@ -108,6 +110,8 @@ export default function DashboardPage() {
             ))}
           </div>
         )}
+      </div>
+
       </div>
     </div>
   );
@@ -125,10 +129,10 @@ function StatCard({
   linkText: string;
 }) {
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-5">
-      <div className="text-xs font-medium text-gray-500">{label}</div>
-      <div className="mt-1 text-2xl font-bold capitalize text-gray-900">{value}</div>
-      <Link href={href} className="mt-2 block text-xs font-medium text-navy-600">
+    <div className="rounded-xl border border-cream-300 bg-white p-5 shadow-sm hover:shadow-md transition-shadow dark:border-navy-700 dark:bg-navy-800">
+      <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#7A95AD]">{label}</div>
+      <div className="mt-1.5 text-2xl font-bold capitalize text-[#1A2B40] dark:text-gray-100">{value}</div>
+      <Link href={href} className="mt-2 block text-xs font-medium text-crimson-700 hover:text-crimson-800 dark:text-crimson-400">
         {linkText}
       </Link>
     </div>
@@ -139,7 +143,7 @@ function QuickAction({ href, title, desc }: { href: string; title: string; desc:
   return (
     <Link
       href={href}
-      className="rounded-lg border border-gray-200 bg-white p-4 hover:border-navy-300 hover:shadow-sm"
+      className="rounded-lg border border-gray-200 bg-white p-4 transition-all hover:border-crimson-300 hover:shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:hover:border-crimson-700"
     >
       <div className="text-sm font-medium text-gray-900">{title}</div>
       <div className="text-xs text-gray-500">{desc}</div>

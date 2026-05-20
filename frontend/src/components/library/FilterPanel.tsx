@@ -1,6 +1,5 @@
 "use client";
 
-import { Select } from "@/components/ui/Select";
 import type { CircularFilters } from "@/types";
 
 const DOC_TYPE_OPTIONS = [
@@ -12,84 +11,166 @@ const DOC_TYPE_OPTIONS = [
 ];
 
 const STATUS_OPTIONS = [
-  { value: "ACTIVE", label: "Active" },
+  { value: "ACTIVE", label: "Active Only" },
   { value: "SUPERSEDED", label: "Superseded" },
   { value: "DRAFT", label: "Draft" },
 ];
 
-const IMPACT_OPTIONS = [
-  { value: "HIGH", label: "High Impact" },
-  { value: "MEDIUM", label: "Medium Impact" },
-  { value: "LOW", label: "Low Impact" },
+const DEPARTMENT_OPTIONS = [
+  { value: "Department of Regulation", label: "Department of Regulation" },
+  { value: "Department of Supervision", label: "Department of Supervision" },
+  { value: "Foreign Exchange Department", label: "Foreign Exchange Dept." },
+  { value: "Payment and Settlement Systems", label: "Payment & Settlement" },
 ];
 
-const SORT_OPTIONS = [
-  { value: "issued_date", label: "Issue Date" },
-  { value: "indexed_at", label: "Date Indexed" },
-  { value: "title", label: "Title" },
+const REGULATORY_BODY_OPTIONS = [
+  { value: "RBI", label: "Reserve Bank of India" },
 ];
 
 interface FilterPanelProps {
   filters: CircularFilters;
   onFilterChange: (key: keyof CircularFilters, value: string) => void;
+  onApply: () => void;
   onReset: () => void;
 }
 
-export function FilterPanel({ filters, onFilterChange, onReset }: FilterPanelProps) {
+const selectClass =
+  "w-full rounded-lg border border-cream-300 bg-cream-50 px-3 py-2 text-[13px] text-[#1A2B40] shadow-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500/30 dark:border-navy-600 dark:bg-navy-800 dark:text-gray-200";
+
+const dateInputClass =
+  "w-full rounded-lg border border-cream-300 bg-cream-50 px-3 py-2 text-[13px] text-[#1A2B40] shadow-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500/30 dark:border-navy-600 dark:bg-navy-800 dark:text-gray-200";
+
+export function FilterPanel({ filters, onFilterChange, onApply, onReset }: FilterPanelProps) {
   const hasActiveFilters =
-    filters.doc_type || filters.status || filters.impact_level || filters.department;
+    filters.doc_type ||
+    filters.status ||
+    filters.impact_level ||
+    filters.department ||
+    filters.date_from ||
+    filters.date_to;
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <Select
-        value={filters.doc_type || ""}
-        onChange={(v) => onFilterChange("doc_type", v)}
-        options={DOC_TYPE_OPTIONS}
-        placeholder="All Types"
-      />
+    <div className="w-56 shrink-0 self-start rounded-xl border border-cream-300 bg-white p-5 shadow-sm dark:border-navy-700 dark:bg-navy-800">
+      {/* Header */}
+      <h3 className="mb-4 text-[13.5px] font-semibold text-[#1A2B40] dark:text-gray-100">
+        Filter Documents
+      </h3>
 
-      <Select
-        value={filters.status || ""}
-        onChange={(v) => onFilterChange("status", v)}
-        options={STATUS_OPTIONS}
-        placeholder="All Statuses"
-      />
+      <div className="space-y-4">
+        {/* Regulatory Body */}
+        <div>
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">
+            Regulatory Body
+          </label>
+          <select
+            className={selectClass}
+            value=""
+            onChange={() => {}}
+          >
+            <option value="">All Regulators</option>
+            {REGULATORY_BODY_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
-      <Select
-        value={filters.impact_level || ""}
-        onChange={(v) => onFilterChange("impact_level", v)}
-        options={IMPACT_OPTIONS}
-        placeholder="All Impact Levels"
-      />
+        {/* Document Type */}
+        <div>
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">
+            Document Type
+          </label>
+          <select
+            className={selectClass}
+            value={filters.doc_type || ""}
+            onChange={(e) => onFilterChange("doc_type", e.target.value)}
+          >
+            <option value="">All Types</option>
+            {DOC_TYPE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
-      <Select
-        value={filters.sort_by || "issued_date"}
-        onChange={(v) => onFilterChange("sort_by", v)}
-        options={SORT_OPTIONS}
-        placeholder="Sort By"
-      />
+        {/* Issue Date range */}
+        <div>
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">
+            Issue Date
+          </label>
+          <input
+            type="date"
+            className={dateInputClass}
+            value={filters.date_from || ""}
+            onChange={(e) => onFilterChange("date_from", e.target.value)}
+            placeholder="dd-mm-yyyy"
+          />
+          <input
+            type="date"
+            className={`${dateInputClass} mt-2`}
+            value={filters.date_to || ""}
+            onChange={(e) => onFilterChange("date_to", e.target.value)}
+            placeholder="dd-mm-yyyy"
+          />
+        </div>
 
-      <button
-        onClick={() =>
-          onFilterChange(
-            "sort_order",
-            filters.sort_order === "asc" ? "desc" : "asc",
-          )
-        }
-        className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-        title={`Sort ${filters.sort_order === "asc" ? "descending" : "ascending"}`}
-      >
-        {filters.sort_order === "asc" ? "↑ Asc" : "↓ Desc"}
-      </button>
+        {/* Department */}
+        <div>
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">
+            Department
+          </label>
+          <select
+            className={selectClass}
+            value={filters.department || ""}
+            onChange={(e) => onFilterChange("department", e.target.value)}
+          >
+            <option value="">All Departments</option>
+            {DEPARTMENT_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
-      {hasActiveFilters && (
+        {/* Status */}
+        <div>
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">
+            Status
+          </label>
+          <select
+            className={selectClass}
+            value={filters.status || ""}
+            onChange={(e) => onFilterChange("status", e.target.value)}
+          >
+            <option value="">All Statuses</option>
+            {STATUS_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Apply Filters */}
         <button
-          onClick={onReset}
-          className="rounded-lg px-3 py-2 text-sm font-medium text-navy-600 hover:bg-navy-50"
+          onClick={onApply}
+          className="w-full rounded-lg bg-[linear-gradient(135deg,#1B3A5C,#0F1C2E)] px-4 py-2.5 text-[13px] font-semibold text-white shadow-sm transition-all hover:shadow-md"
         >
-          Clear Filters
+          Apply Filters
         </button>
-      )}
+
+        {hasActiveFilters && (
+          <button
+            onClick={onReset}
+            className="w-full rounded-lg border border-cream-300 px-4 py-2 text-[13px] font-medium text-[#4D6480] transition-colors hover:border-gold-500 hover:text-[#1A2B40] dark:border-navy-600 dark:text-gray-400"
+          >
+            Clear Filters
+          </button>
+        )}
+      </div>
     </div>
   );
 }

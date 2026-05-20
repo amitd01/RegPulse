@@ -392,19 +392,20 @@ export default function AskPage() {
 
         {/* ── Input panel — hidden once results are showing ── */}
         {!showAnswer && (
-          <div className="flex-shrink-0 border-b border-gray-200 bg-white px-6 py-8 lg:px-10">
-            {/* Heading */}
-            <div className="mb-6 text-center">
-              <h1 className="text-2xl font-bold text-gray-900">
-                What would you like to know?
+          <div className="flex-shrink-0 border-b border-cream-300 bg-white px-8 py-10">
+            {/* Ask hero */}
+            <div className="mb-8 text-center">
+              <h1 className="font-serif text-[32px] leading-tight tracking-[-0.01em] text-[#1A2B40]">
+                What would you like to{" "}
+                <em className="italic text-gold-500">know?</em>
               </h1>
-              <p className="mt-1.5 text-sm text-gray-500">
+              <p className="mt-2 text-[14px] text-[#4D6480]">
                 Ask any RBI regulatory compliance question — answers cite exact circulars.
               </p>
             </div>
 
-            {/* Question textarea */}
-            <div className="mx-auto max-w-3xl">
+            {/* Ask card */}
+            <div className="mx-auto max-w-3xl rounded-2xl border border-cream-300 bg-white p-6 shadow-[0_4px_20px_rgba(0,0,0,0.05)]">
               <div className="relative">
                 <textarea
                   value={question}
@@ -412,20 +413,15 @@ export default function AskPage() {
                   onKeyDown={handleKeyDown}
                   onFocus={() => setShowSuggestions(true)}
                   onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-                  placeholder="Describe your compliance question or scenario in detail…&#10;&#10;Example: What are the documentary requirements for opening a savings account for a non-resident Indian customer? Are there any recent changes to the KYC norms that apply?"
-                  rows={5}
+                  placeholder="e.g. What are the revised KYC norms for digital lending NBFCs under the latest RBI master direction?"
+                  rows={4}
                   maxLength={500}
-                  className="w-full resize-none rounded-xl border border-gray-300 bg-white px-5 py-4 text-sm text-gray-900 shadow-sm placeholder-gray-400 focus:border-crimson-500 focus:outline-none focus:ring-2 focus:ring-crimson-500/20 transition-all"
+                  className="w-full resize-none border-none bg-transparent text-[14.5px] leading-relaxed text-[#1A2B40] placeholder-[#B0A898] focus:outline-none"
                 />
-
-                {/* Character count */}
-                <div className="absolute bottom-3 right-3 text-xs text-gray-400">
-                  {question.length}/500
-                </div>
 
                 {/* Suggestions dropdown */}
                 {suggestionList.length > 0 && (
-                  <ul className="absolute left-0 right-0 top-full z-20 mt-1 max-h-64 overflow-auto rounded-xl border border-gray-200 bg-white shadow-lg">
+                  <ul className="absolute left-0 right-0 top-full z-20 mt-1 max-h-64 overflow-auto rounded-xl border border-cream-300 bg-white shadow-lg">
                     {suggestionList.map((s) => (
                       <li key={s.id}>
                         <button
@@ -435,16 +431,16 @@ export default function AskPage() {
                             setQuestion(s.question_text);
                             setShowSuggestions(false);
                           }}
-                          className="block w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+                          className="block w-full px-4 py-3 text-left transition-colors hover:bg-cream-100"
                         >
                           <div className="flex items-start gap-2">
-                            <svg className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-crimson-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-gold-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                             <div>
-                              <div className="text-sm text-gray-800 line-clamp-1">{s.question_text}</div>
+                              <div className="text-sm text-[#1A2B40] line-clamp-1">{s.question_text}</div>
                               {s.quick_answer_preview && (
-                                <div className="mt-0.5 text-xs text-gray-500 line-clamp-1">
+                                <div className="mt-0.5 text-xs text-[#7A95AD] line-clamp-1">
                                   {s.quick_answer_preview}
                                 </div>
                               )}
@@ -457,19 +453,20 @@ export default function AskPage() {
                 )}
               </div>
 
-              {/* Submit button */}
-              <div className="mt-4 flex justify-center">
+              {/* Card footer: char count + button */}
+              <div className="mt-4 flex items-center justify-between border-t border-cream-200 pt-4">
+                <span className="text-[11.5px] text-[#7A95AD]">{question.length} / 500</span>
                 <button
                   onClick={handleAsk}
                   disabled={state.status === "streaming" || question.trim().length < 5}
-                  className="inline-flex items-center gap-2 rounded-xl bg-crimson-700 px-8 py-3 text-sm font-semibold text-white shadow-md hover:bg-crimson-800 disabled:cursor-not-allowed disabled:opacity-50 transition-all hover:shadow-lg active:scale-[0.98]"
+                  className="flex items-center gap-2 rounded-xl bg-[linear-gradient(135deg,#1B3A5C,#0F1C2E)] px-6 py-2.5 text-[13.5px] font-medium tracking-wide text-white shadow-[0_4px_14px_rgba(15,28,46,0.3)] transition-all hover:-translate-y-px hover:shadow-[0_6px_20px_rgba(15,28,46,0.4)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <>
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gold-500">
+                    <svg className="h-2.5 w-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
                     </svg>
-                    Get Interpretation
-                  </>
+                  </span>
+                  Get Interpretation
                 </button>
               </div>
             </div>
@@ -477,17 +474,17 @@ export default function AskPage() {
         )}
 
         {/* ── Answer / Idle area ───────────────────────────── */}
-        <div className="flex-1 bg-gray-50 px-6 py-6 lg:px-10" ref={answerRef}>
+        <div className="flex-1 bg-cream-100 px-8 py-8" ref={answerRef}>
 
           {/* New Question bar — shown while streaming or after done/error */}
           {showAnswer && (
             <div className="mb-5 flex items-center justify-between">
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-[#7A95AD]">
                 {state.status === "streaming" ? "Generating your interpretation…" : "Interpretation complete"}
               </p>
               <button
                 onClick={handleNewQuestion}
-                className="inline-flex items-center gap-2 rounded-xl border border-crimson-200 bg-white px-5 py-2 text-sm font-semibold text-crimson-700 shadow-sm hover:bg-crimson-50 hover:border-crimson-400 transition-all active:scale-[0.98]"
+                className="inline-flex items-center gap-2 rounded-xl border border-cream-300 bg-white px-5 py-2 text-sm font-medium text-[#4D6480] shadow-sm transition-all hover:border-gold-500 hover:text-[#1A2B40] active:scale-[0.98]"
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -533,50 +530,58 @@ export default function AskPage() {
           {/* Idle state — suggested questions */}
           {state.status === "idle" && (
             <div className="mx-auto max-w-3xl">
-              <div className="mb-4">
-                <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                  Suggested Questions
-                </h2>
+              {/* Section label */}
+              <div className="mb-3.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7A95AD]">
+                Suggested Questions
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
+
+              {/* Question cards grid */}
+              <div className="mb-8 grid gap-3 sm:grid-cols-2">
                 {SUGGESTED_QUESTIONS.map((sq, i) => (
                   <button
                     key={i}
                     type="button"
                     onClick={() => setQuestion(sq)}
-                    className="group rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-left shadow-sm hover:border-crimson-200 hover:bg-crimson-50 hover:shadow-md transition-all"
+                    className="group flex items-start gap-3 rounded-xl border border-cream-300 bg-white px-4 py-3.5 text-left shadow-sm transition-all hover:-translate-y-px hover:border-gold-500 hover:shadow-[0_3px_12px_rgba(201,151,46,0.12)]"
                   >
-                    <div className="flex items-start gap-2.5">
-                      <svg
-                        className="mt-0.5 h-4 w-4 flex-shrink-0 text-gray-400 group-hover:text-crimson-500 transition-colors"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <div className="mt-0.5 flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center rounded-md bg-cream-200">
+                      <svg className="h-[11px] w-[11px] text-gold-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01" />
                       </svg>
-                      <span className="text-xs leading-relaxed text-gray-700 group-hover:text-crimson-800">
-                        {sq}
-                      </span>
                     </div>
+                    <span className="text-[13px] leading-relaxed text-[#4D6480] group-hover:text-[#1A2B40]">
+                      {sq}
+                    </span>
                   </button>
                 ))}
               </div>
 
-              {/* Divider + tips */}
-              <div className="mt-8 rounded-xl border border-blue-100 bg-blue-50 px-5 py-4">
-                <div className="flex items-start gap-3">
-                  <svg className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              {/* Tips section label */}
+              <div className="mb-3.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7A95AD]">
+                Tips for Better Answers
+              </div>
+
+              {/* Tips card — matches HTML dark navy card */}
+              <div className="flex gap-3.5 rounded-xl p-5" style={{ background: "linear-gradient(135deg, #1E3050, #162236)" }}>
+                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[rgba(201,151,46,0.15)]">
+                  <svg className="h-4 w-4 text-gold-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
                   </svg>
-                  <div>
-                    <div className="text-xs font-semibold text-blue-700 mb-1">Tips for better answers</div>
-                    <ul className="space-y-0.5 text-xs text-blue-600">
-                      <li>• Be specific about the regulation or circular you&apos;re asking about</li>
-                      <li>• Include relevant context (entity type, transaction size, timeline)</li>
-                      <li>• Mention any recent circulars you are aware of</li>
-                    </ul>
-                  </div>
+                </div>
+                <div>
+                  <div className="mb-2 text-[12.5px] font-semibold text-[#D0DFF0]">Tips for better answers</div>
+                  <ul className="space-y-1">
+                    {[
+                      "Be specific about the regulation or circular you\u2019re asking about",
+                      "Include relevant context such as entity type, transaction size, and timeline",
+                      "Mention any recent circulars you are already aware of",
+                    ].map((tip) => (
+                      <li key={tip} className="relative pl-3.5 text-[12px] text-[#7A95AD]">
+                        <span className="absolute left-0 text-gold-500 text-[14px] leading-[1.2]">›</span>
+                        {tip}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               </div>
             </div>

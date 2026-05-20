@@ -15,6 +15,13 @@ import { type AxiosError } from "axios";
 import type { ApiError } from "@/lib/api/auth";
 import { useAuthStore } from "@/stores/authStore";
 import OTPInput from "@/components/OTPInput";
+import {
+  authErrorClass,
+  authHeadingClass,
+  authLinkClass,
+  authPrimaryBtnClass,
+  authSubheadingClass,
+} from "@/components/auth/authStyles";
 
 function VerifyContent() {
   const router = useRouter();
@@ -58,11 +65,12 @@ function VerifyContent() {
 
   return (
     <>
-      <h2 className="mb-2 text-center text-xl font-semibold text-gray-800">
-        Enter verification code
+      <h2 className={`${authHeadingClass} mb-2 text-center`}>
+        Enter verification <span className="text-reg-gold">code</span>
       </h2>
-      <p className="mb-8 text-center text-sm text-gray-500">
-        We sent a 6-digit code to <span className="font-medium text-gray-700">{maskedEmail}</span>
+      <p className={`${authSubheadingClass} mb-8 text-center`}>
+        We sent a 6-digit code to{" "}
+        <span className="font-medium text-reg-navy">{maskedEmail}</span>
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -73,30 +81,20 @@ function VerifyContent() {
           disabled={mutation.isPending}
         />
 
-        {errorMsg && (
-          <div className="rounded-md bg-red-50 p-3 text-center text-sm text-red-700">
-            {errorMsg}
-          </div>
-        )}
+        {errorMsg && <div className={`${authErrorClass} text-center`}>{errorMsg}</div>}
 
         <button
           type="submit"
           disabled={mutation.isPending || otp.length < 6}
-          className="w-full rounded-lg bg-navy-600 px-4 py-2.5 text-sm font-medium text-white
-            transition-colors hover:bg-navy-700
-            disabled:cursor-not-allowed disabled:bg-gray-400"
+          className={authPrimaryBtnClass}
         >
           {mutation.isPending ? "Verifying..." : "Verify OTP"}
         </button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-gray-500">
+      <p className="mt-8 text-center text-sm text-reg-text-muted">
         Didn&apos;t receive the code?{" "}
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="font-medium text-navy-600 hover:text-navy-800"
-        >
+        <button type="button" onClick={() => router.back()} className={authLinkClass}>
           Try again
         </button>
       </p>
@@ -106,7 +104,7 @@ function VerifyContent() {
 
 export default function VerifyPage() {
   return (
-    <Suspense fallback={<div className="py-12 text-center text-gray-400">Loading...</div>}>
+    <Suspense fallback={<div className="py-12 text-center text-reg-text-muted">Loading...</div>}>
       <VerifyContent />
     </Suspense>
   );

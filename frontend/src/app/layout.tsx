@@ -1,9 +1,26 @@
 import type { Metadata } from "next";
+import { DM_Sans, DM_Serif_Display } from "next/font/google";
 import "./globals.css";
 import QueryProvider from "@/providers/QueryProvider";
 import CSPostHogProvider from "@/providers/PostHogProvider";
 import PostHogPageView from "@/components/PostHogPageView";
 import { ThemeBootstrap } from "@/components/ThemeBootstrap";
+
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  variable: "--font-dm-sans",
+  weight: ["300", "400", "500", "600"],
+  style: ["normal", "italic"],
+  display: "swap",
+});
+
+const dmSerifDisplay = DM_Serif_Display({
+  subsets: ["latin"],
+  weight: ["400"],
+  style: ["normal", "italic"],
+  variable: "--font-dm-serif",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "RegPulse — RBI Regulatory Intelligence",
@@ -28,12 +45,12 @@ const themeBootstrapScript = `
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${dmSans.variable} ${dmSerifDisplay.variable}`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
       </head>
       <CSPostHogProvider>
-        <body className="min-h-screen bg-gray-50 text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100">
+        <body className="min-h-screen bg-cream-100 font-sans text-[#1A2B40] antialiased dark:bg-navy-950 dark:text-gray-100">
           <ThemeBootstrap />
           <PostHogPageView />
           <QueryProvider>{children}</QueryProvider>

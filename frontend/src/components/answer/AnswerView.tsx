@@ -7,14 +7,8 @@ import { ConfidenceMeter } from "@/components/ui/ConfidenceMeter";
 import { Spinner } from "@/components/ui/Spinner";
 import type { CitationItem, RecommendedAction } from "@/types";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────────────────────────────────
-
 export interface AnswerViewProps {
   question?: string;
-
-  // Answer content
   quickAnswer: string | null;
   answer: string;
   riskLevel: string | null;
@@ -23,47 +17,31 @@ export interface AnswerViewProps {
   citations: CitationItem[];
   affectedTeams: string[];
   recommendedActions: RecommendedAction[];
-
-  // State
   isStreaming?: boolean;
-
-  // Optional metadata
   questionId?: string | null;
   creditBalance?: number | null;
   modelUsed?: string | null;
   createdAt?: string | null;
   latencyMs?: number | null;
-
-  // Callbacks
   onFeedback?: (data: { comment: string; category: string; feedback: number }) => void;
   isFeedbackSubmitting?: boolean;
   feedbackSubmitted?: boolean;
   existingFeedback?: number | null;
-
-  // Optional extra actions slot (e.g. Share button in history)
   extraActions?: React.ReactNode;
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Risk badge helper
-// ─────────────────────────────────────────────────────────────────────────────
 
 function riskStyle(level: string | null) {
   switch (level?.toUpperCase()) {
     case "HIGH":
-      return "bg-red-100 text-red-700 border-red-200";
+      return "bg-red-50 text-red-700 border-red-200";
     case "MEDIUM":
-      return "bg-amber-100 text-amber-700 border-amber-200";
+      return "bg-amber-50 text-amber-700 border-amber-200";
     case "LOW":
-      return "bg-emerald-100 text-emerald-700 border-emerald-200";
+      return "bg-emerald-50 text-emerald-700 border-emerald-200";
     default:
-      return "bg-gray-100 text-gray-600 border-gray-200";
+      return "bg-cream-200 text-[#4D6480] border-cream-300";
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Team icon helper
-// ─────────────────────────────────────────────────────────────────────────────
 
 function TeamIcon({ team }: { team: string }) {
   const t = team.toLowerCase();
@@ -93,49 +71,43 @@ function TeamIcon({ team }: { team: string }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Section wrapper
-// ─────────────────────────────────────────────────────────────────────────────
-
 function Section({
   title,
   icon,
   children,
-  className = "",
 }: {
   title: string;
   icon?: React.ReactNode;
   children: React.ReactNode;
-  className?: string;
 }) {
   return (
-    <div className={`rounded-xl border border-gray-200 bg-white shadow-sm ${className}`}>
-      <div className="flex items-center gap-2 border-b border-gray-100 px-5 py-4">
-        {icon && <div className="text-crimson-600">{icon}</div>}
-        <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+    <div className="rounded-xl border border-cream-300 bg-white shadow-sm">
+      <div className="flex items-center gap-2 border-b border-cream-200 px-5 py-4">
+        {icon && <div className="text-gold-500">{icon}</div>}
+        <h3 className="text-[13.5px] font-semibold text-[#1A2B40]">{title}</h3>
       </div>
       <div className="px-5 py-4">{children}</div>
     </div>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Streaming skeleton
-// ─────────────────────────────────────────────────────────────────────────────
-
 function StreamingSkeleton() {
   return (
-    <div className="space-y-3 animate-pulse">
+    <div className="animate-pulse space-y-3">
       {[100, 90, 75, 85, 60].map((w, i) => (
-        <div key={i} className={`h-3 rounded bg-gray-200`} style={{ width: `${w}%` }} />
+        <div key={i} className="h-3 rounded bg-cream-200" style={{ width: `${w}%` }} />
       ))}
     </div>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Main AnswerView
-// ─────────────────────────────────────────────────────────────────────────────
+const NAVY_CARD = "rounded-xl px-6 py-5 text-white shadow-[0_4px_20px_rgba(15,28,46,0.15)]";
+const NAVY_GRADIENT = { background: "linear-gradient(135deg, #1E3050, #162236)" };
+
+const btnPrimary =
+  "inline-flex items-center gap-2 rounded-xl bg-[linear-gradient(135deg,#1B3A5C,#0F1C2E)] px-5 py-2.5 text-[13px] font-semibold text-white shadow-sm transition-all hover:shadow-md active:scale-[0.98]";
+const btnSecondary =
+  "inline-flex items-center gap-2 rounded-xl border border-cream-300 bg-white px-5 py-2.5 text-[13px] font-medium text-[#4D6480] shadow-sm transition-all hover:border-gold-500 hover:text-[#1A2B40] active:scale-[0.98]";
 
 export function AnswerView({
   question,
@@ -148,7 +120,6 @@ export function AnswerView({
   affectedTeams,
   recommendedActions,
   isStreaming = false,
-  questionId: _questionId,
   creditBalance,
   modelUsed,
   createdAt,
@@ -159,7 +130,6 @@ export function AnswerView({
   existingFeedback,
   extraActions,
 }: AnswerViewProps) {
-  // Group recommended actions by team
   const actionsByTeam = recommendedActions.reduce<Record<string, RecommendedAction[]>>(
     (acc, action) => {
       const key = action.team || "General";
@@ -171,30 +141,30 @@ export function AnswerView({
   );
 
   return (
-    <div className="space-y-5">
-      {/* ── Page header ─────────────────────────────────────── */}
-      <div className="rounded-xl border border-crimson-100 bg-gradient-to-r from-crimson-700 to-crimson-900 px-6 py-5 text-white shadow-md">
-        <div className="flex items-center gap-2 mb-1">
-          <svg className="h-4 w-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          <span className="text-xs font-semibold uppercase tracking-wide opacity-80">
+    <div className="mx-auto max-w-3xl space-y-5">
+      {/* Interpretation results header */}
+      <div className={NAVY_CARD} style={NAVY_GRADIENT}>
+        <div className="mb-1 flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[rgba(201,151,46,0.15)]">
+            <svg className="h-4 w-4 text-gold-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#D0DFF0]">
             Interpretation Results
           </span>
         </div>
-        <p className="text-sm opacity-70">AI-generated guidance with full source citations</p>
+        <p className="text-[12px] text-[#7A95AD]">AI-generated guidance with full source citations</p>
 
-        {/* Question echo */}
         {question && (
-          <div className="mt-3 rounded-lg bg-white/10 px-4 py-2.5 backdrop-blur-sm">
-            <span className="text-xs font-medium opacity-70">Your Question:</span>
-            <p className="mt-0.5 text-sm italic">&ldquo;{question}&rdquo;</p>
+          <div className="mt-3 rounded-lg border border-[#253B57] bg-[rgba(255,255,255,0.06)] px-4 py-2.5">
+            <span className="text-[11px] font-medium text-[#7A95AD]">Your Question:</span>
+            <p className="mt-0.5 text-[13px] italic text-[#C8D8E8]">&ldquo;{question}&rdquo;</p>
           </div>
         )}
 
-        {/* Metadata row */}
         {(createdAt || modelUsed || latencyMs) && (
-          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs opacity-60">
+          <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-[#7A95AD]">
             {createdAt && (
               <span>
                 {new Date(createdAt).toLocaleDateString("en-IN", {
@@ -212,30 +182,31 @@ export function AnswerView({
         )}
       </div>
 
-      {/* ── Confidence meter ─────────────────────────────────── */}
+      {/* Confidence meter */}
       {(confidenceScore !== null || consultExpert) && (
         <ConfidenceMeter score={confidenceScore} consultExpert={consultExpert} />
       )}
 
-      {/* ── Quick Answer ─────────────────────────────────────── */}
+      {/* Quick Answer */}
       {quickAnswer && (
-        <div className="rounded-xl border border-crimson-100 bg-gradient-to-r from-crimson-700 to-crimson-900 px-6 py-5 text-white shadow-md">
-          <div className="flex items-center gap-2 mb-3">
-            <svg className="h-4 w-4 text-crimson-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-            <h3 className="text-xs font-bold uppercase tracking-widest text-crimson-300">
+        <div className={NAVY_CARD} style={NAVY_GRADIENT}>
+          <div className="mb-3 flex items-center gap-2">
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-[rgba(201,151,46,0.2)]">
+              <svg className="h-3.5 w-3.5 text-gold-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.16em] text-gold-400">
               Quick Answer
             </h3>
           </div>
-          <p className="text-sm leading-relaxed">{quickAnswer}</p>
+          <p className="text-[13.5px] leading-relaxed text-[#C8D8E8]">{quickAnswer}</p>
 
-          {/* Risk + Teams row */}
           {(riskLevel || affectedTeams.length > 0) && (
             <div className="mt-4 flex flex-wrap items-center gap-2">
               {riskLevel && (
                 <span
-                  className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${riskStyle(riskLevel)}`}
+                  className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${riskStyle(riskLevel)}`}
                 >
                   Risk Level: {riskLevel}
                 </span>
@@ -243,7 +214,7 @@ export function AnswerView({
               {affectedTeams.map((team) => (
                 <span
                   key={team}
-                  className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-2.5 py-0.5 text-xs font-medium text-white"
+                  className="inline-flex items-center rounded-full border border-[#253B57] bg-[rgba(255,255,255,0.08)] px-2.5 py-0.5 text-[11px] font-medium text-[#C8D8E8]"
                 >
                   {team}
                 </span>
@@ -253,7 +224,7 @@ export function AnswerView({
         </div>
       )}
 
-      {/* ── Detailed Interpretation ──────────────────────────── */}
+      {/* Detailed Interpretation */}
       {(answer || isStreaming) && (
         <Section
           title="Detailed Interpretation"
@@ -264,14 +235,14 @@ export function AnswerView({
           }
         >
           {answer ? (
-            <div className="prose prose-sm max-w-none prose-headings:font-semibold prose-headings:text-gray-900 prose-p:text-gray-700 prose-li:text-gray-700 prose-strong:text-gray-900 prose-a:text-crimson-600 prose-a:no-underline hover:prose-a:underline dark:prose-invert">
+            <div className="prose prose-sm max-w-none prose-headings:font-semibold prose-headings:text-[#1A2B40] prose-p:text-[#4D6480] prose-li:text-[#4D6480] prose-strong:text-[#1A2B40] prose-a:text-gold-600 prose-a:no-underline hover:prose-a:underline">
               <ReactMarkdown>{answer}</ReactMarkdown>
             </div>
           ) : (
             <StreamingSkeleton />
           )}
           {isStreaming && (
-            <div className="mt-4 flex items-center gap-2 text-xs text-gray-400">
+            <div className="mt-4 flex items-center gap-2 text-[12px] text-[#7A95AD]">
               <Spinner size="sm" />
               <span>Generating detailed interpretation…</span>
             </div>
@@ -279,7 +250,7 @@ export function AnswerView({
         </Section>
       )}
 
-      {/* ── Source Citations ─────────────────────────────────── */}
+      {/* Source Citations */}
       {citations.length > 0 && (
         <Section
           title={`Source Citations (${citations.length})`}
@@ -297,7 +268,6 @@ export function AnswerView({
         </Section>
       )}
 
-      {/* No citations fallback */}
       {!isStreaming && citations.length === 0 && answer && !consultExpert && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
           <div className="flex items-start gap-3">
@@ -305,8 +275,8 @@ export function AnswerView({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
             <div>
-              <div className="text-xs font-semibold text-amber-800">No Direct Citations Found</div>
-              <div className="mt-0.5 text-xs text-amber-700">
+              <div className="text-[12px] font-semibold text-amber-800">No Direct Citations Found</div>
+              <div className="mt-0.5 text-[12px] text-amber-700">
                 Direct interpretation not found in the provided circulars. The guidance above is a best-effort response — please validate with your Chief Compliance Officer.
               </div>
             </div>
@@ -314,7 +284,7 @@ export function AnswerView({
         </div>
       )}
 
-      {/* ── Recommended Actions by Team ──────────────────────── */}
+      {/* Recommended Actions */}
       {Object.keys(actionsByTeam).length > 0 && (
         <Section
           title="Recommended Actions by Team"
@@ -328,16 +298,16 @@ export function AnswerView({
             {Object.entries(actionsByTeam).map(([team, actions]) => (
               <div key={team}>
                 <div className="mb-2 flex items-center gap-2">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-crimson-100 text-crimson-600">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#1B3A5C12] text-gold-600">
                     <TeamIcon team={team} />
                   </div>
-                  <span className="text-xs font-semibold text-gray-700">{team}</span>
+                  <span className="text-[12px] font-semibold text-[#4D6480]">{team}</span>
                 </div>
                 <div className="space-y-1.5 pl-8">
                   {actions.map((action, i) => (
                     <div key={i} className="flex items-start gap-2">
                       <div
-                        className={`mt-0.5 flex-shrink-0 h-4 w-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                        className={`mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
                           action.priority === "HIGH"
                             ? "bg-red-100 text-red-600"
                             : action.priority === "MEDIUM"
@@ -347,7 +317,7 @@ export function AnswerView({
                       >
                         {action.priority[0]}
                       </div>
-                      <p className="text-sm text-gray-700 leading-relaxed">{action.action_text}</p>
+                      <p className="text-[13px] leading-relaxed text-[#4D6480]">{action.action_text}</p>
                     </div>
                   ))}
                 </div>
@@ -357,43 +327,28 @@ export function AnswerView({
         </Section>
       )}
 
-      {/* ── Action buttons ───────────────────────────────────── */}
+      {/* Action buttons */}
       {!isStreaming && answer && (
         <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 rounded-xl bg-crimson-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-crimson-800 transition-all active:scale-[0.98]"
-          >
+          <button type="button" className={btnPrimary}>
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
             </svg>
             Save to Library
           </button>
-
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 rounded-xl border border-crimson-300 bg-white px-5 py-2.5 text-sm font-semibold text-crimson-700 shadow-sm hover:bg-crimson-50 hover:border-crimson-500 transition-all active:scale-[0.98]"
-          >
+          <button type="button" className={btnSecondary}>
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
             Share with Team
           </button>
-
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 rounded-xl border border-crimson-300 bg-white px-5 py-2.5 text-sm font-semibold text-crimson-700 shadow-sm hover:bg-crimson-50 hover:border-crimson-500 transition-all active:scale-[0.98]"
-          >
+          <button type="button" className={btnSecondary}>
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
             </svg>
             Flag for Review
           </button>
-
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 rounded-xl border border-crimson-300 bg-white px-5 py-2.5 text-sm font-semibold text-crimson-700 shadow-sm hover:bg-crimson-50 hover:border-crimson-500 transition-all active:scale-[0.98]"
-          >
+          <button type="button" className={btnSecondary}>
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
@@ -402,21 +357,19 @@ export function AnswerView({
         </div>
       )}
 
-      {/* ── Footer meta + extra actions ─────────────────────── */}
-      {(creditBalance !== null && creditBalance !== undefined) ||
-      extraActions ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-5 py-3 shadow-sm">
+      {/* Footer meta */}
+      {(creditBalance !== null && creditBalance !== undefined) || extraActions ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-cream-300 bg-white px-5 py-3 shadow-sm">
           {creditBalance !== null && creditBalance !== undefined && (
-            <span className="text-xs text-gray-400">
+            <span className="text-[12px] text-[#7A95AD]">
               Credits remaining:{" "}
-              <span className="font-semibold text-gray-600">{creditBalance}</span>
+              <span className="font-semibold text-[#1A2B40]">{creditBalance}</span>
             </span>
           )}
           {extraActions && <div className="flex flex-wrap gap-2">{extraActions}</div>}
         </div>
       ) : null}
 
-      {/* ── Feedback ─────────────────────────────────────────── */}
       {onFeedback && (
         <FeedbackSection
           onSubmit={onFeedback}
