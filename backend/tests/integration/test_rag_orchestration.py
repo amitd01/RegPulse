@@ -134,6 +134,8 @@ async def rag_service(rag_test_corpus, rag_redis):
     Cross-encoder loaded from pre-baked cache (or None if unavailable — in
     that case rerank is skipped at runtime but the rest of the pipeline runs).
     """
+    import openai
+
     from app.services.embedding_service import EmbeddingService
     from app.services.rag_service import RAGService
 
@@ -144,7 +146,7 @@ async def rag_service(rag_test_corpus, rag_redis):
     except Exception:
         cross_encoder = None
 
-    embedding = EmbeddingService(redis=rag_redis)
+    embedding = EmbeddingService(openai_client=openai.AsyncOpenAI(), redis=rag_redis)
     return RAGService(
         db=rag_test_corpus,
         embedding_service=embedding,

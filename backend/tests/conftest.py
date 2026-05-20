@@ -41,14 +41,15 @@ _public_pem = (
     .decode()
 )
 
+# Test-infrastructure env vars are force-overridden — unit tests must hit
+# in-memory SQLite + fakeredis even when a shell session has real DATABASE_URL
+# / REDIS_URL exported (e.g. for an integration run in the same shell).
 os.environ.update(
     {
         "DATABASE_URL": "sqlite+aiosqlite://",
         "REDIS_URL": "redis://localhost:6379/15",
         "JWT_PRIVATE_KEY": _private_pem,
         "JWT_PUBLIC_KEY": _public_pem,
-        "OPENAI_API_KEY": "sk-test-fake",
-        "ANTHROPIC_API_KEY": "sk-ant-test-fake",
         "RAZORPAY_KEY_ID": "rzp_test_fake",
         "RAZORPAY_KEY_SECRET": "rzp_secret_fake",
         "RAZORPAY_WEBHOOK_SECRET": "whsec_fake",
@@ -61,6 +62,13 @@ os.environ.update(
         "ENVIRONMENT": "dev",
     }
 )
+
+# API keys use setdefault so a real OPENAI / ANTHROPIC key exported for an
+# integration run survives into the test process. Otherwise the integration
+# conftest's REAL_OPENAI / REAL_ANTHROPIC gates always evaluate False against
+# the "sk-test-fake" fallback and the 7 RAG orchestration tests skip silently.
+os.environ.setdefault("OPENAI_API_KEY", "sk-test-fake")
+os.environ.setdefault("ANTHROPIC_API_KEY", "sk-ant-test-fake")
 
 import fakeredis.aioredis
 import pytest

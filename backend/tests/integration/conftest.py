@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import os
 import pathlib
+import re
 
 import pytest
 
@@ -57,6 +58,56 @@ def _migrations_dir() -> pathlib.Path:
     return pathlib.Path(__file__).resolve().parents[2] / "migrations"
 
 
+def _split_sql_statements(sql: str) -> list[str]:
+    """Split a SQL script on `;` while respecting dollar-quoted blocks.
+
+    Plain `sql.split(";")` blows up on `DO $$ BEGIN ... END $$;` (migration 002)
+    because `;` inside the dollar-quoted body gets treated as a delimiter and
+    asyncpg sees an unterminated dollar-quoted string. This walks the script
+    char-by-char, tracks `$tag$ ... $tag$` opens/closes, and only splits on
+    `;` when outside a block. Also strips `-- line comments` first to avoid
+    comment-only fragments that crash asyncpg's parameter extractor with
+    `expected string ... got NoneType`.
+    """
+    text = re.sub(r"--[^\n]*", "", sql)
+    out: list[str] = []
+    buf: list[str] = []
+    i = 0
+    n = len(text)
+    open_tag: str | None = None  # currently-open dollar-quote tag (e.g. "$$" or "$func$")
+    while i < n:
+        if open_tag is None:
+            # Look for a dollar-quote opener.
+            m = re.match(r"\$([A-Za-z_]\w*)?\$", text[i:])
+            if m:
+                open_tag = m.group(0)
+                buf.append(open_tag)
+                i += len(open_tag)
+                continue
+            ch = text[i]
+            if ch == ";":
+                stmt = "".join(buf).strip()
+                if stmt:
+                    out.append(stmt)
+                buf = []
+                i += 1
+                continue
+            buf.append(ch)
+            i += 1
+        else:
+            if text.startswith(open_tag, i):
+                buf.append(open_tag)
+                i += len(open_tag)
+                open_tag = None
+                continue
+            buf.append(text[i])
+            i += 1
+    tail = "".join(buf).strip()
+    if tail:
+        out.append(tail)
+    return out
+
+
 @pytest.fixture(scope="session")
 def migrations_sql() -> list[pathlib.Path]:
     """Ordered list of migration files (001..NNN)."""
@@ -73,15 +124,16 @@ async def rag_pg_session(migrations_sql):
 
     engine = create_async_engine(INTEGRATION_DB_URL, echo=False)
 
-    # Apply migrations in order. We don't track state across runs — each test
-    # session migrates fresh. Tests are expected to clean their own data.
+    # Apply migrations in order. The fixture is function-scoped, so each
+    # test gets a fresh schema — wipe + recreate `public` to dodge
+    # not-idempotent DDL (`CREATE TYPE org_type_enum` in migration 001 has
+    # no IF NOT EXISTS support in PG).
     async with engine.begin() as conn:
+        await conn.exec_driver_sql("DROP SCHEMA IF EXISTS public CASCADE")
+        await conn.exec_driver_sql("CREATE SCHEMA public")
         await conn.exec_driver_sql("CREATE EXTENSION IF NOT EXISTS vector")
         for sql_path in migrations_sql:
-            sql = sql_path.read_text()
-            # exec_driver_sql is raw — splits on `;` are unsafe for procedural
-            # SQL, but our migrations are plain DDL so this is fine.
-            for stmt in [s.strip() for s in sql.split(";") if s.strip()]:
+            for stmt in _split_sql_statements(sql_path.read_text()):
                 await conn.exec_driver_sql(stmt)
 
     factory = async_sessionmaker(engine, expire_on_commit=False)
