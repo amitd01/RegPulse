@@ -12,7 +12,7 @@ import { useCallback, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import api from "@/lib/api";
-import { Btn, Pill } from "@/components/design/Primitives";
+import { Pill } from "@/components/design/Primitives";
 
 interface ManualUpload {
   id: string;
