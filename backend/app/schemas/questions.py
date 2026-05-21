@@ -28,8 +28,21 @@ class QuestionRequest(BaseModel):
 
 
 class FeedbackRequest(BaseModel):
-    feedback: int = Field(ge=-1, le=1, description="-1=thumbs down, 1=thumbs up")
+    is_helpful: bool
+    category: str | None = Field(
+        default=None,
+        description="INCORRECT_INTERPRETATION | MISSING_CITATION | UI_ISSUE | COMPLIANCE_CONCERN | OTHER",
+    )
     comment: str | None = Field(default=None, max_length=2000)
+
+
+class FeedbackRecord(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    is_helpful: bool
+    category: str | None = None
+    comment: str | None = None
+    created_at: datetime
 
 
 # --- Question Responses ---
@@ -45,9 +58,11 @@ class QuestionSummary(BaseModel):
     confidence_score: float | None = None
     consult_expert: bool = False
     model_used: str | None = None
-    feedback: int | None = None
     credit_deducted: bool
     created_at: datetime
+    feedback_record: FeedbackRecord | None = Field(
+        default=None, validation_alias="interpretation_feedback"
+    )
 
 
 class QuestionDetail(QuestionSummary):

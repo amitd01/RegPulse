@@ -48,7 +48,8 @@ class AdminUserUpdate(BaseModel):
 
 
 class AdminQuestionListParams(BaseModel):
-    feedback: int | None = None
+    is_helpful: bool | None = None
+    has_feedback: bool | None = None
     reviewed: bool | None = None
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=20, ge=1, le=100)

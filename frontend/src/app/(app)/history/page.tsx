@@ -255,7 +255,7 @@ export default function HistoryPage() {
                         />
 
                         {/* Feedback badges */}
-                        {q.feedback === -1 && (
+                        {q.feedback_record?.is_helpful === false && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
                             <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.096c.5 0 .905-.405.905-.904 0-.715.211-1.413.608-2.008L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5" />
@@ -263,7 +263,7 @@ export default function HistoryPage() {
                             Not helpful
                           </span>
                         )}
-                        {q.feedback === 1 && (
+                        {q.feedback_record?.is_helpful === true && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
                             Helpful
                           </span>

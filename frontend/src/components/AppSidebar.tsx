@@ -27,10 +27,9 @@ function useActionItemsCount(enabled: boolean) {
   return useQuery<{ total: number }>({
     queryKey: ["action-items-badge"],
     queryFn: async () => {
-      const { data } = await api.get("/action-items", {
-        params: { page: 1, page_size: 1, status: "open" },
-      });
-      return { total: data.total ?? 0 };
+      const { data } = await api.get("/action-items/stats");
+      const open = (data.pending ?? 0) + (data.in_progress ?? 0);
+      return { total: open };
     },
     staleTime: 60_000,
     enabled,

@@ -55,6 +55,20 @@ export interface RecommendedAction {
   priority: string;
 }
 
+export type FeedbackCategory =
+  | "INCORRECT_INTERPRETATION"
+  | "MISSING_CITATION"
+  | "UI_ISSUE"
+  | "COMPLIANCE_CONCERN"
+  | "OTHER";
+
+export interface FeedbackRecord {
+  is_helpful: boolean;
+  category: FeedbackCategory | null;
+  comment: string | null;
+  created_at: string;
+}
+
 export interface QuestionSummary {
   id: string;
   question_text: string;
@@ -65,9 +79,9 @@ export interface QuestionSummary {
   /** True when the answer was replaced by the "Consult an Expert" fallback. */
   consult_expert: boolean;
   model_used: string | null;
-  feedback: number | null;
   credit_deducted: boolean;
   created_at: string;
+  feedback_record: FeedbackRecord | null;
 }
 
 export interface QuestionDetail extends QuestionSummary {
@@ -78,6 +92,53 @@ export interface QuestionDetail extends QuestionSummary {
   recommended_actions: RecommendedAction[] | null;
   streaming_completed: boolean;
   latency_ms: number | null;
+  feedback_record: FeedbackRecord | null;
+}
+
+// --- Action item types ---
+
+export type ActionItemPriority = "HIGH" | "MEDIUM" | "LOW";
+
+export interface ActionItem {
+  id: string;
+  title: string;
+  description: string | null;
+  assigned_team: string | null;
+  priority: ActionItemPriority;
+  due_date: string | null;
+  status: string;
+  source_question_id: string | null;
+  source_circular_id: string | null;
+  is_overdue: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateActionItemInput {
+  title: string;
+  description?: string | null;
+  assigned_team?: string | null;
+  priority?: ActionItemPriority;
+  source_question_id?: string;
+}
+
+// --- Saved interpretation types ---
+
+export interface SavedInterpretation {
+  id: string;
+  question_id: string;
+  name: string;
+  tags: string[] | null;
+  needs_review: boolean;
+  created_at: string;
+}
+
+export interface SavedInterpretationListResponse {
+  success: boolean;
+  data: SavedInterpretation[];
+  total: number;
+  page: number;
+  page_size: number;
 }
 
 // --- API response wrappers ---

@@ -1,11 +1,22 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { CitationCard } from "./CitationCard";
 import { FeedbackSection } from "./FeedbackSection";
 import { ConfidenceMeter } from "@/components/ui/ConfidenceMeter";
 import { Spinner } from "@/components/ui/Spinner";
-import type { CitationItem, RecommendedAction } from "@/types";
+import {
+  getActionItemErrorMessage,
+  useShareWithTeam,
+} from "@/hooks/useActionItems";
+import { getSaveErrorMessage, useSaveInterpretation } from "@/hooks/useSavedInterpretations";
+import type { CitationItem, FeedbackRecord, RecommendedAction } from "@/types";
+
+function buildSaveName(question?: string, quickAnswer?: string | null): string {
+  const source = question?.trim() || quickAnswer?.trim() || "Saved interpretation";
+  return source.length > 255 ? `${source.slice(0, 252)}...` : source;
+}
 
 export interface AnswerViewProps {
   question?: string;
@@ -23,10 +34,10 @@ export interface AnswerViewProps {
   modelUsed?: string | null;
   createdAt?: string | null;
   latencyMs?: number | null;
-  onFeedback?: (data: { comment: string; category: string; feedback: number }) => void;
+  onFeedback?: (data: { comment: string; category: string; is_helpful: boolean }) => void;
   isFeedbackSubmitting?: boolean;
   feedbackSubmitted?: boolean;
-  existingFeedback?: number | null;
+  existingFeedback?: FeedbackRecord | null;
   extraActions?: React.ReactNode;
 }
 
@@ -120,6 +131,7 @@ export function AnswerView({
   affectedTeams,
   recommendedActions,
   isStreaming = false,
+  questionId,
   creditBalance,
   modelUsed,
   createdAt,
@@ -130,6 +142,76 @@ export function AnswerView({
   existingFeedback,
   extraActions,
 }: AnswerViewProps) {
+  const saveMutation = useSaveInterpretation();
+  const shareMutation = useShareWithTeam();
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [shareSuccess, setShareSuccess] = useState<string | null>(null);
+  const [shareError, setShareError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSaveSuccess(false);
+    setSaveError(null);
+    setShareSuccess(null);
+    setShareError(null);
+  }, [questionId]);
+
+  const handleSaveToLibrary = useCallback(() => {
+    if (!questionId || isStreaming || saveMutation.isPending || saveSuccess) return;
+
+    setSaveError(null);
+    const name = buildSaveName(question, quickAnswer);
+    const tags = affectedTeams.length > 0 ? affectedTeams : undefined;
+
+    saveMutation.mutate(
+      { question_id: questionId, name, tags },
+      {
+        onSuccess: () => setSaveSuccess(true),
+        onError: (err) => setSaveError(getSaveErrorMessage(err)),
+      },
+    );
+  }, [
+    questionId,
+    isStreaming,
+    saveMutation,
+    saveSuccess,
+    question,
+    quickAnswer,
+    affectedTeams,
+  ]);
+
+  const handleShareWithTeam = useCallback(() => {
+    if (!questionId || isStreaming || shareMutation.isPending || shareSuccess) return;
+
+    setShareError(null);
+    shareMutation.mutate(
+      {
+        questionId,
+        question,
+        quickAnswer,
+        recommendedActions,
+      },
+      {
+        onSuccess: (result) => {
+          const label =
+            result.created === 1 ? "1 action item" : `${result.created} action items`;
+          setShareSuccess(
+            `Shared with your team — ${label} created. View them under Action Items.`,
+          );
+        },
+        onError: (err) => setShareError(getActionItemErrorMessage(err)),
+      },
+    );
+  }, [
+    questionId,
+    isStreaming,
+    shareMutation,
+    shareSuccess,
+    question,
+    quickAnswer,
+    recommendedActions,
+  ]);
+
   const actionsByTeam = recommendedActions.reduce<Record<string, RecommendedAction[]>>(
     (acc, action) => {
       const key = action.team || "General";
@@ -241,7 +323,7 @@ export function AnswerView({
           ) : (
             <StreamingSkeleton />
           )}
-          {isStreaming && (
+          {isStreaming && !answer.trim() && (
             <div className="mt-4 flex items-center gap-2 text-[12px] text-[#7A95AD]">
               <Spinner size="sm" />
               <span>Generating detailed interpretation…</span>
@@ -329,18 +411,114 @@ export function AnswerView({
 
       {/* Action buttons */}
       {!isStreaming && answer && (
-        <div className="flex flex-wrap items-center gap-3">
-          <button type="button" className={btnPrimary}>
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-            </svg>
-            Save to Library
+        <div className="space-y-3">
+          {saveSuccess && (
+            <div
+              className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
+              role="status"
+            >
+              <span className="flex items-center gap-2">
+                <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Saved to your library. View it anytime under Saved Interpretations.
+              </span>
+            </div>
+          )}
+          {saveError && (
+            <div
+              className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+              role="alert"
+            >
+              <span className="flex items-start gap-2">
+                <svg className="mt-0.5 h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {saveError}
+              </span>
+            </div>
+          )}
+          {shareSuccess && (
+            <div
+              className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
+              role="status"
+            >
+              <span className="flex items-center gap-2">
+                <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                {shareSuccess}
+              </span>
+            </div>
+          )}
+          {shareError && (
+            <div
+              className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+              role="alert"
+            >
+              <span className="flex items-start gap-2">
+                <svg className="mt-0.5 h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {shareError}
+              </span>
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            className={btnPrimary}
+            onClick={handleSaveToLibrary}
+            disabled={!questionId || saveMutation.isPending || saveSuccess}
+          >
+            {saveMutation.isPending ? (
+              <>
+                <Spinner size="sm" />
+                Saving…
+              </>
+            ) : saveSuccess ? (
+              <>
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Saved
+              </>
+            ) : (
+              <>
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                </svg>
+                Save to Library
+              </>
+            )}
           </button>
-          <button type="button" className={btnSecondary}>
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            Share with Team
+          <button
+            type="button"
+            className={btnSecondary}
+            onClick={handleShareWithTeam}
+            disabled={!questionId || shareMutation.isPending || !!shareSuccess}
+          >
+            {shareMutation.isPending ? (
+              <>
+                <Spinner size="sm" />
+                Sharing…
+              </>
+            ) : shareSuccess ? (
+              <>
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Shared
+              </>
+            ) : (
+              <>
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Share with Team
+              </>
+            )}
           </button>
           <button type="button" className={btnSecondary}>
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -354,6 +532,7 @@ export function AnswerView({
             </svg>
             Get Clarification
           </button>
+          </div>
         </div>
       )}
 

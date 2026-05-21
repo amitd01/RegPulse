@@ -193,28 +193,119 @@ export default function AskPage() {
 
       const decoder = new TextDecoder();
       let partial = "";
+      const streamStarted = true;
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      const extractDetailedAnswer = (fullText: string): string => {
+        try {
+          const parsed = JSON.parse(fullText) as Record<string, unknown>;
+          if (typeof parsed?.detailed_interpretation === "string") {
+            return parsed.detailed_interpretation;
+          }
+        } catch {
+          // plain text or partial JSON
+        }
+        return fullText;
+      };
 
-        partial += decoder
-          .decode(value, { stream: true })
-          .replace(/\r\n/g, "\n")
-          .replace(/\r/g, "\n");
+      const applySseEvent = (eventType: string, data: Record<string, unknown>) => {
+        switch (eventType) {
+          case "token":
+            tokenBufferRef.current += (data.token as string) ?? "";
+            break;
 
-        const messages = partial.split("\n\n");
-        partial = messages.pop() ?? "";
+          case "citations": {
+            stopFlushInterval();
+            const pending = tokenBufferRef.current;
+            tokenBufferRef.current = "";
+            setState((prev) => {
+              const fullText = prev.answer + (pending || "");
+              return {
+                ...prev,
+                answer: extractDetailedAnswer(fullText),
+                citations: (data.citations as CitationItem[]) || [],
+                riskLevel: (data.risk_level as string) || null,
+                confidenceScore:
+                  typeof data.confidence_score === "number" ? data.confidence_score : null,
+                consultExpert: Boolean(data.consult_expert),
+                affectedTeams: (data.affected_teams as string[]) || [],
+                recommendedActions: (data.recommended_actions as RecommendedAction[]) || [],
+                quickAnswer: (data.quick_answer as string) || null,
+              };
+            });
+            trackEvent("confidence_meter_viewed", {
+              confidence_score:
+                typeof data.confidence_score === "number" ? data.confidence_score : null,
+              consult_expert: Boolean(data.consult_expert),
+              source: "ask",
+            });
+            break;
+          }
+
+          case "done": {
+            stopFlushInterval();
+            const pending = tokenBufferRef.current;
+            tokenBufferRef.current = "";
+            setState((prev) => {
+              const fullText = pending ? prev.answer + pending : prev.answer;
+              return {
+                ...prev,
+                status: "done",
+                answer: extractDetailedAnswer(fullText),
+                questionId: (data.question_id as string) ?? null,
+                creditBalance:
+                  typeof data.credit_balance === "number" ? data.credit_balance : null,
+              };
+            });
+            if (user && data.credit_balance !== undefined) {
+              useAuthStore.setState({
+                user: { ...user, credit_balance: data.credit_balance as number },
+              });
+            }
+            break;
+          }
+
+          case "error":
+            stopFlushInterval();
+            flushTokens();
+            setState((prev) => {
+              if (prev.status === "done") return prev;
+              return {
+                ...prev,
+                status: "error",
+                errorMessage: (data.error as string) ?? "Streaming error",
+              };
+            });
+            break;
+
+          default:
+            if (typeof data.token === "string") {
+              tokenBufferRef.current += data.token;
+            } else if (typeof data.error === "string") {
+              stopFlushInterval();
+              flushTokens();
+              setState((prev) => ({
+                ...prev,
+                status: "error",
+                errorMessage: data.error as string,
+              }));
+            }
+        }
+      };
+
+      const processSseBuffer = (buffer: string) => {
+        const messages = buffer.split("\n\n");
+        const remainder = messages.pop() ?? "";
 
         for (const message of messages) {
           if (!message.trim()) continue;
 
           let eventType = "";
-          let dataStr = "";
+          const dataLines: string[] = [];
           for (const line of message.split("\n")) {
             if (line.startsWith("event: ")) eventType = line.slice(7).trim();
-            else if (line.startsWith("data: ")) dataStr = line.slice(6);
+            else if (line.startsWith("data: ")) dataLines.push(line.slice(6));
           }
+          const dataStr = dataLines.join("\n");
           if (!dataStr) continue;
 
           let data: Record<string, unknown>;
@@ -224,116 +315,41 @@ export default function AskPage() {
             continue;
           }
 
-          switch (eventType) {
-            case "token":
-              tokenBufferRef.current += (data.token as string) ?? "";
-              break;
+          applySseEvent(eventType, data);
+        }
 
-            case "citations": {
-              const pending = tokenBufferRef.current;
-              tokenBufferRef.current = "";
-              setState((prev) => {
-                const fullText = prev.answer + (pending || "");
-                // The LLM streams the entire JSON object as tokens.
-                // Extract only the detailed_interpretation for display.
-                let detailedAnswer = fullText;
-                try {
-                  const parsed = JSON.parse(fullText) as Record<string, unknown>;
-                  if (typeof parsed?.detailed_interpretation === "string") {
-                    detailedAnswer = parsed.detailed_interpretation;
-                  }
-                } catch {
-                  // not valid JSON yet — keep raw text as-is
-                }
-                return {
-                  ...prev,
-                  answer: detailedAnswer,
-                  citations: (data.citations as CitationItem[]) || [],
-                  riskLevel: (data.risk_level as string) || null,
-                  confidenceScore:
-                    typeof data.confidence_score === "number" ? data.confidence_score : null,
-                  consultExpert: Boolean(data.consult_expert),
-                  affectedTeams: (data.affected_teams as string[]) || [],
-                  recommendedActions: (data.recommended_actions as RecommendedAction[]) || [],
-                  quickAnswer: (data.quick_answer as string) || null,
-                };
-              });
-              trackEvent("confidence_meter_viewed", {
-                confidence_score:
-                  typeof data.confidence_score === "number" ? data.confidence_score : null,
-                consult_expert: Boolean(data.consult_expert),
-                source: "ask",
-              });
-              break;
+        return remainder;
+      };
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+
+          if (value) {
+            partial += decoder
+              .decode(value, { stream: true })
+              .replace(/\r\n/g, "\n")
+              .replace(/\r/g, "\n");
+            partial = processSseBuffer(partial);
+          }
+
+          if (done) {
+            // Flush the final SSE frame (e.g. event: done) left in partial
+            if (partial.trim()) {
+              processSseBuffer(`${partial}\n\n`);
             }
-
-            case "done": {
-              stopFlushInterval();
-              const pending = tokenBufferRef.current;
-              tokenBufferRef.current = "";
-              setState((prev) => {
-                const fullText = pending ? prev.answer + pending : prev.answer;
-                // Attempt JSON extraction in case citations event didn't fire
-                let finalAnswer = fullText;
-                try {
-                  const parsed = JSON.parse(fullText) as Record<string, unknown>;
-                  if (typeof parsed?.detailed_interpretation === "string") {
-                    finalAnswer = parsed.detailed_interpretation;
-                  }
-                } catch {
-                  // already extracted or plain text
-                }
-                return {
-                  ...prev,
-                  status: "done",
-                  answer: finalAnswer,
-                  questionId: (data.question_id as string) ?? null,
-                  creditBalance:
-                    typeof data.credit_balance === "number" ? data.credit_balance : null,
-                };
-              });
-              if (user && data.credit_balance !== undefined) {
-                useAuthStore.setState({
-                  user: { ...user, credit_balance: data.credit_balance as number },
-                });
-              }
-              break;
-            }
-
-            case "error":
-              stopFlushInterval();
-              flushTokens();
-              setState((prev) => {
-                if (prev.status === "done") return prev;
-                return {
-                  ...prev,
-                  status: "error",
-                  errorMessage: (data.error as string) ?? "Streaming error",
-                };
-              });
-              break;
-
-            default:
-              if (typeof data.token === "string") {
-                tokenBufferRef.current += data.token;
-              } else if (typeof data.error === "string") {
-                stopFlushInterval();
-                flushTokens();
-                setState((prev) => ({
-                  ...prev,
-                  status: "error",
-                  errorMessage: data.error as string,
-                }));
-              }
+            break;
           }
         }
+      } finally {
+        if (streamStarted) {
+          stopFlushInterval();
+          flushTokens();
+          setState((prev) =>
+            prev.status === "streaming" ? { ...prev, status: "done" } : prev,
+          );
+        }
       }
-
-      stopFlushInterval();
-      flushTokens();
-      setState((prev) =>
-        prev.status === "streaming" ? { ...prev, status: "done" } : prev,
-      );
     } catch (err) {
       stopFlushInterval();
       if (err instanceof DOMException && err.name === "AbortError") return;
@@ -356,13 +372,14 @@ export default function AskPage() {
   );
 
   const handleFeedback = useCallback(
-    async ({ comment, category, feedback }: { comment: string; category: string; feedback: number }) => {
+    async ({ comment, category, is_helpful }: { comment: string; category: string; is_helpful: boolean }) => {
       if (!state.questionId) return;
       setIsFeedbackSubmitting(true);
       try {
         await api.patch(`/questions/${state.questionId}/feedback`, {
-          feedback,
-          comment: comment ? `[${category || "General"}] ${comment}` : undefined,
+          is_helpful,
+          category: category || null,
+          comment: comment || null,
         });
         setFeedbackSubmitted(true);
       } catch {
@@ -396,7 +413,7 @@ export default function AskPage() {
             {/* Ask hero */}
             <div className="mb-8 text-center">
               <h1 className="font-serif text-[32px] leading-tight tracking-[-0.01em] text-[#1A2B40]">
-                What would you like to{" "}
+                What would you likeeeeee to{" "}
                 <em className="italic text-gold-500">know?</em>
               </h1>
               <p className="mt-2 text-[14px] text-[#4D6480]">

@@ -54,6 +54,7 @@
 | Sprint 6 | Pre-Launch Hardening: SIGTERM shutdown, system user audit, scraper embeddings on insert, LLM exception tightening, KG expansion GA, retrieval eval, dev Dockerfile | ✅ Complete |
 | Sprint 7 | DPDP Compliance (account deletion + data export), subscription auto-renewal, low-credit notifications | ✅ Complete |
 | Sprint 8 | Updates feed tracking, action items stats/overdue, admin Q&A sandbox, question suggestions, PDF export w/ QR codes | ✅ Complete |
+| Sprint 9 (partial) | Structured interpretation feedback — `interpretation_feedback` table, `is_helpful` bool + category enum, removed `questions.feedback`/`feedback_comment` | ✅ Complete |
 | Post-Build | Real data migration, GCP deployment, Beta launch | ⏳ Planned |
 
 ## Localhost Demo

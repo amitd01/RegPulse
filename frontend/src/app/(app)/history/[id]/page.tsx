@@ -63,17 +63,18 @@ export default function QuestionDetailPage() {
   const handleFeedback = ({
     comment,
     category,
-    feedback,
+    is_helpful,
   }: {
     comment: string;
     category: string;
-    feedback: number;
+    is_helpful: boolean;
   }) => {
     feedbackMutation.mutate(
       {
         questionId: id,
-        feedback,
-        comment: comment ? `[${category || "General"}] ${comment}` : undefined,
+        is_helpful,
+        category: category || undefined,
+        comment: comment || undefined,
       },
       {
         onSuccess: () => setFeedbackSubmitted(true),
@@ -133,7 +134,7 @@ export default function QuestionDetailPage() {
         onFeedback={handleFeedback}
         isFeedbackSubmitting={feedbackMutation.isPending}
         feedbackSubmitted={feedbackSubmitted}
-        existingFeedback={q.feedback}
+        existingFeedback={q.feedback_record}
         extraActions={shareButton}
       />
 
