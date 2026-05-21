@@ -99,7 +99,7 @@ async def ask_question(
     chunks = await rag.retrieve(question_text)
 
     if not chunks:
-        # No relevant chunks found — return no-answer, no credit charge
+        # No relevant chunks found — return no-answer, no credit charge.
         no_answer = Question(
             id=uuid.uuid4(),
             user_id=user.id,
@@ -107,6 +107,7 @@ async def ask_question(
             answer_text="I couldn't find relevant RBI circulars to answer this question.",
             quick_answer="No relevant circulars found.",
             risk_level=None,
+            consult_expert=True,
             credit_deducted=False,
             streaming_completed=True,
             latency_ms=int((time.perf_counter() - start_time) * 1000),
@@ -114,6 +115,21 @@ async def ask_question(
         db.add(no_answer)
         await db.commit()
         await db.refresh(no_answer)
+
+        # SSE callers (the v2 Ask page) need the response framed as events so
+        # their parser can render the consult-expert state — JSON here leaves
+        # the client stuck in "streaming" forever.
+        accept = request.headers.get("accept", "")
+        if "text/event-stream" in accept:
+            return StreamingResponse(
+                _stream_no_chunks_response(no_answer, user.credit_balance),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "X-Accel-Buffering": "no",
+                },
+            )
 
         return QuestionResponse(
             data=QuestionDetail.model_validate(no_answer),
@@ -211,6 +227,34 @@ async def ask_question(
         data=QuestionDetail.model_validate(question),
         credit_balance=new_balance,
     )
+
+
+async def _stream_no_chunks_response(question: Question, credit_balance: int):
+    """SSE generator for the no-relevant-chunks consult-expert fallback.
+
+    The Ask page subscribes to `citations` events to learn the answer's
+    metadata (including `consult_expert`); without one, the UI is stuck
+    in "streaming" forever. We synthesise a minimal citations + done pair
+    so the consult-expert testid renders.
+    """
+    citations_payload = json.dumps(
+        {
+            "citations": [],
+            "consult_expert": True,
+            "quick_answer": question.quick_answer,
+            "risk_level": None,
+            "confidence_score": None,
+            "affected_teams": [],
+            "recommended_actions": [],
+            "model_used": None,
+        }
+    )
+    yield f"event: citations\ndata: {citations_payload}\n\n"
+
+    done_payload = json.dumps(
+        {"question_id": str(question.id), "credit_balance": credit_balance}
+    )
+    yield f"event: done\ndata: {done_payload}\n\n"
 
 
 async def _stream_response(

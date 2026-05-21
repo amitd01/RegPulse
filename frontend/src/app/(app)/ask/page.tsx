@@ -169,13 +169,22 @@ export default function AskPage() {
     const apiUrl =
       process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
+    // If the in-memory access token is missing (e.g. user landed via hard
+    // navigation), refresh from the httpOnly cookie before firing the fetch.
+    // The axios interceptor handles this for axios calls, but /questions
+    // uses native fetch for SSE so we need an explicit refresh here.
+    let bearer = accessToken;
+    if (!bearer) {
+      bearer = await useAuthStore.getState().silentRefresh();
+    }
+
     try {
       const response = await fetch(`${apiUrl}/questions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Accept: "text/event-stream",
-          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}),
         },
         credentials: "include",
         body: JSON.stringify({ question: question.trim() }),
@@ -301,7 +310,7 @@ export default function AskPage() {
   const streaming = state.status === "streaming";
   const hasAnswer =
     (state.status === "streaming" || state.status === "done") &&
-    Boolean(state.answer);
+    (Boolean(state.answer) || state.consultExpert);
 
   // Whether we're showing the mock featured answer or a live SSE answer
   const showMock = state.status === "idle";
@@ -555,6 +564,11 @@ export default function AskPage() {
                     className="live-dot"
                     style={{ marginLeft: 6, verticalAlign: "middle" }}
                   />
+                </p>
+              ) : state.consultExpert ? (
+                <p style={{ marginTop: 0 }}>
+                  {state.answer ||
+                    "We couldn't find an RBI circular that confidently answers this. Consult an expert for a verified opinion."}
                 </p>
               ) : (
                 <div className="prose-markdown">
