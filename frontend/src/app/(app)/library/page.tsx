@@ -363,6 +363,7 @@ function CircCard({
   const inner = (
     <div
       className="panel"
+      data-testid="library-card"
       style={{
         padding: 14,
         cursor: "pointer",

@@ -70,13 +70,13 @@ services:
     container_name: regpulse-scraper
     restart: unless-stopped
     stop_grace_period: 15s
-    command: celery -A celery_app worker --loglevel=info --concurrency=2 -Q celery,scraper
+    command: celery -A scraper.celery_app worker --loglevel=info --concurrency=2 -Q celery,scraper
     env_file:
       - .env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-regpulse}:${POSTGRES_PASSWORD:-regpulse_dev}@postgres:5432/${POSTGRES_DB:-regpulse}
       REDIS_URL: redis://redis:6379/1
-      PYTHONPATH: /
+      PYTHONPATH: /app
     depends_on:
       postgres:
         condition: service_healthy
@@ -91,13 +91,13 @@ services:
       dockerfile: Dockerfile
     container_name: regpulse-celery-beat
     restart: unless-stopped
-    command: celery -A celery_app beat --loglevel=info
+    command: celery -A scraper.celery_app beat --loglevel=info
     env_file:
       - .env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-regpulse}:${POSTGRES_PASSWORD:-regpulse_dev}@postgres:5432/${POSTGRES_DB:-regpulse}
       REDIS_URL: redis://redis:6379/1
-      PYTHONPATH: /
+      PYTHONPATH: /app
     depends_on:
       postgres:
         condition: service_healthy

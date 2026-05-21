@@ -4,7 +4,7 @@
 
 ---
 
-## Status (rebuild S1→S10 complete; S4b + GCP infra outstanding)
+## Status (rebuild S1→S10 + S4b complete; GCP Phase B/C outstanding)
 
 ReBuild slice plan executed S1 through S10 — 10 commits totaling ~6,000 LoC
 of edits. Foundation kept (~165 files); rewrite surface (~45 files) ported
@@ -17,8 +17,8 @@ navy/slate/gray Tailwind classes returning zero hits.
 | F2 (RAG orchestration untested) | **Scaffolded** — integration suite in `tests/integration/` skips without `REGPULSE_INTEGRATION_DB_URL`; tests execute against real PG when set |
 | F3 (DEMO_MODE skips reranker) | **Closed** — ADR A29 reversed; cross-encoder always on; Dockerfile pre-bakes model |
 | F4 (chunk-dump renderer) | **Closed** — `circular_documents.structured_content` JSONB column + StructuredRenderer in `/library/[id]` + `/history/[id]` |
-| F5 (PDF extractor flattens structure) | **Schema-ready** — column + renderer landed; structural extractor itself is S4b (needs Docker) |
-| F6 (no real RBI corpus) | **Pending S4b** |
+| F5 (PDF extractor flattens structure) | **Closed** — `extract_pdfplumber_full` emits `StructuredContent` (S4b.1) + persistence wired in `scraper/tasks.py` (S4b.2); 150 real RBI circulars in local corpus have non-NULL `structured_content` |
+| F6 (no real RBI corpus) | **Closed** — local docker stack ingests 150+ real RBI circulars via `python -m scraper.run_oneshot priority`; same code path runs in GCP Phase A's scraper Cloud Run Job |
 | F7 (no E2E tests) | **Closed** — Playwright config + 10 E2E tests across auth/ask/save-history specs |
 | F8 (integration suite not in CI) | **Closed** — `make test-integration` wired; CI invocation per slice 9 |
 
@@ -27,11 +27,9 @@ G-16 (structured Feedback), G-10 (pybreaker LLM circuit breaker), G-12
 (overdue compute), TD-09 (BACKEND_PUBLIC_URL warning wired).
 
 Outstanding work (not blocking code-complete state):
-- **S4b** — structural PDF extractor + dual-output chunker + real RBI scrape
-  of ≥20 circulars + Playwright `library.spec.ts` against real data. Needs
-  Docker daemon + real OPENAI_API_KEY + internet.
-- **GCP Phases A/B/C** — Cloud SQL + Memorystore + Artifact Registry +
-  Cloud Run deploys + WIF + `v1.0.0` tag. Tracked in `PRODUCTION_PLAN.md`.
+- **GCP Phases B/C** — Workload Identity Federation, staging environment, CI
+  E2E gate (per L-Merge.1 prevention rule #1), real RBI scrape against prod
+  Cloud SQL, observability alerts, `v1.0.0` tag. Tracked in `PRODUCTION_PLAN.md`.
 
 ---
 

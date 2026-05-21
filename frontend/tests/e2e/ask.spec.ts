@@ -86,13 +86,18 @@ test.describe("ask journey", () => {
     ).toBeVisible({ timeout: 60_000 });
 
     // If it answered, the consult-expert flag should be set or the answer
-    // should explicitly decline.
+    // should explicitly decline. Streaming runs for ~10-30s; use toContainText
+    // / not.toContainText which auto-retry until the streamed prose stabilises,
+    // not the snapshot at first-visible. Accept the full breadth of LLM
+    // decline language; the critical assertion is "answer does NOT say Paris."
     const consult = await page.getByTestId("consult-expert").count();
     if (consult === 0) {
-      const body = await page.getByTestId("answer-body").textContent();
-      expect(body?.toLowerCase() ?? "").toMatch(
-        /(consult|expert|cannot|don.?t|no relevant)/,
+      const body = page.getByTestId("answer-body");
+      await expect(body).toContainText(
+        /(consult|expert|cannot|don.?t|do not|no relevant|not contain|outside|falls outside)/i,
+        { timeout: 60_000 },
       );
+      await expect(body).not.toContainText(/\bparis\b/i);
     }
   });
 

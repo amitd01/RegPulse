@@ -86,12 +86,48 @@ async def ask_question(
 
     question_text = body.question.strip()
 
-    # 1. Check answer cache
+    # 1. Check answer cache. On hit, persist a NEW Question row owned by the
+    # current user (no credit deduction) so Save → /saved → /history works
+    # cross-user — the cached payload's `id` belongs to whoever asked first
+    # and isn't accessible to anyone else. SSE callers also need the response
+    # framed as events; mirrors the no-chunks SSE path.
     cached = await rag.check_cache(question_text)
     if cached:
         logger.info("question_cache_hit")
+        new_question = Question(
+            id=uuid.uuid4(),
+            user_id=user.id,
+            question_text=question_text,
+            answer_text=cached.get("answer_text"),
+            quick_answer=cached.get("quick_answer"),
+            risk_level=cached.get("risk_level"),
+            confidence_score=cached.get("confidence_score"),
+            consult_expert=cached.get("consult_expert", False),
+            model_used=cached.get("model_used"),
+            affected_teams=cached.get("affected_teams") or [],
+            citations=cached.get("citations") or [],
+            recommended_actions=cached.get("recommended_actions") or [],
+            credit_deducted=False,
+            streaming_completed=True,
+            latency_ms=cached.get("latency_ms"),
+        )
+        db.add(new_question)
+        await db.commit()
+        await db.refresh(new_question)
+
+        accept = request.headers.get("accept", "")
+        if "text/event-stream" in accept:
+            return StreamingResponse(
+                _stream_cached_response(new_question, cached, user.credit_balance),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "X-Accel-Buffering": "no",
+                },
+            )
         return QuestionResponse(
-            data=QuestionDetail(**cached),
+            data=QuestionDetail.model_validate(new_question),
             credit_balance=user.credit_balance,  # No deduction for cache hit
         )
 
@@ -227,6 +263,42 @@ async def ask_question(
         data=QuestionDetail.model_validate(question),
         credit_balance=new_balance,
     )
+
+
+async def _stream_cached_response(
+    new_question: Question, cached: dict, credit_balance: int
+):
+    """SSE generator for the answer-cache hit. Emits the cached prose as a
+    token stream when an actual answer exists; for the consult-expert
+    fallback we skip tokens so the Ask page renders its fallback panel
+    instead of the raw LLM JSON envelope."""
+    consult_expert = bool(cached.get("consult_expert"))
+    if not consult_expert:
+        # Use the LLM's detailed_interpretation if available — that's what the
+        # streaming path emits token-by-token. Fall back to quick_answer.
+        answer_text = cached.get("answer_text") or cached.get("quick_answer") or ""
+        if answer_text:
+            token_payload = json.dumps({"text": answer_text})
+            yield f"event: token\ndata: {token_payload}\n\n"
+
+    citations_payload = json.dumps(
+        {
+            "citations": cached.get("citations") or [],
+            "consult_expert": consult_expert,
+            "quick_answer": cached.get("quick_answer"),
+            "risk_level": cached.get("risk_level"),
+            "confidence_score": cached.get("confidence_score"),
+            "affected_teams": cached.get("affected_teams") or [],
+            "recommended_actions": cached.get("recommended_actions") or [],
+            "model_used": cached.get("model_used"),
+        }
+    )
+    yield f"event: citations\ndata: {citations_payload}\n\n"
+
+    done_payload = json.dumps(
+        {"question_id": str(new_question.id), "credit_balance": credit_balance}
+    )
+    yield f"event: done\ndata: {done_payload}\n\n"
 
 
 async def _stream_no_chunks_response(question: Question, credit_balance: int):

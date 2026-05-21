@@ -152,14 +152,24 @@ class RBICrawler:
             if "rbi.org.in" not in full_url:
                 continue
 
+            # Only enqueue actual circular documents — either direct PDFs or
+            # RBI's per-notification redirect URL `NotificationUser.aspx?Id=NNNN`.
+            # Without this, the global site nav (Departments / Past Governors /
+            # Regional Offices / etc.) gets picked up from every listing page's
+            # header+footer and the scrape produces 100% PDF-magic-byte failures.
+            full_url_lower = full_url.lower()
+            is_pdf = full_url_lower.endswith(".pdf")
+            is_circular_ref = "?id=" in full_url_lower and "notificationuser.aspx" in full_url_lower
+            is_master_direction_ref = (
+                "?id=" in full_url_lower and "bs_viewmasdirections.aspx" in full_url_lower
+            )
+            if not (is_pdf or is_circular_ref or is_master_direction_ref):
+                continue
+
             # For PDF links with empty text (image-only download links on RBI),
-            # use the filename as fallback link text. Skip non-PDF links with
-            # no text (navigation icons, etc.).
+            # use the filename as fallback link text.
             if not link_text:
-                if full_url.lower().endswith(".pdf"):
-                    link_text = full_url.rsplit("/", 1)[-1]
-                else:
-                    continue
+                link_text = full_url.rsplit("/", 1)[-1]
 
             # Try to extract a date string from a sibling or parent cell
             raw_date_str = self._extract_date_from_context(anchor)

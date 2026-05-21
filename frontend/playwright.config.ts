@@ -19,6 +19,9 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : 2,
   reporter: process.env.CI ? [["github"], ["list"]] : "list",
+  // ask + save-history exercise the full RAG → LLM pipeline against the real
+  // corpus (S4b.2). Default 30s isn't enough — answer streams take 30–60s.
+  timeout: 90_000,
 
   use: {
     baseURL: BASE_URL,

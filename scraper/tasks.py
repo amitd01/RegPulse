@@ -298,19 +298,23 @@ def process_document(
         # the Library and search surfaces actually show ingested circulars.
         pending_review = not get_scraper_settings().DEMO_MODE
         with get_db_session() as db:
-            # Insert circular_documents row
+            # Insert circular_documents row. structured_content is the JSONB
+            # block tree from extract_pdfplumber_full (S4b.1); NULL for OCR
+            # fallback paths where layout couldn't be recovered. The detail
+            # renderer falls back to plain text when this is NULL.
             db.execute(
                 text("""
                     INSERT INTO circular_documents (
                         id, circular_number, title, doc_type, department,
                         issued_date, effective_date, rbi_url, status,
                         impact_level, action_deadline, affected_teams, tags,
-                        pending_admin_review, scraper_run_id
+                        pending_admin_review, scraper_run_id, structured_content
                     ) VALUES (
                         :id, :circular_number, :title, :doc_type, :department,
                         :issued_date, :effective_date, :rbi_url, 'ACTIVE',
                         :impact_level, :action_deadline, :affected_teams, :tags,
-                        :pending_admin_review, :scraper_run_id
+                        :pending_admin_review, :scraper_run_id,
+                        CAST(:structured_content AS JSONB)
                     )
                 """),
                 {
@@ -328,6 +332,11 @@ def process_document(
                     "tags": json.dumps([]),
                     "pending_admin_review": pending_review,
                     "scraper_run_id": scraper_run_id,
+                    "structured_content": (
+                        json.dumps(extracted.structured_content)
+                        if extracted.structured_content
+                        else None
+                    ),
                 },
             )
 
