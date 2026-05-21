@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 from app.db import get_db
 from app.dependencies.auth import require_verified_user
 from app.models.collaboration import TeamLearning
+from app.models.question import Question
 from app.models.user import User
 from app.schemas.collaboration import (
     AuthorSummary,
@@ -42,6 +43,15 @@ def _serialize(learning: TeamLearning) -> TeamLearningResponse:
 
 def _can_modify(learning: TeamLearning, user: User) -> bool:
     return learning.user_id == user.id or user.is_admin
+
+
+async def _question_in_org(db: AsyncSession, question_id: uuid.UUID, org: str) -> bool:
+    stmt = (
+        select(Question.id)
+        .join(User, Question.user_id == User.id)
+        .where(Question.id == question_id, User.email.ilike(f"%@{org}"))
+    )
+    return (await db.execute(stmt)).scalar_one_or_none() is not None
 
 
 @router.get("/stats", response_model=TeamLearningStatsResponse)
@@ -217,12 +227,18 @@ async def create_learning(
     body: TeamLearningCreateRequest,
     user: User = Depends(require_verified_user),
     db: AsyncSession = Depends(get_db),
-) -> TeamLearningResponse:
+) -> TeamLearningResponse | dict:
     """Create a new team learning visible to the user's organization."""
+    org = user_org_domain(user)
+    if body.source_question_id is not None:
+        if not await _question_in_org(db, body.source_question_id, org):
+            return {"success": False, "error": "Question not found in your organization", "code": "NOT_FOUND"}  # type: ignore[return-value]
+
     learning = TeamLearning(
         id=uuid.uuid4(),
         user_id=user.id,
-        org_domain=user_org_domain(user),
+        org_domain=org,
+        source_question_id=body.source_question_id,
         title=body.title,
         note=body.note,
         tags=body.tags,
