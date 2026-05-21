@@ -6,15 +6,24 @@
 
 ## Status
 
-**REBUILD slice plan S1→S10 complete.** Outstanding: S4b (structural PDF
-extractor + real RBI scrape; needs Docker + real LLM keys) and GCP Phases
-A/B/C (infra + launch). 155 unit tests pass; v2 design tokens on every
-route; integration scaffold in `backend/tests/integration/` ready for the
-docker-compose CI run.
+**REBUILD complete (S1 → S10 + S4b).** All 27 routes on v2 design
+tokens; 150 real RBI circulars with structural content rendered in the
+detail page; RAG → LLM orchestration integration-tested against real
+pgvector; Playwright covers the MVP journey end-to-end. Outstanding:
+GCP Phase B (CI E2E gate + WIF + staging) and Phase C (real RBI scrape
+against prod Cloud SQL + smoke + `v1.0.0` tag) per `PRODUCTION_PLAN.md`.
 
-**REBUILD in progress.** The pre-rebuild project shipped 50 build prompts + 8 sprints + a Frontend v2 redesign on `main` with CI green, but a ReBuild audit (2026-05) found the MVP journey doesn't run end-to-end on real data, the v2 design system covers only the `(app)` route group, the circular detail page renders retrieval chunks rather than structured documents, RAG/LLM orchestration was unit-tested only at the utility-function layer, and the production scraper had never been run. The rebuild keeps ~165 files, rewrites/modifies ~45, discards 21 — and is sequenced as 10 sessions to land the MVP journey on real RBI data, in unified v2 design, with Playwright + integration tests gating every slice in CI.
+| Test gate | Count | Notes |
+|---|---|---|
+| pytest unit (SQLite + fakeredis) | 155 / 155 | Clean clone from `requirements-dev.txt` |
+| pytest integration (pgvector container) | 22 + 3 | Skip-loudly without `REGPULSE_INTEGRATION_DB_URL`; runs in CI |
+| Playwright E2E (auth / ask / save-history / library) | 14 / 14 | Against `docker compose up` stack |
+| Design-system grep (`navy-*`/`slate-*`/`gray-*`/`blue-*` in `frontend/src/app/`) | 0 hits | Per CLAUDE.md rule 15 |
+| `tsc --noEmit` | green | Strict mode |
 
-See `MEMORY.md` § Status for the full audit findings (F1–F8) and `CLAUDE.md` § Rebuild Progress for slice status.
+See `CLAUDE.md` § Rebuild Progress for the slice-by-slice tracker,
+`MEMORY.md` for current architecture / ADRs / tech debt, and
+`LEARNINGS.md` for accumulated gotchas + prevention rules.
 
 ---
 
@@ -110,7 +119,7 @@ CI runs unit + integration + E2E on every PR; evals run on PRs touching RAG/LLM 
 ```
 backend/                FastAPI + SQLAlchemy app
   app/                  routers, services, models, schemas, deps
-  migrations/           5 SQL files (initial + KG + confidence + sprint5 + system_user) + structured_content (slice 4)
+  migrations/           9 SQL files: 001 initial → 005 system_user → 006 structured_content → 007 v4 modules → 008 annotations → 009 scraper failed_extractions
   scripts/              seed_demo.py + backfill scripts
   tests/                unit / integration / evals
 scraper/                Celery scraper (crawler, extractor, processor, tasks)

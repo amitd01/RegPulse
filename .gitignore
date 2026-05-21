@@ -17,3 +17,22 @@ next-env.d.ts
 # Scraper
 scraper/.venv/
 scraper/test_RBI.pdf
+
+# Local dev noise — Claude/Antigravity session config, local venvs, transient
+# scratch files. These accumulate across sessions and shouldn't pollute the
+# repo. AG_NEXT.md was a stale Antigravity brief pointing at the long-resolved
+# SCR-1 ticket; RegPulse_Mockups.html is the pre-v2 mockup superseded by
+# files/design-v2/; Archives/ holds historical doc snapshots.
+.venv/
+.claude/
+.archive/
+Archives/
+*.bak
+temp.md
+AG_NEXT.md
+RegPulse_Mockups.html
+frontend/pnpm-workspace.yaml
+
+# Playwright artefacts
+frontend/test-results/
+frontend/playwright-report/

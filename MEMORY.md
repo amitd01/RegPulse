@@ -33,23 +33,6 @@ Outstanding work (not blocking code-complete state):
 
 ---
 
-## Status (rebuild in progress)
-
-The pre-rebuild codebase shipped 50 build prompts + 8 sprints + a Frontend v2 redesign on `main` with CI green and 106 unit tests passing — but did **not** demonstrate an end-to-end MVP journey on real RBI data. ReBuild audit identified:
-
-- F1 Half the app on the old navy Tailwind palette (auth, admin, landing, detail pages, snippet share); half on v2 terminal-modern (app shell + list pages)
-- F2 RAG/LLM orchestration never integration-tested (unit tests cover utility functions only)
-- F3 Cross-encoder reranker disabled in DEMO_MODE — the only runnable mode hides the quality differentiator
-- F4 Circular detail page renders 512-token retrieval chunks as bordered cards (category error — retrieval shape used as reading shape)
-- F5 PDF extractor flattens structure to linear text upstream, so headings/tables/lists are unrecoverable
-- F6 No real RBI corpus indexed (10 hand-seeded circulars total)
-- F7 No frontend tests, no Playwright, no E2E
-- F8 Integration tests = 1 file (auth flow), not in CI
-
-The rebuild keeps ~165 files, rewrites/modifies ~45, discards 21. Foundation (schema, models, routers, services, auth chain, v2 design tokens, AppShell) is reused; PDF extractor, detail page renderers, auth/admin/landing/snippet ports, and the test infrastructure are the rewrite surface.
-
----
-
 ## GCP State (snapshot 2026-05-21)
 
 Project `regpulse-495309` (asia-south1, billing `0130B1-10E7BB-34EF9C`). Live URLs respond 200 but the project is in a **paused posture** pending the merge-branch deploy:
@@ -265,33 +248,27 @@ make e2e                   # runs Playwright against the running stack
 | A17 | `get_settings()` lru_cache singleton | CONFIRMED |
 | A18 | v2 design tokens as CSS custom properties; dark mode via `html.dark` | CONFIRMED |
 | A19 | SSE via `fetch` + `ReadableStream`, not `EventSource` | CONFIRMED |
-| A20 | Scraper writes backend DB directly | MODIFIED → thin internal HTTP API (TD-01) |
-| A21 | "Update 4 docs after every prompt" | MODIFIED → per slice: MEMORY + spec + commit; coarser cadence |
-| A22 | Frontend v2 scope | MODIFIED → all 27 routes, not just `(app)` group |
-| A23 | PDF extractor produces linear text | MODIFIED → produce structured document tree |
-| A24 | Chunker emits 512-token windows | MODIFIED → emit retrieval chunks AND structured doc |
-| A25 | Mock-only routes ship without backend | MODIFIED → no UI without OpenAPI contract |
-| A26 | Manual UAT as quality gate | MODIFIED → Playwright E2E + integration suite in CI |
-| A27 | "Sprint complete = unit-green + manual UAT" | MODIFIED → slice complete = integration-green + Playwright-green on MVP journey |
-| A28 | Hand-rolled `lib/api.ts` | MODIFIED → openapi-typescript codegen |
-| A29 | DEMO_MODE skips reranker | REVERSED — reranker always on |
-| A30 | Render retrieval chunks as user-facing layer | REVERSED — structured document renderer |
-| A31 | Frontend redesign scope `(app)` group only | REVERSED — every route uses v2 |
-| A32 | v4 modules ship UI before backend | REVERSED — backend contract first |
-| A33 | Production scraper validation deferred | REVERSED — MVP gate requires ≥20 real RBI circulars |
+| A20 | Scraper writes backend DB directly (TD-01: internal HTTP API post-MVP) | CONFIRMED |
+| A21 | All 27 frontend routes use v2 design tokens (no `(app)`-only scope) | CONFIRMED |
+| A22 | PDF extractor emits structured tree + retrieval chunks (dual-output) | CONFIRMED |
+| A23 | No UI without an OpenAPI contract; codegen via `openapi-typescript` | CONFIRMED |
+| A24 | Slice complete = integration-green + Playwright-green on MVP journey | CONFIRMED |
+| A25 | Reranker always on (including DEMO_MODE) | CONFIRMED |
+| A26 | Render `circular_documents.structured_content`, never `document_chunks.chunk_text`, to users | CONFIRMED |
+| A27 | Answer-cache hits persist a per-user `Question` row (no credit deduction); SSE callers get events not JSON | CONFIRMED |
 
 ---
 
-## Technical Debt (post-rebuild)
+## Technical Debt
 
 | ID | Issue | Plan |
 |---|---|---|
-| TD-01 | Scraper writes backend DB directly | Internal HTTP API in slice 11+ (post-MVP) |
-| TD-03 | Manual `api.ts` client | Resolved in slice 2 (codegen) |
-| TD-09 | `BACKEND_PUBLIC_URL` unset | Resolved in slice 10 |
-| G-10 | LLM circuit breaker | Resolved in slice 10 (pybreaker) |
+| TD-01 | Scraper writes backend DB directly | Internal HTTP API post-MVP |
+| TD-AUTH | Backend returns 403 for missing token; axios interceptor only retries 401 | Either backend returns 401 for missing-token, or interceptor retries both; layout gate masks symptom (per L-Merge.1 rule #4) |
+| TD-LIB-FALLBACK | `/library` + `/saved` collapse loading/error/empty into mock fallback | Distinguish `isLoading` / `isError` / `data === []` explicitly (per L-Merge.1 rule #3) |
+| TD-ASK-JSON | Ask page renders raw LLM JSON envelope as markdown for non-consult-expert answers | Frontend should parse JSON and render `detailed_interpretation`, or backend should stream parsed prose tokens only |
 | OP-1 | `questions.question_embedding` NULL for pre-Sprint 8 rows | One-time backfill in production |
-| OP-2 | Admin sandbox doesn't swap PromptVersion at LLM call time | Wire in slice 9 |
+| OP-2 | Admin sandbox doesn't swap PromptVersion at LLM call time | Wire post-MVP |
 
 ---
 
