@@ -34,8 +34,11 @@ from app.rate_limit import limiter
 from app.routers.account import router as account_router
 from app.routers.action_items import router as action_items_router
 from app.routers.admin import router as admin_router
+from app.routers.annotations import router as annotations_router
 from app.routers.auth import router as auth_router
 from app.routers.circulars import router as circulars_router
+from app.routers.debates import router as debates_router
+from app.routers.learnings import router as learnings_router
 from app.routers.news import router as news_router
 from app.routers.questions import router as questions_router
 from app.routers.saved import router as saved_router
@@ -287,6 +290,9 @@ app.include_router(action_items_router, prefix="/api/v1/action-items")
 app.include_router(saved_router, prefix="/api/v1/saved")
 app.include_router(snippets_router, prefix="/api/v1/snippets")
 app.include_router(news_router, prefix="/api/v1/news")
+app.include_router(learnings_router, prefix="/api/v1/learnings")
+app.include_router(debates_router, prefix="/api/v1/debates")
+app.include_router(annotations_router, prefix="/api/v1/annotations")
 app.include_router(admin_router, prefix="/api/v1/admin")
 
 
