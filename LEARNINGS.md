@@ -587,10 +587,29 @@
 **Fix:** Hard-coded the hash-form URL in the script + did a `gcloud run services update --update-env-vars FRONTEND_URL=…` on the live service. Both work, but the next time the frontend is recreated (and gets a new hash) the script will drift again.
 **Prevention:** Either (a) read FRONTEND_URL at deploy time via `gcloud run services describe regpulse-frontend --format='value(status.url)'`, or (b) move per-environment URLs to an `.env`-style override file under version control. Don't trust comments-to-self in shell scripts to stay in sync.
 
-### L-Merge.1 — Rebuild shipped Playwright suite that has never passed
-**What bit us:** Step "Run Playwright E2E" of the post-merge gate. All 10 specs across `auth.spec.ts`, `ask.spec.ts`, `save-history.spec.ts` fail against the live docker compose stack. Two failure modes:
-- `auth.spec.ts` v2 visual sanity expects `background-color: rgb(246, 245, 241)` but pages render `rgb(249, 250, 251)` (Tailwind slate-50).
-- All journey tests expect heading "open your terminal" but pages render "Welcome back" / "RegPulse".
-**Root cause:** Rebuild's S3 commit `831bcf5` ("Auth journey on v2 (slice 1)") landed `(auth)/{login,register,verify}` + the Playwright suite, claimed `tsc` green, but never executed `make e2e`. CLAUDE.md Rule 17 says "Slice complete = integration-green + Playwright-green" — this slice was marked Done without Playwright actually being green. Same likely holds for S5 (ask) and S6 (save-history) which added more specs without running them.
-**Fix:** Not in scope for the merge. Either bring page CSS to match the test (apply `--paper` token to auth pages + rewrite copy to "open your terminal" headlines), or amend tests to match the shipped pages. Recommend the first — the v2 design source is the authoritative truth.
-**How to prevent:** Wire `make e2e` into CI as a hard gate before any slice is marked Done. Rule 17 is policy without an enforcement mechanism right now — pre-merge CI is the only honest place to put one.
+### L-Merge.1 — Auth bootstrap race made every authenticated (app) page silently fall back to mocks
+**What bit us:** The post-merge Playwright run was 4/10 passing. Initial diagnosis blamed a CSS/copy mismatch — the v2 visual tests were claimed to expect `rgb(246, 245, 241)` against pages rendering `rgb(249, 250, 251)`. That diagnosis was wrong. The visual tests passed immediately against a fresh `next build` (the original failure was a stale docker frontend image). The actual failures clustered around three distinct bugs the rebuild's slice closures had never exercised end-to-end:
+1. `ask.spec.ts` "off-domain question triggers consult-expert" hung waiting for `[data-testid="consult-expert"]` because the no-chunks path returned JSON even when the client sent `Accept: text/event-stream`. The Ask page's SSE parser never received a `citations` event → UI stuck in "streaming" forever.
+2. The `consult-expert` testid rendered but with zero content (the answer body was gated on `state.answer` being truthy; the no-token-stream path leaves it empty). Playwright treats zero-height elements as hidden → `toBeVisible()` failed.
+3. `save-history.spec.ts` timed out on `waitForURL(/\/history\/[id]/)` after clicking a `saved-card`. Investigation: the page rendered four mock cards from `RP_DATA.saved`, not the one live saved item. Mock cards have no `<Link>` wrapper, so the click was a no-op.
+
+**Root cause:** Three independent shortcuts compounded into one symptom on `/saved`:
+- `(app)/layout.tsx` had a fire-and-forget `useEffect(() => silentRefresh())`. Children mounted and fired their initial GETs *before* the refresh-cookie bootstrap returned, so every authenticated route's first request landed without an Authorization header.
+- The axios response interceptor only retries on 401. The backend's `get_current_user` returns 403 when no token is present at all (it returns 401 only for *expired* tokens). The 403 was therefore never retried; React Query latched into an error state.
+- `/saved/page.tsx` collapsed "loading," "error," and "empty" into one branch (`data?.data ?? []` → fall back to mocks if `.length === 0`). A failed query looked identical to a fresh-user empty list, and the mocks rendered without a Link wrapper — so the test's click did nothing.
+
+The rebuild's S3 slice was marked Done with `tsc --noEmit` green; the Playwright suite was authored but never executed against a stack that actually performed a hard navigation into an (app) route. Login-form flows worked because the form set the token synchronously before navigating. Hard navs (Playwright's `page.goto('/saved')` from a fresh context) exposed the race.
+
+**Fix:**
+1. `(app)/layout.tsx` now gates children render on `authReady` — a boolean that flips true only after `silentRefresh()` settles (resolved or rejected). First mount with no token returns `null` until the bootstrap completes. Every downstream component sees a valid bearer in zustand before it fires its first request.
+2. `backend/app/routers/questions.py` now wraps the no-chunks consult-expert response in an SSE stream when `Accept: text/event-stream` is present (`_stream_no_chunks_response()` yields a single `citations` + `done` event pair with `consult_expert=true`).
+3. `frontend/src/app/(app)/ask/page.tsx` now treats `state.consultExpert` as a sufficient condition for `hasAnswer`, with a visible fallback message in that branch.
+
+Net effect: 4/10 → 10/10 Playwright; backend unit tests stay at 155/155; `tsc` green.
+
+**How to prevent:**
+1. **CI hard gate.** Wire `make e2e` into pre-merge CI. CLAUDE.md Rule 17 ("Slice complete = integration-green + Playwright-green") is policy without enforcement — fix that.
+2. **Hard-nav coverage rule.** Every authenticated route must have at least one Playwright case that enters it via `page.goto('/<route>')` from a fresh context, not just from a logged-in chain. The S3 spec only covered the login-form path, which is exactly the path that doesn't surface the race.
+3. **"Live or mock fallback" UI patterns must distinguish `isLoading` / `isError` / `data === []`.** Mocks are for the genuinely-empty case, never for "the request failed." Add an `isError` branch that surfaces an explicit message; collapsing failure into mocks turns a 403 into a silent product bug.
+4. **Backend auth chain should return 401 for missing tokens**, not 403 — or the axios interceptor should retry on both. The current mismatch means the auto-refresh path silently doesn't fire for the most common case (cold-start with valid refresh cookie). Tracked as tech debt; the layout gate masks the symptom but the underlying 401/403 inconsistency remains.
+5. **Every new SSE endpoint needs a test that asserts `Content-Type: text/event-stream` for both happy-path and fallback paths.** The no-chunks branch slipped through because the schema-level happy-path tests didn't exercise the consult-expert media-type switch.
