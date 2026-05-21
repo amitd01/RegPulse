@@ -16,4 +16,11 @@ from app.models.question import ActionItem, Question, SavedInterpretation  # noq
 from app.models.scraper import ScraperRun  # noqa: E402, F401
 from app.models.snippet import PublicSnippet  # noqa: E402, F401
 from app.models.subscription import SubscriptionEvent  # noqa: E402, F401
+from app.models.collaboration import (  # noqa: E402, F401
+    Annotation,
+    AnnotationReply,
+    Debate,
+    DebateReply,
+    TeamLearning,
+)
 from app.models.user import PendingDomainReview, Session, User  # noqa: E402, F401

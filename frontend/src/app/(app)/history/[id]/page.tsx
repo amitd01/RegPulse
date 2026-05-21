@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AnswerView } from "@/components/answer/AnswerView";
+import { AnnotationPanel } from "@/components/collaboration/AnnotationPanel";
 import { ShareSnippetDialog } from "@/components/ShareSnippetDialog";
 import { Spinner } from "@/components/ui/Spinner";
 import { trackEvent } from "@/lib/analytics";
@@ -135,6 +136,15 @@ export default function QuestionDetailPage() {
         existingFeedback={q.feedback}
         extraActions={shareButton}
       />
+
+      {q.answer_text && (
+        <div className="mx-auto mt-8 max-w-5xl">
+          <h2 className="mb-4 font-serif text-xl text-[#1A2B40] dark:text-gray-100">
+            Team Annotations
+          </h2>
+          <AnnotationPanel questionId={q.id} answerText={q.answer_text} />
+        </div>
+      )}
 
       <ShareSnippetDialog
         questionId={id}

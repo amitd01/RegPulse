@@ -5,7 +5,7 @@ import type { NextRequest } from "next/server";
  * Middleware for route protection.
  *
  * Public routes: /, /login, /register, /verify, /library (browsable without auth)
- * Protected routes: /ask, /history, /updates, /saved, /action-items, /account, /admin
+ * Protected routes: /ask, /history, /updates, /saved, /action-items, /learnings, /debates, /account, /admin
  *
  * NOTE: Actual JWT validation happens server-side. This middleware only checks
  * for the presence of a refresh token cookie as a quick client-side gate.
