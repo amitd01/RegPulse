@@ -39,7 +39,7 @@ B2B SaaS for Indian banking professionals. RAG-powered Q&A over RBI Circulars wi
 
 ## Schema (19 tables)
 
-Ground truth: `backend/migrations/001_initial_schema.sql` + `002_sprint3_knowledge_graph.sql` + `003_sprint4_confidence.sql` + `004_sprint5.sql` + `005_sprint6_system_user.sql`
+Ground truth: `backend/migrations/001_initial_schema.sql` + `002_sprint3_knowledge_graph.sql` + `003_sprint4_confidence.sql` + `004_sprint5.sql` + `005_sprint6_system_user.sql` + `007_sprint9_interpretation_feedback.sql`
 
 | Table | Model | Key columns |
 |-------|-------|-------------|
@@ -47,7 +47,7 @@ Ground truth: `backend/migrations/001_initial_schema.sql` + `002_sprint3_knowled
 | sessions | `user.py` | token_hash, expires_at, revoked |
 | circular_documents | `circular.py` | title, status, impact_level, affected_teams, tags |
 | document_chunks | `circular.py` | chunk_text, embedding vector(3072) |
-| questions | `question.py` | answer_text, quick_answer, risk_level, **confidence_score**, **consult_expert**, citations JSONB |
+| questions | `question.py` | answer_text, quick_answer, risk_level, **confidence_score**, **consult_expert**, citations JSONB (feedback/feedback_comment removed — Sprint 9) |
 | action_items | `question.py` | title, assigned_team, priority, status, due_date |
 | saved_interpretations | `question.py` | name, tags, needs_review |
 | prompt_versions | `admin.py` | version_tag, prompt_text, is_active |
@@ -62,6 +62,7 @@ Ground truth: `backend/migrations/001_initial_schema.sql` + `002_sprint3_knowled
 | public_snippets (Sprint 3) | `snippet.py` | slug, question_id, snippet_text, top_citation, consult_expert |
 | manual_uploads (Sprint 5) | `admin.py` | admin_id, filename, status, document_id, error_message |
 | question_clusters (Sprint 5) | `admin.py` | cluster_label, representative_questions, centroid, period_start/end |
+| interpretation_feedback (Sprint 9) | `question.py` | question_id, user_id, **is_helpful** (bool), category (enum), comment; UNIQUE(question_id, user_id) |
 
 Indexes: ivfflat on embeddings (lists=100), GIN on FTS + citations JSONB + tags JSONB, btree on FKs/status/timestamps.
 

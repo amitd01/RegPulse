@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_db
 from app.dependencies.auth import require_admin
 from app.models.admin import AdminAuditLog
-from app.models.question import Question
+from app.models.question import InterpretationFeedback, Question
 from app.models.user import User
 from app.schemas.admin import AdminQuestionOverride
 from app.schemas.questions import QuestionListResponse, QuestionSummary
@@ -22,7 +22,8 @@ router = APIRouter()
 
 @router.get("", response_model=QuestionListResponse)
 async def list_flagged_questions(
-    feedback: int | None = Query(default=-1),
+    is_helpful: bool | None = Query(default=False, description="Filter by thumbs-up (true) or thumbs-down (false)"),
+    has_feedback: bool | None = Query(default=True, description="When true, only questions that have feedback"),
     reviewed: bool | None = Query(default=False),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
@@ -33,9 +34,16 @@ async def list_flagged_questions(
     base = select(Question)
     count_base = select(func.count(Question.id))
 
-    if feedback is not None:
-        base = base.where(Question.feedback == feedback)
-        count_base = count_base.where(Question.feedback == feedback)
+    if has_feedback:
+        base = base.join(InterpretationFeedback, InterpretationFeedback.question_id == Question.id)
+        count_base = count_base.join(
+            InterpretationFeedback, InterpretationFeedback.question_id == Question.id
+        )
+
+    if is_helpful is not None and has_feedback:
+        base = base.where(InterpretationFeedback.is_helpful == is_helpful)
+        count_base = count_base.where(InterpretationFeedback.is_helpful == is_helpful)
+
     if reviewed is not None:
         base = base.where(Question.reviewed == reviewed)
         count_base = count_base.where(Question.reviewed == reviewed)

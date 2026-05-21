@@ -1,20 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import type { FeedbackCategory, FeedbackRecord } from "@/types";
 
-const FEEDBACK_CATEGORIES = [
-  "Incorrect Interpretation",
-  "Missing Citation",
-  "UI Issue",
-  "Compliance Concern",
-  "Other",
-] as const;
+const FEEDBACK_CATEGORIES: { value: FeedbackCategory; label: string }[] = [
+  { value: "INCORRECT_INTERPRETATION", label: "Incorrect Interpretation" },
+  { value: "MISSING_CITATION",         label: "Missing Citation" },
+  { value: "UI_ISSUE",                 label: "UI Issue" },
+  { value: "COMPLIANCE_CONCERN",       label: "Compliance Concern" },
+  { value: "OTHER",                    label: "Other" },
+];
 
 interface FeedbackSectionProps {
-  onSubmit: (data: { comment: string; category: string; feedback: number }) => void;
+  onSubmit: (data: { comment: string; category: string; is_helpful: boolean }) => void;
   isSubmitting?: boolean;
   submitted?: boolean;
-  existingFeedback?: number | null;
+  existingFeedback?: FeedbackRecord | null;
 }
 
 export function FeedbackSection({
@@ -24,20 +25,20 @@ export function FeedbackSection({
   existingFeedback,
 }: FeedbackSectionProps) {
   const [comment, setComment] = useState("");
-  const [category, setCategory] = useState("");
-  const [rating, setRating] = useState<1 | -1 | null>(null);
+  const [category, setCategory] = useState<FeedbackCategory | "">("");
+  const [isHelpful, setIsHelpful] = useState<boolean | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!comment.trim() && rating === null) return;
+    if (!comment.trim() && isHelpful === null) return;
     onSubmit({
       comment: comment.trim(),
       category,
-      feedback: rating ?? 1,
+      is_helpful: isHelpful ?? true,
     });
   };
 
-  if (submitted || (existingFeedback !== null && existingFeedback !== undefined)) {
+  if (submitted || existingFeedback != null) {
     return (
       <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-center">
         <div className="mb-1 flex justify-center">
@@ -72,9 +73,9 @@ export function FeedbackSection({
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => setRating(rating === 1 ? null : 1)}
+              onClick={() => setIsHelpful(isHelpful === true ? null : true)}
               className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                rating === 1
+                isHelpful === true
                   ? "border-emerald-300 bg-emerald-50 text-emerald-700"
                   : "border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50"
               }`}
@@ -86,9 +87,9 @@ export function FeedbackSection({
             </button>
             <button
               type="button"
-              onClick={() => setRating(rating === -1 ? null : -1)}
+              onClick={() => setIsHelpful(isHelpful === false ? null : false)}
               className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                rating === -1
+                isHelpful === false
                   ? "border-red-300 bg-red-50 text-red-700"
                   : "border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50"
               }`}
@@ -108,13 +109,15 @@ export function FeedbackSection({
           </label>
           <select
             value={category}
-            onChange={(e) => setCategory(e.target.value)}
+            onChange={(e) =>
+              setCategory(e.target.value as FeedbackCategory | "")
+            }
             className="w-full rounded-lg border border-cream-300 bg-white px-3 py-2 text-[13px] text-[#1A2B40] focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500/30"
           >
             <option value="">Select a category…</option>
             {FEEDBACK_CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
+              <option key={c.value} value={c.value}>
+                {c.label}
               </option>
             ))}
           </select>
@@ -141,7 +144,7 @@ export function FeedbackSection({
         {/* Submit */}
         <button
           type="submit"
-          disabled={(!comment.trim() && rating === null) || isSubmitting}
+          disabled={(!comment.trim() && isHelpful === null) || isSubmitting}
           className="w-full rounded-lg bg-[linear-gradient(135deg,#1B3A5C,#0F1C2E)] px-4 py-2.5 text-[13px] font-semibold text-white shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isSubmitting ? "Submitting…" : "Submit Feedback"}

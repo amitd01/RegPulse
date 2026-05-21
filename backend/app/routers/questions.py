@@ -16,13 +16,14 @@ import structlog
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy import desc, func, select, text
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.cache import get_redis
 from app.db import get_db
 from app.dependencies.auth import require_credits, require_verified_user
 from app.dependencies.rag import build_llm_service, build_rag_service
-from app.models.question import Question
+from app.models.question import InterpretationFeedback, Question
 from app.models.user import User
 from app.schemas.questions import (
     FeedbackRequest,
@@ -216,7 +217,7 @@ async def ask_question(
             "credit_deducted": question.credit_deducted,
             "streaming_completed": question.streaming_completed,
             "latency_ms": question.latency_ms,
-            "feedback": None,
+            "feedback_record": None,
             "created_at": question.created_at.isoformat(),
         },
     )
@@ -381,7 +382,7 @@ async def _stream_response(
                     "credit_deducted": True,
                     "streaming_completed": True,
                     "latency_ms": latency_ms,
-                    "feedback": None,
+                    "feedback_record": None,
                     "created_at": question.created_at.isoformat(),
                 },
             )
@@ -426,6 +427,7 @@ async def list_questions(
 
     stmt = (
         select(Question)
+        .options(selectinload(Question.interpretation_feedback))
         .where(Question.user_id == user.id)
         .order_by(desc(Question.created_at))
         .offset((page - 1) * page_size)
@@ -515,9 +517,13 @@ async def get_question(
     db: AsyncSession = Depends(get_db),
 ) -> QuestionResponse:
     """Get question detail. Only accessible by the question's owner."""
-    stmt = select(Question).where(
-        Question.id == question_id,
-        Question.user_id == user.id,
+    stmt = (
+        select(Question)
+        .options(selectinload(Question.interpretation_feedback))
+        .where(
+            Question.id == question_id,
+            Question.user_id == user.id,
+        )
     )
     result = await db.execute(stmt)
     question = result.scalar_one_or_none()
@@ -620,25 +626,55 @@ async def submit_feedback(
     user: User = Depends(require_verified_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Submit thumbs up/down feedback on a question."""
+    """Upsert structured feedback on an answer interpretation."""
+    from app.exceptions import RegPulseException
+
+    class QuestionNotFoundError(RegPulseException):
+        http_status = 404
+        error_code = "QUESTION_NOT_FOUND"
+
     stmt = select(Question).where(
         Question.id == question_id,
         Question.user_id == user.id,
     )
     result = await db.execute(stmt)
-    question = result.scalar_one_or_none()
-
-    if question is None:
-        from app.exceptions import RegPulseException
-
-        class QuestionNotFoundError(RegPulseException):
-            http_status = 404
-            error_code = "QUESTION_NOT_FOUND"
-
+    if result.scalar_one_or_none() is None:
         raise QuestionNotFoundError("Question not found")
 
-    question.feedback = body.feedback
-    question.feedback_comment = body.comment
-    await db.commit()
+    # Resolve category enum value (None stays None)
+    from app.models.question import FeedbackCategory as FbCat
 
+    category = None
+    if body.category:
+        try:
+            category = FbCat(body.category)
+        except ValueError:
+            pass  # unrecognised value — store as null
+
+    # Upsert: one feedback record per (question, user)
+    existing_stmt = select(InterpretationFeedback).where(
+        InterpretationFeedback.question_id == question_id,
+        InterpretationFeedback.user_id == user.id,
+    )
+    existing = (await db.execute(existing_stmt)).scalar_one_or_none()
+
+    from datetime import UTC, datetime
+
+    if existing:
+        existing.is_helpful = body.is_helpful
+        existing.category = category
+        existing.comment = body.comment
+        existing.updated_at = datetime.now(UTC)
+    else:
+        db.add(
+            InterpretationFeedback(
+                question_id=question_id,
+                user_id=user.id,
+                is_helpful=body.is_helpful,
+                category=category,
+                comment=body.comment,
+            )
+        )
+
+    await db.commit()
     return {"success": True, "message": "Feedback recorded"}

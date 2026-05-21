@@ -13,7 +13,6 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
-    SmallInteger,
     String,
     Text,
 )
@@ -27,6 +26,14 @@ class ActionItemStatus(enum.StrEnum):
     PENDING = "PENDING"
     IN_PROGRESS = "IN_PROGRESS"
     COMPLETED = "COMPLETED"
+
+
+class FeedbackCategory(enum.StrEnum):
+    INCORRECT_INTERPRETATION = "INCORRECT_INTERPRETATION"
+    MISSING_CITATION = "MISSING_CITATION"
+    UI_ISSUE = "UI_ISSUE"
+    COMPLIANCE_CONCERN = "COMPLIANCE_CONCERN"
+    OTHER = "OTHER"
 
 
 class Question(Base):
@@ -49,8 +56,6 @@ class Question(Base):
     chunks_used: Mapped[dict | None] = mapped_column(JSONB, server_default="'[]'::jsonb")
     model_used: Mapped[str | None] = mapped_column(String(50))
     prompt_version: Mapped[str | None] = mapped_column(String(50))
-    feedback: Mapped[int | None] = mapped_column(SmallInteger)
-    feedback_comment: Mapped[str | None] = mapped_column(Text)
     admin_override: Mapped[str | None] = mapped_column(Text)
     reviewed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -72,6 +77,11 @@ class Question(Base):
     )
     saved_interpretations: Mapped[list["SavedInterpretation"]] = relationship(
         back_populates="question", cascade="all, delete"
+    )
+    interpretation_feedback: Mapped["InterpretationFeedback | None"] = relationship(
+        back_populates="question",
+        uselist=False,
+        cascade="all, delete",
     )
 
 
@@ -130,3 +140,29 @@ class SavedInterpretation(Base):
 
     # Relationships
     question: Mapped["Question"] = relationship(back_populates="saved_interpretations")
+
+
+class InterpretationFeedback(Base):
+    __tablename__ = "interpretation_feedback"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    question_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("questions.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    is_helpful: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    category: Mapped[FeedbackCategory | None] = mapped_column(
+        Enum(FeedbackCategory, name="feedback_category_enum"), nullable=True
+    )
+    comment: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default="now()"
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default="now()"
+    )
+
+    # Relationships
+    question: Mapped["Question"] = relationship(back_populates="interpretation_feedback")

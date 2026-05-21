@@ -5,14 +5,14 @@ from __future__ import annotations
 from datetime import UTC, date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, select, text
+from sqlalchemy import Integer, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
 from app.dependencies.auth import require_admin
 from app.models.admin import QuestionCluster
 from app.models.circular import CircularDocument
-from app.models.question import Question
+from app.models.question import InterpretationFeedback, Question
 from app.models.user import User
 from app.schemas.admin import (
     ClusterHeatmapResponse,
@@ -49,13 +49,18 @@ async def get_dashboard(
     total_circulars = (await db.execute(select(func.count(CircularDocument.id)))).scalar() or 0
     pending_reviews = (
         await db.execute(
-            select(func.count(Question.id)).where(
-                Question.feedback == -1, Question.reviewed.is_(False)
+            select(func.count(Question.id))
+            .join(InterpretationFeedback, InterpretationFeedback.question_id == Question.id)
+            .where(
+                InterpretationFeedback.is_helpful.is_(False),
+                Question.reviewed.is_(False),
             )
         )
     ).scalar() or 0
-    avg_feedback = (
-        await db.execute(select(func.avg(Question.feedback)).where(Question.feedback.is_not(None)))
+    avg_feedback_raw = (
+        await db.execute(
+            select(func.avg(InterpretationFeedback.is_helpful.cast(Integer)))
+        )
     ).scalar()
     credits_30d = (
         await db.execute(
@@ -74,7 +79,7 @@ async def get_dashboard(
             questions_today=questions_today,
             total_circulars=total_circulars,
             pending_reviews=pending_reviews,
-            avg_feedback_score=round(float(avg_feedback), 2) if avg_feedback else None,
+            avg_feedback_score=round(float(avg_feedback_raw), 2) if avg_feedback_raw else None,
             credits_consumed_30d=credits_30d,
         )
     )

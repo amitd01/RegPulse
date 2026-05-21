@@ -61,19 +61,20 @@ export function useAskQuestion() {
   });
 }
 
-/** Submit feedback on a question. */
+/** Submit structured feedback on an answer interpretation. */
 export function useSubmitFeedback() {
   const queryClient = useQueryClient();
 
   return useMutation<
     { success: boolean },
     Error,
-    { questionId: string; feedback: number; comment?: string }
+    { questionId: string; is_helpful: boolean; category?: string; comment?: string }
   >({
-    mutationFn: async ({ questionId, feedback, comment }) => {
+    mutationFn: async ({ questionId, is_helpful, category, comment }) => {
       const { data } = await api.patch(`/questions/${questionId}/feedback`, {
-        feedback,
-        comment,
+        is_helpful,
+        category: category || null,
+        comment: comment || null,
       });
       return data;
     },
@@ -81,6 +82,7 @@ export function useSubmitFeedback() {
       queryClient.invalidateQueries({
         queryKey: ["questions", "detail", variables.questionId],
       });
+      queryClient.invalidateQueries({ queryKey: ["questions", "history"] });
     },
   });
 }
