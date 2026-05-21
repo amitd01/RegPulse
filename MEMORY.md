@@ -52,6 +52,23 @@ The rebuild keeps ~165 files, rewrites/modifies ~45, discards 21. Foundation (sc
 
 ---
 
+## GCP State (snapshot 2026-05-21)
+
+Project `regpulse-495309` (asia-south1, billing `0130B1-10E7BB-34EF9C`). Live URLs respond 200 but the project is in a **paused posture** pending the merge-branch deploy:
+
+- **Cloud SQL `regpulse-db`: STOPPED** (`activationPolicy=NEVER`, halted 2026-05-20 09:30 UTC). Backend health pings still 200; any real query 5xx.
+- **Cloud Run scale-to-zero.** Both `regpulse-backend` (rev `00010-kh5`) and `regpulse-frontend` (rev `00002-gnl`) at `min-instances=0` since 2026-05-21 — cold start ~0.5–1s on first hit.
+- **Scheduler `regpulse-scraper-daily`: PAUSED** (was firing daily at 20:30 UTC against stopped DB → exit 1). Unpause only after SQL is started.
+- **Budget: ₹3000/mo, alerts at 80/90/100%** of `CURRENT_SPEND`. Notifications fall through to billing-admin IAM members via default rule; no Pub/Sub channel wired — add one before relying on alerts.
+- **Last successful scrape:** 2026-05-19 20:39 UTC (8 clean runs before SQL stop). After that, only `wnc65` (2026-05-20) failed with `NonZeroExitCode` against the stopped DB.
+- **Drift:** live images predate the merge/rebuild work — `backend@d8a44075…` + `frontend@0a1c3fd9…` (built 2026-05-14/15). None of S1→S10 or S4b.1 are on prod. **Next deploy needs `backend:rc3 / frontend:rc2 / scraper:rc2`** images built from this branch.
+- **Privileged IAM:** `user:shubhamkadam1802@gmail.com` still holds Editor + iam.devOps. Held in scope deliberately as of 2026-05-21.
+- **Artifact Registry: 13.6 GB** across 4 backend / 1 frontend / 5 scraper images — no cleanup pass yet.
+
+**Before next demo:** start SQL → unpause scheduler → set Cloud Run `min-instances=1` → deploy rebuild images.
+
+---
+
 ## Product
 
 B2B SaaS for Indian banking compliance professionals. RAG-powered Q&A over RBI Circulars with cited answers. Work-email-gated, subscription-based, 5 free lifetime credits.
