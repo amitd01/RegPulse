@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AxiosError } from "axios";
 import api from "@/lib/api";
@@ -67,3 +68,13 @@ export function useSaveInterpretation() {
 }
 
 export { getSaveErrorMessage };
+
+/** Whether the current user has already saved this question. */
+export function useIsQuestionSaved(questionId: string | null | undefined): boolean {
+  const { data } = useSavedInterpretations(1, 100);
+
+  return useMemo(() => {
+    if (!questionId || !data?.data) return false;
+    return data.data.some((item) => item.question_id === questionId);
+  }, [questionId, data]);
+}

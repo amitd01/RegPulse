@@ -33,11 +33,6 @@ export default function Home() {
 
       {/* Hero */}
       <section className="landing-hero">
-        <div className="landing-hero-eyebrow">
-          <div className="landing-eyebrow-dot" />
-          Powered by RBI Circular Database v4.2
-        </div>
-
         <h1 className="landing-hero-h1">
           RBI Regulatory Intelligence,
           <br />

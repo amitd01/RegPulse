@@ -264,7 +264,7 @@ export function AppSidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-3 py-5">
+      <nav className="sidebar-no-scrollbar flex-1 overflow-y-auto px-3 py-5">
         {/* Workspace section */}
         <div className="mb-1.5 px-3 text-[9px] font-semibold uppercase tracking-[0.16em] text-[#7A95AD]">
           Workspace
@@ -330,7 +330,7 @@ export function AppSidebar() {
               />
             </div>
             <div className="mt-1.5 text-[11px] font-semibold text-gold-400">
-              {creditBalance} / 500 remaining
+              {creditBalance} credits remaining
             </div>
           </div>
         )}

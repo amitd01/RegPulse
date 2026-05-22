@@ -37,8 +37,10 @@ interface FilterPanelProps {
 const selectClass =
   "w-full rounded-lg border border-cream-300 bg-cream-50 px-3 py-2 text-[13px] text-[#1A2B40] shadow-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500/30 dark:border-navy-600 dark:bg-navy-800 dark:text-gray-200";
 
+/*
 const dateInputClass =
   "w-full rounded-lg border border-cream-300 bg-cream-50 px-3 py-2 text-[13px] text-[#1A2B40] shadow-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500/30 dark:border-navy-600 dark:bg-navy-800 dark:text-gray-200";
+*/
 
 export function FilterPanel({ filters, onFilterChange, onApply, onReset }: FilterPanelProps) {
   const hasActiveFilters =
@@ -95,7 +97,8 @@ export function FilterPanel({ filters, onFilterChange, onApply, onReset }: Filte
           </select>
         </div>
 
-        {/* Issue Date range */}
+        {/* Issue Date range — temporarily hidden */}
+        {/*
         <div>
           <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">
             Issue Date
@@ -115,6 +118,7 @@ export function FilterPanel({ filters, onFilterChange, onApply, onReset }: Filte
             placeholder="dd-mm-yyyy"
           />
         </div>
+        */}
 
         {/* Department */}
         <div>

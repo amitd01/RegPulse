@@ -39,6 +39,7 @@ from app.services.email_service import EmailService
 from app.services.llm_service import LLMService
 from app.services.rag_service import RAGService
 from app.utils.credit_utils import deduct_credit
+from app.utils.org_utils import question_in_org, user_org_domain
 
 router = APIRouter(tags=["questions"])
 logger = structlog.get_logger("regpulse.questions")
@@ -516,19 +517,19 @@ async def get_question(
     user: User = Depends(require_verified_user),
     db: AsyncSession = Depends(get_db),
 ) -> QuestionResponse:
-    """Get question detail. Only accessible by the question's owner."""
+    """Get question detail. Owner or same-org teammates (team collaboration)."""
     stmt = (
         select(Question)
         .options(selectinload(Question.interpretation_feedback))
-        .where(
-            Question.id == question_id,
-            Question.user_id == user.id,
-        )
+        .where(Question.id == question_id)
     )
     result = await db.execute(stmt)
     question = result.scalar_one_or_none()
 
-    if question is None:
+    if question is None or (
+        question.user_id != user.id
+        and not await question_in_org(db, question_id, user_org_domain(user))
+    ):
         from app.exceptions import RegPulseException
 
         class QuestionNotFoundError(RegPulseException):

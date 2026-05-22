@@ -1,36 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { listNews, sourceLabel, type NewsListResponse } from "@/lib/api/news";
-import { Badge, impactVariant, statusVariant } from "@/components/ui/Badge";
+import { Badge } from "@/components/ui/Badge";
 import { Pagination } from "@/components/ui/Pagination";
 import { CardListSkeleton } from "@/components/ui/Skeleton";
-import type { CircularListItem, PaginatedResponse } from "@/types";
-
-type Tab = "circulars" | "news";
-type UpdatesFilter = "all" | "week" | "high";
-
-interface UpdatesFeedResponse extends PaginatedResponse<CircularListItem> {
-  unread_count: number;
-}
-
-function useUpdatesFeed(page: number, filter: UpdatesFilter, enabled: boolean) {
-  return useQuery<UpdatesFeedResponse>({
-    queryKey: ["circulars", "updates", page, filter],
-    queryFn: async () => {
-      const params: Record<string, string | number> = { page, page_size: 20 };
-      params.days = filter === "week" ? 7 : 30;
-      if (filter === "high") params.impact_level = "HIGH";
-      const { data } = await api.get("/circulars/updates", { params });
-      return data;
-    },
-    staleTime: 60_000,
-    enabled,
-  });
-}
 
 function useMarkUpdatesSeen() {
   const qc = useQueryClient();
@@ -57,17 +33,9 @@ function stripHtml(input: string | null): string {
 }
 
 export default function UpdatesPage() {
-  const [tab, setTab] = useState<Tab>("circulars");
-  const [filter, setFilter] = useState<UpdatesFilter>("all");
-  const [circPage, setCircPage] = useState(1);
   const [newsPage, setNewsPage] = useState(1);
 
-  const { data: circData, isLoading: circLoading } = useUpdatesFeed(
-    circPage,
-    filter,
-    tab === "circulars",
-  );
-  const { data: newsData, isLoading: newsLoading } = useNews(newsPage, tab === "news");
+  const { data: newsData, isLoading: newsLoading } = useNews(newsPage, true);
   const markSeen = useMarkUpdatesSeen();
 
   // Fire mark-seen once on first mount of the page.
@@ -83,126 +51,16 @@ export default function UpdatesPage() {
           Regulatory Updates
         </h2>
 
-      {/* Tabs */}
-      <div className="mb-6 flex gap-2 border-b border-cream-300 dark:border-navy-700">
-        {(["circulars", "news"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`border-b-2 px-3 pb-2 text-[13.5px] font-medium transition-colors ${
-              tab === t
-                ? "border-navy-900 text-[#1A2B40] dark:border-gold-400 dark:text-gold-400"
-                : "border-transparent text-[#7A95AD] hover:text-[#1A2B40] dark:text-gray-400 dark:hover:text-gray-200"
-            }`}
-          >
-            {t === "circulars" ? "Circulars" : "Market News"}
-          </button>
-        ))}
-      </div>
-
-      {/* Circulars tab */}
-      {tab === "circulars" && (
+      {/* Circulars tab — temporarily hidden (available in Document Repository)
+      {false && (
         <>
-          {/* Filter chips */}
-          <div className="mb-4 flex flex-wrap gap-2">
-            {(
-              [
-                { key: "all", label: "All" },
-                { key: "week", label: "This Week" },
-                { key: "high", label: "High Impact" },
-              ] as { key: UpdatesFilter; label: string }[]
-            ).map((f) => (
-              <button
-                key={f.key}
-                onClick={() => {
-                  setFilter(f.key);
-                  setCircPage(1);
-                }}
-                className={`rounded-full border px-3 py-1 text-xs font-medium ${
-                  filter === f.key
-                    ? "border-crimson-600 bg-crimson-50 text-crimson-700 dark:border-crimson-500 dark:bg-crimson-900/40 dark:text-crimson-300"
-                    : "border-gray-200 text-gray-600 hover:border-crimson-300 hover:text-crimson-700 dark:border-gray-700 dark:text-gray-300"
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-
-          {circLoading && <CardListSkeleton rows={6} />}
-
-          {circData && circData.data.length === 0 && (
-            <p className="py-20 text-center text-sm text-gray-500 dark:text-gray-400">
-              No updates yet.
-            </p>
-          )}
-
-          {circData && circData.data.length > 0 && (
-            <div className="space-y-3">
-              {circData.data.map((c) => (
-                <Link
-                  key={c.id}
-                  href={`/library/${c.id}`}
-              className="block rounded-xl border border-cream-300 bg-white p-4 transition-all hover:-translate-y-px hover:border-[#C9972E40] hover:shadow-[0_2px_12px_rgba(0,0,0,0.06)] dark:border-navy-700 dark:bg-navy-800"
-            >
-              <div className="flex flex-wrap items-center gap-2 mb-2">
-                    {c.circular_number && (
-                      <span className="text-[11.5px] font-semibold text-gold-600 dark:text-gold-400">
-                        {c.circular_number}
-                      </span>
-                    )}
-                    <Badge variant={statusVariant(c.status)}>{c.status}</Badge>
-                    {c.impact_level && (
-                      <Badge variant={impactVariant(c.impact_level)}>
-                        {c.impact_level}
-                      </Badge>
-                    )}
-                    <span className="text-xs text-gray-400">
-                      {c.doc_type.replace(/_/g, " ")}
-                    </span>
-                  </div>
-                  <p className="text-sm font-medium text-gray-900 line-clamp-2">
-                    {c.title}
-                  </p>
-                  <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
-                    {c.issued_date && (
-                      <span>
-                        {new Date(c.issued_date).toLocaleDateString("en-IN", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })}
-                      </span>
-                    )}
-                    {c.department && <span>{c.department}</span>}
-                  </div>
-                  {c.tags && c.tags.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {c.tags.slice(0, 3).map((tag) => (
-                        <Badge key={tag}>{tag}</Badge>
-                      ))}
-                    </div>
-                  )}
-                </Link>
-              ))}
-            </div>
-          )}
-
-          {circData && circData.total_pages > 1 && (
-            <div className="mt-6">
-              <Pagination
-                page={circPage}
-                totalPages={circData.total_pages}
-                onPageChange={setCircPage}
-              />
-            </div>
-          )}
+          ... circulars content ...
         </>
       )}
+      */}
 
-      {/* News tab */}
-      {tab === "news" && (
-        <>
+      {/* Market news feed */}
+      <>
           {newsLoading && <CardListSkeleton rows={6} />}
 
           {newsData && newsData.items.length === 0 && (
@@ -265,8 +123,7 @@ export default function UpdatesPage() {
               />
             </div>
           )}
-        </>
-      )}
+      </>
 
       </div>
     </div>

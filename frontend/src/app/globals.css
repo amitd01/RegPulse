@@ -22,6 +22,15 @@
   ::-webkit-scrollbar { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track { background: var(--reg-bg); }
   ::-webkit-scrollbar-thumb { background: var(--reg-border); border-radius: 99px; }
+
+  .sidebar-no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .sidebar-no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 @layer components {

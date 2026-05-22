@@ -11,7 +11,7 @@ import {
   getActionItemErrorMessage,
   useShareWithTeam,
 } from "@/hooks/useActionItems";
-import { getSaveErrorMessage, useSaveInterpretation } from "@/hooks/useSavedInterpretations";
+import { getSaveErrorMessage, useIsQuestionSaved, useSaveInterpretation } from "@/hooks/useSavedInterpretations";
 import type { CitationItem, FeedbackRecord, RecommendedAction } from "@/types";
 
 function buildSaveName(question?: string, quickAnswer?: string | null): string {
@@ -145,10 +145,12 @@ export function AnswerView({
 }: AnswerViewProps) {
   const saveMutation = useSaveInterpretation();
   const shareMutation = useShareWithTeam();
+  const alreadySaved = useIsQuestionSaved(questionId);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [shareSuccess, setShareSuccess] = useState<string | null>(null);
   const [shareError, setShareError] = useState<string | null>(null);
+  const isSaved = saveSuccess || alreadySaved;
 
   useEffect(() => {
     setSaveSuccess(false);
@@ -158,7 +160,7 @@ export function AnswerView({
   }, [questionId]);
 
   const handleSaveToLibrary = useCallback(() => {
-    if (!questionId || isStreaming || saveMutation.isPending || saveSuccess) return;
+    if (!questionId || isStreaming || saveMutation.isPending || isSaved) return;
 
     setSaveError(null);
     const name = buildSaveName(question, quickAnswer);
@@ -175,7 +177,7 @@ export function AnswerView({
     questionId,
     isStreaming,
     saveMutation,
-    saveSuccess,
+    isSaved,
     question,
     quickAnswer,
     affectedTeams,
@@ -414,7 +416,7 @@ export function AnswerView({
       {/* Action buttons */}
       {!isStreaming && answer && (
         <div className="space-y-3">
-          {saveSuccess && (
+          {isSaved && (
             <div
               className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
               role="status"
@@ -423,7 +425,9 @@ export function AnswerView({
                 <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                Saved to your library. View it anytime under Saved Interpretations.
+                {alreadySaved && !saveSuccess
+                  ? "Already saved to your library. View it anytime under Saved Interpretations."
+                  : "Saved to your library. View it anytime under Saved Interpretations."}
               </span>
             </div>
           )}
@@ -472,19 +476,19 @@ export function AnswerView({
             type="button"
             className={btnPrimary}
             onClick={handleSaveToLibrary}
-            disabled={!questionId || saveMutation.isPending || saveSuccess}
+            disabled={!questionId || saveMutation.isPending || isSaved}
           >
             {saveMutation.isPending ? (
               <>
                 <Spinner size="sm" />
                 Saving…
               </>
-            ) : saveSuccess ? (
+            ) : isSaved ? (
               <>
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                Saved
+                {alreadySaved && !saveSuccess ? "Already Saved" : "Saved"}
               </>
             ) : (
               <>
@@ -522,12 +526,6 @@ export function AnswerView({
               </>
             )}
           </button>
-          <button type="button" className={btnSecondary}>
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
-            </svg>
-            Flag for Review
-          </button>
           {questionId && (
             <button
               type="button"
@@ -540,12 +538,6 @@ export function AnswerView({
               Save to Team Learnings
             </button>
           )}
-          <button type="button" className={btnSecondary}>
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Get Clarification
-          </button>
           </div>
         </div>
       )}

@@ -126,29 +126,6 @@ export function TopBar() {
 
       {/* Right: pills */}
       <div className="ml-auto flex items-center gap-3">
-        {/* Live status pill */}
-        <div className="flex items-center gap-1.5 rounded-full border border-[#DDD7CC] bg-cream-100 px-3 py-1.5 text-[12px] text-[#4D6480] dark:border-navy-600 dark:bg-navy-800 dark:text-gray-300">
-          <span className="inline-block h-[7px] w-[7px] rounded-full bg-green-500 shadow-[0_0_0_2px_rgba(34,197,94,0.3)]" />
-          <span>Live</span>
-          <span className="hidden text-[#7A95AD] sm:inline">— RBI Circular DB v4.2</span>
-        </div>
-
-        {/* Help pill */}
-        <button
-          type="button"
-          className="flex items-center gap-1.5 rounded-full border border-[#DDD7CC] bg-cream-100 px-3 py-1.5 text-[12px] text-[#4D6480] transition-colors hover:border-gold-500 dark:border-navy-600 dark:bg-navy-800 dark:text-gray-300"
-        >
-          <svg className="h-[13px] w-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.8}
-              d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"
-            />
-          </svg>
-          Help
-        </button>
-
         {/* User pill */}
         {user && (
           <Link

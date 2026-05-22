@@ -413,7 +413,7 @@ export default function AskPage() {
             {/* Ask hero */}
             <div className="mb-8 text-center">
               <h1 className="font-serif text-[32px] leading-tight tracking-[-0.01em] text-[#1A2B40]">
-                What would you likeeeeee to{" "}
+                What would you like to{" "}
                 <em className="italic text-gold-500">know?</em>
               </h1>
               <p className="mt-2 text-[14px] text-[#4D6480]">

@@ -230,6 +230,45 @@ async def test_debate_resolve_and_lock(collab_client, collab_users):
 
 
 @pytest.mark.asyncio
+async def test_org_teammate_can_view_source_question(collab_factory, collab_users):
+    """Teammates can open a learning's linked Q&A (same email domain)."""
+    from fastapi import FastAPI
+    from httpx import ASGITransport, AsyncClient
+
+    from app.dependencies.auth import require_verified_user
+    from app.routers.questions import router as questions_router
+
+    question = await _make_question(collab_factory, collab_users["alice"])
+    current = {"user": collab_users["bob"]}
+
+    app = FastAPI()
+
+    async def _get_db():
+        async with collab_factory() as s:
+            yield s
+
+    async def _get_user():
+        return current["user"]
+
+    app.dependency_overrides[get_db] = _get_db
+    app.dependency_overrides[require_verified_user] = _get_user
+    app.include_router(questions_router, prefix="/api/v1/questions")
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.get(f"/api/v1/questions/{question.id}")
+
+    assert resp.status_code == 200
+    assert resp.json()["data"]["id"] == str(question.id)
+
+    current["user"] = collab_users["outsider"]
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        blocked = await client.get(f"/api/v1/questions/{question.id}")
+
+    assert blocked.status_code == 404
+
+
+@pytest.mark.asyncio
 async def test_annotations_org_scoped(collab_client, collab_factory, collab_users):
     client, current = collab_client
     question = await _make_question(collab_factory, collab_users["alice"])

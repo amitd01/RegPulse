@@ -13,7 +13,6 @@ from sqlalchemy.orm import selectinload
 from app.db import get_db
 from app.dependencies.auth import require_verified_user
 from app.models.collaboration import Annotation, AnnotationReply
-from app.models.question import Question
 from app.models.user import User
 from app.schemas.collaboration import (
     AnnotationCreateRequest,
@@ -24,7 +23,7 @@ from app.schemas.collaboration import (
     AnnotationUpdateRequest,
     AuthorSummary,
 )
-from app.utils.org_utils import user_org_domain
+from app.utils.org_utils import question_in_org, user_org_domain
 
 router = APIRouter(tags=["annotations"])
 
@@ -50,17 +49,6 @@ def _serialize(annotation: Annotation) -> AnnotationResponse:
     ]
     return data
 
-
-async def _question_in_org(db: AsyncSession, question_id: uuid.UUID, org: str) -> bool:
-    """True if the question owner shares the same org domain."""
-    stmt = (
-        select(Question.id)
-        .join(User, Question.user_id == User.id)
-        .where(Question.id == question_id, User.email.ilike(f"%@{org}"))
-    )
-    return (await db.execute(stmt)).scalar_one_or_none() is not None
-
-
 def _can_modify(annotation: Annotation, user: User) -> bool:
     return annotation.user_id == user.id or user.is_admin
 
@@ -73,7 +61,7 @@ async def list_annotations(
 ) -> AnnotationListResponse | dict:
     """Fetch all annotations for an AI answer (org-scoped)."""
     org = user_org_domain(user)
-    if not await _question_in_org(db, question_id, org):
+    if not await question_in_org(db, question_id, org):
         return {"success": False, "error": "Question not found in your organization", "code": "NOT_FOUND"}
 
     stmt = (
@@ -97,7 +85,7 @@ async def create_annotation(
 ) -> AnnotationResponse | dict:
     """Create an annotation on a specific text selection."""
     org = user_org_domain(user)
-    if not await _question_in_org(db, body.question_id, org):
+    if not await question_in_org(db, body.question_id, org):
         return {"success": False, "error": "Question not found in your organization", "code": "NOT_FOUND"}
     if body.end_offset <= body.start_offset:
         return {"success": False, "error": "Invalid text range", "code": "VALIDATION_ERROR"}
