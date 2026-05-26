@@ -79,17 +79,45 @@ def _build_context(chunks: list[RetrievedChunk]) -> str:
     return "\n\n---\n\n".join(parts)
 
 
-def _build_user_message(question: str, chunks: list[RetrievedChunk]) -> str:
+def _format_conversation_history(history: list[tuple[str, str]]) -> str:
+    """Format prior Q&A turns for the LLM (answers truncated to control tokens)."""
+    parts: list[str] = []
+    for i, (prior_q, prior_a) in enumerate(history, 1):
+        answer_excerpt = prior_a[:4000] + ("…" if len(prior_a) > 4000 else "")
+        parts.append(
+            f"Turn {i} — User asked:\n{sanitise_for_llm(prior_q)}\n\n"
+            f"RegPulse answered:\n{sanitise_for_llm(answer_excerpt)}"
+        )
+    return "\n\n---\n\n".join(parts)
+
+
+def _build_user_message(
+    question: str,
+    chunks: list[RetrievedChunk],
+    conversation_history: list[tuple[str, str]] | None = None,
+) -> str:
     """Build the user message with context and sanitised question."""
     context = _build_context(chunks)
     sanitised_q = sanitise_for_llm(question)
+
+    history_block = ""
+    if conversation_history:
+        history_block = (
+            "Prior conversation in this thread (for context only — "
+            "still cite ONLY from the RBI excerpts below):\n\n"
+            f"{_format_conversation_history(conversation_history)}\n\n---\n\n"
+        )
+        question_intro = "Based ONLY on the RBI excerpts above and the prior conversation, answer this follow-up question:"
+    else:
+        question_intro = "Based ONLY on the above context, answer this question:"
+
     return f"""Here are the relevant RBI circular excerpts:
 
 {context}
 
 ---
 
-Based ONLY on the above context, answer this question:
+{history_block}{question_intro}
 {sanitised_q}"""
 
 
@@ -211,6 +239,7 @@ class LLMService:
         self,
         question: str,
         chunks: list[RetrievedChunk],
+        conversation_history: list[tuple[str, str]] | None = None,
     ) -> tuple[dict, str]:
         """Generate answer from LLM. Returns (parsed_response, model_used).
 
@@ -230,7 +259,7 @@ class LLMService:
             return _consult_expert_response(), "none (insufficient context)"
 
         valid_circulars = {c.circular_number for c in chunks if c.circular_number}
-        user_message = _build_user_message(question, chunks)
+        user_message = _build_user_message(question, chunks, conversation_history)
 
         # Try Anthropic first — catch only API-level errors so that
         # programming bugs (TypeError, AttributeError) propagate immediately.
@@ -287,6 +316,7 @@ class LLMService:
         self,
         question: str,
         chunks: list[RetrievedChunk],
+        conversation_history: list[tuple[str, str]] | None = None,
     ) -> AsyncGenerator[tuple[str, str], None]:
         """Stream tokens from LLM. Yields (event_type, data_json) tuples.
 
@@ -315,7 +345,7 @@ class LLMService:
             return
 
         valid_circulars = {c.circular_number for c in chunks if c.circular_number}
-        user_message = _build_user_message(question, chunks)
+        user_message = _build_user_message(question, chunks, conversation_history)
 
         model_used = self._settings.LLM_MODEL
         full_response = ""

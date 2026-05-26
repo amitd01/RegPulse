@@ -6,26 +6,55 @@ interface PaginationProps {
   page: number;
   totalPages: number;
   onPageChange: (page: number) => void;
+  className?: string;
+  compact?: boolean;
+  large?: boolean;
 }
 
-export function Pagination({ page, totalPages, onPageChange }: PaginationProps) {
+export function Pagination({
+  page,
+  totalPages,
+  onPageChange,
+  className,
+  compact = false,
+  large = false,
+}: PaginationProps) {
   if (totalPages <= 1) return null;
 
   const pages = getPageNumbers(page, totalPages);
+  const btnClass = large
+    ? "rounded-lg px-3.5 py-2.5 text-[15px] font-semibold"
+    : compact
+      ? "rounded-md px-2 py-1 text-xs font-medium"
+      : "rounded-md px-3 py-2 text-sm font-medium";
+  const ellipsisClass = large
+    ? "px-2 py-2.5 text-[15px] text-gray-400"
+    : compact
+      ? "px-1.5 py-1 text-xs text-gray-400"
+      : "px-2 py-2 text-sm text-gray-400";
 
   return (
-    <nav className="flex items-center justify-center gap-1" aria-label="Pagination">
+    <nav
+      className={cn(
+        "flex flex-wrap items-center gap-1",
+        className ?? "justify-center",
+      )}
+      aria-label="Pagination"
+    >
       <button
         onClick={() => onPageChange(page - 1)}
         disabled={page <= 1}
-        className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+        className={cn(
+          btnClass,
+          "text-[#4D6480] hover:bg-cream-200 disabled:cursor-not-allowed disabled:text-gray-400 disabled:opacity-100 dark:text-gray-400 dark:hover:bg-navy-700",
+        )}
       >
         Previous
       </button>
 
       {pages.map((p, i) =>
         p === "..." ? (
-          <span key={`ellipsis-${i}`} className="px-2 py-2 text-sm text-gray-400">
+          <span key={`ellipsis-${i}`} className={ellipsisClass}>
             ...
           </span>
         ) : (
@@ -33,10 +62,10 @@ export function Pagination({ page, totalPages, onPageChange }: PaginationProps) 
             key={p}
             onClick={() => onPageChange(p as number)}
             className={cn(
-              "rounded-md px-3 py-2 text-sm font-medium",
+              btnClass,
               p === page
-                ? "bg-navy-700 text-white"
-                : "text-gray-700 hover:bg-gray-100",
+                ? "bg-[#1A2B40] text-white dark:bg-navy-700"
+                : "text-[#4D6480] hover:bg-cream-200 dark:text-gray-300 dark:hover:bg-navy-700",
             )}
           >
             {p}
@@ -47,7 +76,10 @@ export function Pagination({ page, totalPages, onPageChange }: PaginationProps) 
       <button
         onClick={() => onPageChange(page + 1)}
         disabled={page >= totalPages}
-        className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+        className={cn(
+          btnClass,
+          "text-[#4D6480] hover:bg-cream-200 disabled:cursor-not-allowed disabled:text-gray-400 disabled:opacity-100 dark:text-gray-400 dark:hover:bg-navy-700",
+        )}
       >
         Next
       </button>

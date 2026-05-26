@@ -25,6 +25,10 @@ class RecommendedAction(BaseModel):
 
 class QuestionRequest(BaseModel):
     question: str = Field(min_length=5, max_length=500)
+    parent_question_id: uuid.UUID | None = Field(
+        default=None,
+        description="Prior question in this thread; enables conversational follow-up context.",
+    )
 
 
 class FeedbackRequest(BaseModel):

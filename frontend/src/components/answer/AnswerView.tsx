@@ -40,6 +40,8 @@ export interface AnswerViewProps {
   feedbackSubmitted?: boolean;
   existingFeedback?: FeedbackRecord | null;
   extraActions?: React.ReactNode;
+  /** Primary = first turn (full header); followup = compact thread turn */
+  variant?: "primary" | "followup";
 }
 
 function riskStyle(level: string | null) {
@@ -142,7 +144,9 @@ export function AnswerView({
   feedbackSubmitted,
   existingFeedback,
   extraActions,
+  variant = "primary",
 }: AnswerViewProps) {
+  const isFollowup = variant === "followup";
   const saveMutation = useSaveInterpretation();
   const shareMutation = useShareWithTeam();
   const alreadySaved = useIsQuestionSaved(questionId);
@@ -228,45 +232,66 @@ export function AnswerView({
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
-      {/* Interpretation results header */}
-      <div className={NAVY_CARD} style={NAVY_GRADIENT}>
-        <div className="mb-1 flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[rgba(201,151,46,0.15)]">
-            <svg className="h-4 w-4 text-gold-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
+      {isFollowup && question && (
+        <div className="flex justify-end">
+          <div className="max-w-[92%] rounded-2xl rounded-br-md border border-cream-300 bg-white px-4 py-3 shadow-sm">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#7A95AD]">
+              You asked
+            </p>
+            <p className="mt-1 text-[14px] leading-relaxed text-[#1A2B40]">{question}</p>
           </div>
-          <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#D0DFF0]">
-            Interpretation Results
-          </span>
         </div>
-        <p className="text-[12px] text-[#7A95AD]">AI-generated guidance with full source citations</p>
+      )}
 
-        {question && (
-          <div className="mt-3 rounded-lg border border-[#253B57] bg-[rgba(255,255,255,0.06)] px-4 py-2.5">
-            <span className="text-[11px] font-medium text-[#7A95AD]">Your Question:</span>
-            <p className="mt-0.5 text-[13px] italic text-[#C8D8E8]">&ldquo;{question}&rdquo;</p>
+      {/* Interpretation results header — primary turn only */}
+      {!isFollowup && (
+        <div className={NAVY_CARD} style={NAVY_GRADIENT}>
+          <div className="mb-1 flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[rgba(201,151,46,0.15)]">
+              <svg className="h-4 w-4 text-gold-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#D0DFF0]">
+              Interpretation Results
+            </span>
           </div>
-        )}
+          <p className="text-[12px] text-[#7A95AD]">AI-generated guidance with full source citations</p>
 
-        {(createdAt || modelUsed || latencyMs) && (
-          <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-[#7A95AD]">
-            {createdAt && (
-              <span>
-                {new Date(createdAt).toLocaleDateString("en-IN", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </span>
-            )}
-            {modelUsed && <span>{modelUsed}</span>}
-            {latencyMs && <span>{latencyMs}ms</span>}
-          </div>
-        )}
-      </div>
+          {question && (
+            <div className="mt-3 rounded-lg border border-[#253B57] bg-[rgba(255,255,255,0.06)] px-4 py-2.5">
+              <span className="text-[11px] font-medium text-[#7A95AD]">Your Question:</span>
+              <p className="mt-0.5 text-[13px] italic text-[#C8D8E8]">&ldquo;{question}&rdquo;</p>
+            </div>
+          )}
+
+          {(createdAt || modelUsed || latencyMs) && (
+            <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-[#7A95AD]">
+              {createdAt && (
+                <span>
+                  {new Date(createdAt).toLocaleDateString("en-IN", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+              )}
+              {modelUsed && <span>{modelUsed}</span>}
+              {latencyMs && <span>{latencyMs}ms</span>}
+            </div>
+          )}
+        </div>
+      )}
+
+      {isFollowup && !isStreaming && (answer || quickAnswer) && (
+        <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] text-[#7A95AD]">
+          <span className="h-px flex-1 bg-cream-300" />
+          <span className="text-gold-600">RegPulse</span>
+          <span className="h-px flex-1 bg-cream-300" />
+        </div>
+      )}
 
       {/* Confidence meter */}
       {(confidenceScore !== null || consultExpert) && (
