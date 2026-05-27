@@ -1630,3 +1630,139 @@ def _send_low_credit_email(email: str, remaining_credits: int) -> None:
         server.send_message(msg)
 
     logger.info("low_credit_email_sent", domain=email.rsplit("@", 1)[-1])
+
+
+
+@shared_task(
+    bind=True,
+    soft_time_limit=3600,
+    max_retries=1,
+    name="scraper.tasks.update_existing_circulars",
+)
+def update_existing_circulars(self):  # noqa: ANN001, ANN201
+    """
+    Manually re-process already scraped RBI circulars.
+
+    Use case:
+    - backfill missing circular_number
+    - update metadata fields
+    - re-run extraction after regex improvements
+    """
+
+    logger.info("update_existing_circulars_started")
+
+    updated = 0
+    failed = 0
+
+    try:
+        with get_db_session() as db:
+            rows = db.execute(
+                text("""
+                    SELECT id, rbi_url, title, doc_type
+                    FROM circular_documents
+                    WHERE rbi_url IS NOT NULL
+                """)
+            ).fetchall()
+
+        logger.info(
+            "update_existing_circulars_documents_found",
+            total=len(rows),
+        )
+
+        pdf_extractor = PDFExtractor()
+        metadata_extractor = MetadataExtractor()
+
+        for row in rows:
+            doc_id = str(row[0])
+            url = row[1]
+            title = row[2]
+            doc_type = row[3]
+
+            try:
+                logger.info(
+                    "update_existing_circular_processing",
+                    document_id=doc_id,
+                    url=url,
+                )
+
+                # Re-download + extract
+                extracted = _run_async(pdf_extractor.extract(url))
+
+                if not extracted.raw_text.strip():
+                    logger.warning(
+                        "update_existing_circular_empty_text",
+                        document_id=doc_id,
+                        url=url,
+                    )
+                    continue
+
+                # Re-extract metadata using new regex
+                metadata = metadata_extractor.extract(
+                    extracted.raw_text,
+                    source_url=url,
+                )
+
+                # Update existing DB row
+                with get_db_session() as db:
+                    db.execute(
+                        text("""
+                            UPDATE circular_documents
+                            SET
+                                circular_number = COALESCE(:circular_number, circular_number),
+                                department = COALESCE(:department, department),
+                                issued_date = COALESCE(:issued_date, issued_date),
+                                effective_date = COALESCE(:effective_date, effective_date),
+                                action_deadline = COALESCE(:action_deadline, action_deadline),
+                                updated_at = now()
+                            WHERE id = :doc_id
+                        """),
+                        {
+                            "doc_id": doc_id,
+                            "circular_number": metadata.circular_number,
+                            "department": metadata.department,
+                            "issued_date": metadata.issued_date,
+                            "effective_date": metadata.effective_date,
+                            "action_deadline": metadata.action_deadline,
+                        },
+                    )
+
+                    db.commit()
+
+                updated += 1
+
+                logger.info(
+                    "update_existing_circular_success",
+                    document_id=doc_id,
+                    circular_number=metadata.circular_number,
+                )
+
+            except Exception as exc:
+                failed += 1
+
+                logger.error(
+                    "update_existing_circular_failed",
+                    document_id=doc_id,
+                    url=url,
+                    error=str(exc),
+                    exc_info=True,
+                )
+
+        logger.info(
+            "update_existing_circulars_completed",
+            updated=updated,
+            failed=failed,
+        )
+
+        return {
+            "status": "success",
+            "updated": updated,
+            "failed": failed,
+        }
+
+    except Exception as exc:
+        logger.error(
+            "update_existing_circulars_error",
+            error=str(exc),
+            exc_info=True,
+        )
+        raise

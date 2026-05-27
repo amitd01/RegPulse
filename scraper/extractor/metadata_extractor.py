@@ -245,6 +245,30 @@ _DEPT_REF_RE = re.compile(
     r"\b([A-Z]{2,6})(?:\.[A-Z]{2,6})*\.(?:REC|No|Ref)\.\s*(?:No\.)?\s*[\w./-]+/\d{4}-\d{2,4}\b",
 )
 
+_RBI_CIRCULAR_RE = re.compile(
+    r"\bRBI(?:/[A-Z]{2,10})?/\d{4}-\d{2}/\d{1,4}\b",
+    re.IGNORECASE,
+)
+
+_DEPARTMENT_REF_PATTERNS = [
+    re.compile(
+        r"\b[A-Z]{2,10}(?:\.[A-Z]{2,10})+\.REC(?:\.No)?\.[\w./()-]+/\d{4}-\d{2}\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b[A-Z]{2,10}(?:\.[A-Z]{2,10})+\.BC(?:\.No)?\.[\w./()-]+/\d{4}-\d{2}\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b[A-Z]{2,10}(?:\([A-Z]+\))?(?:\.[A-Z]{2,10})*\.CC(?:\.No)?\.[\w./()-]+/\d{4}-\d{2}\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b[A-Z]{2,10}(?:\([A-Z]+\))?(?:\.[A-Z]{2,10})+\.(?:No|REF|REC|BC|CC)\.[\w./()-]+/\d{4}-\d{2}\b",
+        re.IGNORECASE,
+    ),
+]
+
 
 # ---------------------------------------------------------------------------
 # MetadataExtractor
@@ -272,7 +296,11 @@ class MetadataExtractor:
         # Work with first 3 pages for header metadata (circular number, department, dates)
         header_text = self._get_header_text(raw_text)
 
-        circular_number = self._extract_circular_number(header_text)
+        circular_number = self._extract_circular_number_new_format(header_text)
+
+        print("header_text:", header_text)
+        print("circular_number:", circular_number)
+
         department, department_code = self._extract_department(header_text)
         issued_date = self._extract_issued_date(header_text)
         effective_date = self._extract_effective_date(raw_text)
@@ -331,6 +359,21 @@ class MetadataExtractor:
     def _extract_circular_number(text: str) -> str | None:
         """Extract RBI circular number (e.g. RBI/2025-26/241)."""
         match = _CIRCULAR_NUMBER_RE.search(text)
+        if match:
+            return match.group(0)
+        return None
+
+    @staticmethod
+    def _extract_circular_number_new_format(text: str) -> str | None:
+        """
+        Extract RBI circular number in new format
+            (e.g.
+                RBI/2025-26/241,
+                RBI/DOR/2025-26/241,
+                RBI/FMRD/2025-26/241, etc.
+            ).
+        """
+        match = _RBI_CIRCULAR_RE.search(text)
         if match:
             return match.group(0)
         return None
