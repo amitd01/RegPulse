@@ -56,6 +56,7 @@ app.conf.update(
         "scraper.tasks.run_question_clustering": {"queue": "scraper"},
         "scraper.tasks.subscription_renewal_check": {"queue": "scraper"},
         "scraper.tasks.credit_notifications": {"queue": "scraper"},
+        "scraper.tasks.update_existing_circulars": {"queue": "scraper"},
     },
 )
 
