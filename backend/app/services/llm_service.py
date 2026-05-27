@@ -66,6 +66,49 @@ set confidence_score below 0.5 and consult_expert to true.
 7. NEVER speculate about regulations not directly quoted in the context.
 8. Return ONLY the JSON object, no markdown fences, no extra text."""
 
+_FOLLOW_UP_SYSTEM_PROMPT = """You are RegPulse, a conversational RBI compliance assistant helping Indian banking \
+professionals continue an existing interpretation thread.
+
+Rules:
+1. Answer the follow-up directly and conversationally, building on the prior RegPulse answers in this thread.
+2. Prefer RBI circular excerpts when provided; cite circular_number only when quoting from excerpts.
+3. Do NOT default to "consult an expert" — only set consult_expert true if the follow-up is completely \
+unrelated to the thread AND no RBI excerpts support any answer.
+4. When prior thread answers already established regulatory facts, you may reference them for continuity \
+without re-citing every circular.
+5. Return your answer as a JSON object with this exact schema:
+
+{
+  "quick_answer": "string (optional one-line summary)",
+  "detailed_interpretation": "string (main markdown answer — this is the primary response)",
+  "risk_level": "HIGH | MEDIUM | LOW | null",
+  "confidence_score": 0.0 to 1.0,
+  "consult_expert": true | false,
+  "affected_teams": ["team1", "team2"],
+  "citations": [
+    {
+      "circular_number": "RBI/2022-23/98",
+      "verbatim_quote": "exact phrase from source",
+      "section_reference": "Section X.Y (if determinable)"
+    }
+  ],
+  "recommended_actions": [
+    {
+      "team": "Compliance",
+      "action_text": "description of required action",
+      "priority": "HIGH | MEDIUM | LOW"
+    }
+  ]
+}
+
+6. Citations are encouraged but not required for every follow-up when the answer clearly follows from \
+prior thread context plus excerpts.
+7. Return ONLY the JSON object, no markdown fences, no extra text."""
+
+
+def _system_prompt(is_follow_up: bool) -> str:
+    return _FOLLOW_UP_SYSTEM_PROMPT if is_follow_up else _SYSTEM_PROMPT
+
 
 def _build_context(chunks: list[RetrievedChunk]) -> str:
     """Build context string from retrieved chunks."""
@@ -183,6 +226,58 @@ def _compute_confidence(
     return round(final, 2)
 
 
+def _compute_confidence_follow_up(
+    response: dict,
+    chunks: list,
+    conversation_history: list[tuple[str, str]] | None,
+) -> float:
+    """Relaxed confidence for conversational follow-ups — prior answers count as context."""
+    llm_confidence = response.get("confidence_score")
+    if isinstance(llm_confidence, (int, float)):
+        llm_confidence = max(0.0, min(1.0, float(llm_confidence)))
+    else:
+        llm_confidence = 0.65
+
+    has_prior = bool(conversation_history)
+    has_answer = bool((response.get("detailed_interpretation") or "").strip())
+    citation_count = len(response.get("citations") or [])
+    retrieval_score = min(1.0, len(chunks) / 2.0) if chunks else (0.5 if has_prior else 0.0)
+    continuity = 0.7 if has_prior and has_answer else 0.0
+
+    final = (
+        0.25 * llm_confidence
+        + 0.2 * min(1.0, citation_count / 2.0)
+        + 0.25 * retrieval_score
+        + 0.3 * continuity
+    )
+    return round(final, 2)
+
+
+def _should_apply_consult_expert_fallback(
+    *,
+    confidence: float,
+    validated: dict,
+    chunks: list[RetrievedChunk],
+    is_follow_up: bool,
+    conversation_history: list[tuple[str, str]] | None,
+) -> bool:
+    """Decide whether to replace the LLM output with the consult-expert template."""
+    if is_follow_up and conversation_history:
+        detailed = (validated.get("detailed_interpretation") or "").strip()
+        if detailed:
+            # Only hard-fallback when we truly have no retrieval and no usable answer signals
+            if not chunks and confidence < 0.25:
+                return True
+            return False
+        return not chunks
+
+    if len(chunks) < 2:
+        return True
+    if confidence < 0.5 or not validated.get("citations"):
+        return True
+    return False
+
+
 def _consult_expert_response() -> dict:
     """Return a standardised safe fallback when confidence is too low."""
     return {
@@ -240,6 +335,8 @@ class LLMService:
         question: str,
         chunks: list[RetrievedChunk],
         conversation_history: list[tuple[str, str]] | None = None,
+        *,
+        is_follow_up: bool = False,
     ) -> tuple[dict, str]:
         """Generate answer from LLM. Returns (parsed_response, model_used).
 
@@ -250,8 +347,10 @@ class LLMService:
         # Injection guard
         check_injection(question)
 
-        # Insufficient context — skip LLM entirely
-        if len(chunks) < 2:
+        is_follow_up = is_follow_up or bool(conversation_history)
+
+        # Insufficient context — skip LLM unless follow-up has prior thread context
+        if len(chunks) < 2 and not (is_follow_up and conversation_history):
             logger.info(
                 "insufficient_context_fallback",
                 chunk_count=len(chunks),
@@ -260,6 +359,7 @@ class LLMService:
 
         valid_circulars = {c.circular_number for c in chunks if c.circular_number}
         user_message = _build_user_message(question, chunks, conversation_history)
+        system_prompt = _system_prompt(is_follow_up)
 
         # Try Anthropic first — catch only API-level errors so that
         # programming bugs (TypeError, AttributeError) propagate immediately.
@@ -274,13 +374,13 @@ class LLMService:
             openai.APITimeoutError,
         )
         try:
-            raw_response = await self._call_anthropic(user_message)
+            raw_response = await self._call_anthropic(user_message, system_prompt=system_prompt)
             model_used = self._settings.LLM_MODEL
             logger.info("llm_anthropic_success", model=model_used)
         except _anthropic_errors:
             logger.warning("llm_anthropic_failed, trying fallback", exc_info=True)
             try:
-                raw_response = await self._call_openai(user_message)
+                raw_response = await self._call_openai(user_message, system_prompt=system_prompt)
                 model_used = self._settings.LLM_FALLBACK_MODEL
                 logger.info("llm_openai_fallback_success", model=model_used)
             except _openai_errors:
@@ -292,18 +392,30 @@ class LLMService:
         validated = _validate_citations(parsed, valid_circulars)
 
         # Compute confidence score
-        confidence = _compute_confidence(validated, chunks)
+        if is_follow_up:
+            confidence = _compute_confidence_follow_up(
+                validated, chunks, conversation_history
+            )
+        else:
+            confidence = _compute_confidence(validated, chunks)
         validated["confidence_score"] = confidence
 
         # Clean up internal tracking field
         validated.pop("_stripped_citation_count", None)
 
-        # Enforce "Consult an Expert" fallback on low confidence
-        if confidence < 0.5 or not validated.get("citations"):
+        # Enforce "Consult an Expert" fallback on low confidence (relaxed for follow-ups)
+        if _should_apply_consult_expert_fallback(
+            confidence=confidence,
+            validated=validated,
+            chunks=chunks,
+            is_follow_up=is_follow_up,
+            conversation_history=conversation_history,
+        ):
             logger.warning(
                 "low_confidence_fallback",
                 confidence=confidence,
                 valid_citations=len(validated.get("citations", [])),
+                is_follow_up=is_follow_up,
             )
             fallback = _consult_expert_response()
             fallback["confidence_score"] = confidence
@@ -317,6 +429,8 @@ class LLMService:
         question: str,
         chunks: list[RetrievedChunk],
         conversation_history: list[tuple[str, str]] | None = None,
+        *,
+        is_follow_up: bool = False,
     ) -> AsyncGenerator[tuple[str, str], None]:
         """Stream tokens from LLM. Yields (event_type, data_json) tuples.
 
@@ -325,8 +439,10 @@ class LLMService:
         """
         check_injection(question)
 
-        # Insufficient context — emit fallback immediately
-        if len(chunks) < 2:
+        is_follow_up = is_follow_up or bool(conversation_history)
+
+        # Insufficient context — emit fallback unless follow-up has prior thread context
+        if len(chunks) < 2 and not (is_follow_up and conversation_history):
             logger.info("stream_insufficient_context_fallback", chunk_count=len(chunks))
             fallback = _consult_expert_response()
             yield "token", json.dumps({"token": fallback["detailed_interpretation"]})
@@ -346,6 +462,7 @@ class LLMService:
 
         valid_circulars = {c.circular_number for c in chunks if c.circular_number}
         user_message = _build_user_message(question, chunks, conversation_history)
+        system_prompt = _system_prompt(is_follow_up)
 
         model_used = self._settings.LLM_MODEL
         full_response = ""
@@ -358,7 +475,7 @@ class LLMService:
                     "type": "enabled",
                     "budget_tokens": 10000,
                 },
-                system=_SYSTEM_PROMPT,
+                system=system_prompt,
                 messages=[{"role": "user", "content": user_message}],
             ) as stream:
                 async for event in stream:
@@ -375,7 +492,7 @@ class LLMService:
         ):
             logger.warning("llm_stream_anthropic_failed", exc_info=True)
             model_used = self._settings.LLM_FALLBACK_MODEL
-            full_response = await self._call_openai(user_message)
+            full_response = await self._call_openai(user_message, system_prompt=system_prompt)
             yield "token", json.dumps({"token": full_response})
 
         # Parse structured data from complete response
@@ -384,11 +501,28 @@ class LLMService:
             validated = _validate_citations(parsed, valid_circulars)
 
             # Compute confidence and apply fallback
-            confidence = _compute_confidence(validated, chunks)
+            if is_follow_up:
+                confidence = _compute_confidence_follow_up(
+                    validated, chunks, conversation_history
+                )
+            else:
+                confidence = _compute_confidence(validated, chunks)
             validated.pop("_stripped_citation_count", None)
 
-            if confidence < 0.5 or not validated.get("citations"):
-                logger.warning("stream_low_confidence_fallback", confidence=confidence)
+            use_fallback = _should_apply_consult_expert_fallback(
+                confidence=confidence,
+                validated=validated,
+                chunks=chunks,
+                is_follow_up=is_follow_up,
+                conversation_history=conversation_history,
+            )
+
+            if use_fallback:
+                logger.warning(
+                    "stream_low_confidence_fallback",
+                    confidence=confidence,
+                    is_follow_up=is_follow_up,
+                )
                 fallback = _consult_expert_response()
                 fallback["confidence_score"] = confidence
                 yield "citations", json.dumps(
@@ -418,24 +552,40 @@ class LLMService:
                 )
         except (json.JSONDecodeError, KeyError, TypeError, ValueError):
             logger.error("llm_parse_failed", exc_info=True)
-            yield "citations", json.dumps(
-                {
-                    "citations": [],
-                    "risk_level": None,
-                    "confidence_score": 0.0,
-                    "consult_expert": True,
-                    "affected_teams": [],
-                    "recommended_actions": [],
-                    "quick_answer": None,
-                    "model_used": model_used,
-                }
-            )
+            if is_follow_up and conversation_history and full_response.strip():
+                yield "citations", json.dumps(
+                    {
+                        "citations": [],
+                        "risk_level": None,
+                        "confidence_score": 0.5,
+                        "consult_expert": False,
+                        "affected_teams": [],
+                        "recommended_actions": [],
+                        "quick_answer": None,
+                        "model_used": model_used,
+                    }
+                )
+            else:
+                yield "citations", json.dumps(
+                    {
+                        "citations": [],
+                        "risk_level": None,
+                        "confidence_score": 0.0,
+                        "consult_expert": True,
+                        "affected_teams": [],
+                        "recommended_actions": [],
+                        "quick_answer": None,
+                        "model_used": model_used,
+                    }
+                )
 
     # ------------------------------------------------------------------
     # Internal: LLM calls
     # ------------------------------------------------------------------
 
-    async def _call_anthropic(self, user_message: str) -> str:
+    async def _call_anthropic(
+        self, user_message: str, *, system_prompt: str = _SYSTEM_PROMPT
+    ) -> str:
         """Call Anthropic Claude API with extended thinking."""
         response = await self._anthropic.messages.create(
             model=self._settings.LLM_MODEL,
@@ -444,7 +594,7 @@ class LLMService:
                 "type": "enabled",
                 "budget_tokens": 10000,
             },
-            system=_SYSTEM_PROMPT,
+            system=system_prompt,
             messages=[{"role": "user", "content": user_message}],
         )
         # Extract the text block (skip thinking blocks)
@@ -453,13 +603,15 @@ class LLMService:
                 return block.text
         return response.content[-1].text
 
-    async def _call_openai(self, user_message: str) -> str:
+    async def _call_openai(
+        self, user_message: str, *, system_prompt: str = _SYSTEM_PROMPT
+    ) -> str:
         """Call OpenAI GPT-4o API as fallback."""
         response = await self._openai.chat.completions.create(
             model=self._settings.LLM_FALLBACK_MODEL,
             max_tokens=4096,
             messages=[
-                {"role": "system", "content": _SYSTEM_PROMPT},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_message},
             ],
         )

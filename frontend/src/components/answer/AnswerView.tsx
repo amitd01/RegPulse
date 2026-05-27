@@ -230,18 +230,48 @@ export function AnswerView({
     {},
   );
 
-  return (
-    <div className="mx-auto max-w-3xl space-y-5">
-      {isFollowup && question && (
-        <div className="flex justify-end">
-          <div className="max-w-[92%] rounded-2xl rounded-br-md border border-cream-300 bg-white px-4 py-3 shadow-sm">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#7A95AD]">
-              You asked
-            </p>
-            <p className="mt-1 text-[14px] leading-relaxed text-[#1A2B40]">{question}</p>
+  const displayAnswer = answer || (isFollowup ? quickAnswer : "") || "";
+
+  if (isFollowup) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-4">
+        {question && (
+          <div className="flex justify-end">
+            <div className="max-w-[92%] rounded-2xl rounded-br-md border border-cream-300 bg-white px-4 py-3 shadow-sm">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#7A95AD]">
+                Your question
+              </p>
+              <p className="mt-1 text-[14px] leading-relaxed text-[#1A2B40]">{question}</p>
+            </div>
+          </div>
+        )}
+
+        <div className="rounded-xl border border-cream-300 bg-white shadow-sm">
+          <div className="border-b border-cream-200 px-5 py-3">
+            <h3 className="text-[13px] font-semibold text-[#1A2B40]">RegPulse Answer</h3>
+          </div>
+          <div className="px-5 py-4">
+            {displayAnswer ? (
+              <div className="prose prose-sm max-w-none prose-headings:font-semibold prose-headings:text-[#1A2B40] prose-p:text-[#4D6480] prose-li:text-[#4D6480] prose-strong:text-[#1A2B40] prose-a:text-gold-600 prose-a:no-underline hover:prose-a:underline">
+                <ReactMarkdown>{displayAnswer}</ReactMarkdown>
+              </div>
+            ) : isStreaming ? (
+              <StreamingSkeleton />
+            ) : null}
+            {isStreaming && !displayAnswer.trim() && (
+              <div className="mt-4 flex items-center gap-2 text-[12px] text-[#7A95AD]">
+                <Spinner size="sm" />
+                <span>Generating answer…</span>
+              </div>
+            )}
           </div>
         </div>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-5">
 
       {/* Interpretation results header — primary turn only */}
       {!isFollowup && (
@@ -282,14 +312,6 @@ export function AnswerView({
               {latencyMs && <span>{latencyMs}ms</span>}
             </div>
           )}
-        </div>
-      )}
-
-      {isFollowup && !isStreaming && (answer || quickAnswer) && (
-        <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] text-[#7A95AD]">
-          <span className="h-px flex-1 bg-cream-300" />
-          <span className="text-gold-600">RegPulse</span>
-          <span className="h-px flex-1 bg-cream-300" />
         </div>
       )}
 
