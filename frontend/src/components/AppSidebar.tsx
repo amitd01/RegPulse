@@ -38,6 +38,18 @@ function useActionItemsCount(enabled: boolean) {
 
 const WORKSPACE_NAV = [
   {
+    name: "Dashboard",
+    href: "/dashboard",
+    icon: (
+      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="7" height="7" rx="1" strokeWidth={1.8} />
+        <rect x="14" y="3" width="7" height="7" rx="1" strokeWidth={1.8} />
+        <rect x="3" y="14" width="7" height="7" rx="1" strokeWidth={1.8} />
+        <rect x="14" y="14" width="7" height="7" rx="1" strokeWidth={1.8} />
+      </svg>
+    ),
+  },
+  {
     name: "Ask RegPulse",
     href: "/ask",
     icon: (
@@ -170,8 +182,8 @@ function NavItem({
       className={cn(
         "relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13.5px] transition-all duration-150",
         isActive
-          ? "border border-[#C9972E30] bg-[linear-gradient(135deg,rgba(201,151,46,0.09),rgba(201,151,46,0.04))] font-medium text-white"
-          : "font-normal text-[#8FA8C4] hover:bg-navy-700 hover:text-[#D0DFF0]",
+          ? "border border-[rgba(201,151,46,0.18)] bg-[rgba(201,151,46,0.1)] font-medium text-white"
+          : "font-normal text-[#5A7E9E] hover:bg-[#1E3050] hover:text-[#C0D4E8]",
       )}
     >
       {/* Gold left-bar indicator for active */}
@@ -248,25 +260,25 @@ export function AppSidebar() {
 
   return (
     <aside
-      className="flex h-screen w-64 flex-shrink-0 flex-col shadow-[4px_0_24px_rgba(0,0,0,0.25)]"
+      className="flex h-screen w-[304px] flex-shrink-0 flex-col shadow-[6px_0_32px_rgba(0,0,0,0.28)]"
       style={{ background: "#0F1C2E" }}
     >
       {/* Logo */}
-      <div className="border-b border-[#253B57] px-6 pb-5 pt-7">
-        <Link href="/library" className="block">
-          <div className="font-serif text-[22px] tracking-wide text-white">
+      <div className="border-b border-[#253B57] px-[26px] pb-[22px] pt-7">
+        <Link href="/dashboard" className="block">
+          <div className="font-serif text-[26px] leading-none tracking-wide text-white">
             Reg<span className="text-gold-400">Pulse</span>
           </div>
-          <div className="mt-0.5 text-[10.5px] font-medium uppercase tracking-[0.12em] text-[#7A95AD]">
+          <div className="mt-[5px] text-[9px] font-semibold uppercase tracking-[0.22em] text-[#3E5F7C]">
             Compliance Intelligence
           </div>
         </Link>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-3 py-5">
+      <nav className="sidebar-no-scrollbar flex-1 overflow-y-auto px-[14px] py-[22px]">
         {/* Workspace section */}
-        <div className="mb-1.5 px-3 text-[9px] font-semibold uppercase tracking-[0.16em] text-[#7A95AD]">
+        <div className="mb-[7px] px-3 text-[9px] font-bold uppercase tracking-[0.2em] text-[#2F4A62]">
           Workspace
         </div>
         <div className="space-y-0.5">
@@ -280,7 +292,7 @@ export function AppSidebar() {
         </div>
 
         {/* Monitor section */}
-        <div className="mb-1.5 mt-5 px-3 text-[9px] font-semibold uppercase tracking-[0.16em] text-[#7A95AD]">
+        <div className="mb-[7px] mt-[18px] px-3 text-[9px] font-bold uppercase tracking-[0.2em] text-[#2F4A62]">
           Monitor
         </div>
         <div className="space-y-0.5">
@@ -301,7 +313,7 @@ export function AppSidebar() {
         </div>
 
         {/* Team section */}
-        <div className="mb-1.5 mt-5 px-3 text-[9px] font-semibold uppercase tracking-[0.16em] text-[#7A95AD]">
+        <div className="mb-[7px] mt-[18px] px-3 text-[9px] font-bold uppercase tracking-[0.2em] text-[#2F4A62]">
           Team
         </div>
         <div className="space-y-0.5">
@@ -316,21 +328,23 @@ export function AppSidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-[#253B57] px-4 pb-5 pt-4">
+      <div className="border-t border-[#253B57] px-4 pb-5 pt-[14px]">
         {/* Credits bar */}
         {user && (
-          <div className="mb-3 rounded-lg bg-navy-700 px-3 py-2.5">
-            <div className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.08em] text-[#7A95AD]">
-              Credits
+          <div className="mb-3 rounded-[10px] border border-[#253B57] bg-[#182840] px-[14px] py-3">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#2F4A62]">
+                Credits
+              </span>
+              <span className="text-[12px] font-semibold text-gold-400">
+                {creditBalance} / 500
+              </span>
             </div>
-            <div className="h-1 overflow-hidden rounded-full bg-[#253B57]">
+            <div className="h-[5px] overflow-hidden rounded-full bg-white/[0.06]">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-gold-600 to-gold-400 transition-[width] duration-500"
                 style={{ width: `${creditPct}%` }}
               />
-            </div>
-            <div className="mt-1.5 text-[11px] font-semibold text-gold-400">
-              {creditBalance} / 500 remaining
             </div>
           </div>
         )}

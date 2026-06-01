@@ -24,6 +24,7 @@ services:
       - ./backend/migrations/004_sprint5.sql:/docker-entrypoint-initdb.d/004_sprint5.sql:ro
       - ./backend/migrations/005_sprint6_system_user.sql:/docker-entrypoint-initdb.d/005_sprint6_system_user.sql:ro
       - ./backend/migrations/007_sprint9_interpretation_feedback.sql:/docker-entrypoint-initdb.d/007_sprint9_interpretation_feedback.sql:ro
+      - ./backend/migrations/009_conversational_followup.sql:/docker-entrypoint-initdb.d/009_conversational_followup.sql:ro
 
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-regpulse}"]

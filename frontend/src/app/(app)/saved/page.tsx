@@ -6,8 +6,6 @@ import { CardListSkeleton } from "@/components/ui/Skeleton";
 import { useSavedInterpretations } from "@/hooks/useSavedInterpretations";
 import type { SavedInterpretation } from "@/types";
 
-type TabFilter = "all" | "personal" | "team" | "needs_update";
-
 function formatSavedDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", {
     day: "numeric",
@@ -16,63 +14,33 @@ function formatSavedDate(iso: string): string {
   });
 }
 
-function filterItems(
-  items: SavedInterpretation[],
-  activeTab: TabFilter,
-  search: string,
-): SavedInterpretation[] {
-  let result = items;
+function filterItems(items: SavedInterpretation[], search: string): SavedInterpretation[] {
+  if (!search.trim()) return items;
 
-  if (activeTab === "needs_update") {
-    result = result.filter((i) => i.needs_review);
-  } else if (activeTab === "team") {
-    result = [];
-  }
-  // "personal" and "all" — v1 API returns only the current user's saves
-
-  if (search.trim()) {
-    const q = search.toLowerCase();
-    result = result.filter(
-      (i) =>
-        i.name.toLowerCase().includes(q) ||
-        (i.tags ?? []).some((tag) => tag.toLowerCase().includes(q)),
-    );
-  }
-
-  return result;
+  const q = search.toLowerCase();
+  return items.filter(
+    (i) =>
+      i.name.toLowerCase().includes(q) ||
+      (i.tags ?? []).some((tag) => tag.toLowerCase().includes(q)),
+  );
 }
 
 export default function SavedPage() {
-  const [activeTab, setActiveTab] = useState<TabFilter>("all");
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
   const pageSize = 50;
 
   const { data, isLoading, isError } = useSavedInterpretations(1, pageSize);
   const items = useMemo(() => data?.data ?? [], [data]);
 
-  console.log("items", items);
-
   const filtered = useMemo(
-    () => filterItems(items, activeTab, search),
-    [items, activeTab, search],
+    () => filterItems(items, appliedSearch),
+    [items, appliedSearch],
   );
 
-  const tabCounts = useMemo(
-    () => ({
-      all: items.length,
-      personal: items.length,
-      team: 0,
-      needs_update: items.filter((i) => i.needs_review).length,
-    }),
-    [items],
-  );
-
-  const tabs: { key: TabFilter; label: string }[] = [
-    { key: "all", label: `All Items (${tabCounts.all})` },
-    { key: "personal", label: `Personal (${tabCounts.personal})` },
-    { key: "team", label: `Team Shared (${tabCounts.team})` },
-    { key: "needs_update", label: `Needs Update (${tabCounts.needs_update})` },
-  ];
+  const handleSearch = () => {
+    setAppliedSearch(searchInput.trim());
+  };
 
   return (
     <div className="min-h-screen">
@@ -81,35 +49,25 @@ export default function SavedPage() {
           Saved Interpretations
         </h2>
 
-        {/* Search + Filter bar */}
-        <div className="mb-5 flex items-center gap-3">
+        {/* Search bar */}
+        <div className="mb-6 flex items-center gap-3">
           <input
             type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSearch();
+            }}
             placeholder="Search saved items..."
             className="flex-1 rounded-lg border border-cream-300 bg-white px-3 py-2 text-[13.5px] text-[#1A2B40] placeholder-[#7A95AD] shadow-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500/30 dark:border-navy-600 dark:bg-navy-800 dark:text-gray-200"
           />
-          <button className="rounded-lg border border-cream-300 bg-white px-4 py-2 text-[13.5px] font-medium text-[#4D6480] transition-colors hover:border-gold-500 hover:text-[#1A2B40]">
-            Filter
+          <button
+            type="button"
+            onClick={handleSearch}
+            className="rounded-lg border border-cream-300 bg-white px-4 py-2 text-[13.5px] font-medium text-[#4D6480] transition-colors hover:border-gold-500 hover:text-[#1A2B40]"
+          >
+            Search
           </button>
-        </div>
-
-        {/* Tab filters */}
-        <div className="mb-6 flex flex-wrap gap-2">
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={
-                activeTab === tab.key
-                  ? "rounded-full bg-navy-900 px-4 py-1.5 text-[13px] font-medium text-white"
-                  : "rounded-full border border-cream-300 bg-white px-4 py-1.5 text-[13px] font-medium text-[#4D6480] hover:border-gold-500 hover:text-[#1A2B40]"
-              }
-            >
-              {tab.label}
-            </button>
-          ))}
         </div>
 
         {isLoading && <CardListSkeleton rows={3} />}
@@ -124,7 +82,7 @@ export default function SavedPage() {
           <p className="py-20 text-center text-sm text-gray-500">
             {items.length === 0
               ? "No saved interpretations yet. Save one from a Q&A answer."
-              : "No saved interpretations match your filters."}
+              : "No saved interpretations match your search."}
           </p>
         )}
 
@@ -179,15 +137,6 @@ export default function SavedPage() {
                       />
                     </svg>
                     Saved: {formatSavedDate(item.created_at)}
-                  </span>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                      item.needs_review
-                        ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                        : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
-                    }`}
-                  >
-                    Personal
                   </span>
                 </div>
 

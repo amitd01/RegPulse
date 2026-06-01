@@ -61,7 +61,7 @@ const ROUTE_META: Record<
     label: "Dashboard",
     desc: "Your regulatory intelligence overview",
     iconPath:
-      '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6zm0 9.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25zm9.75-9.75A2.25 2.25 0 0 1 15.75 3.75H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6zm0 9.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25z"/>',
+      '<rect x="3" y="3" width="7" height="7" rx="1" stroke-width="1.8"/><rect x="14" y="3" width="7" height="7" rx="1" stroke-width="1.8"/><rect x="3" y="14" width="7" height="7" rx="1" stroke-width="1.8"/><rect x="14" y="14" width="7" height="7" rx="1" stroke-width="1.8"/>',
   },
 };
 
@@ -126,29 +126,6 @@ export function TopBar() {
 
       {/* Right: pills */}
       <div className="ml-auto flex items-center gap-3">
-        {/* Live status pill */}
-        <div className="flex items-center gap-1.5 rounded-full border border-[#DDD7CC] bg-cream-100 px-3 py-1.5 text-[12px] text-[#4D6480] dark:border-navy-600 dark:bg-navy-800 dark:text-gray-300">
-          <span className="inline-block h-[7px] w-[7px] rounded-full bg-green-500 shadow-[0_0_0_2px_rgba(34,197,94,0.3)]" />
-          <span>Live</span>
-          <span className="hidden text-[#7A95AD] sm:inline">— RBI Circular DB v4.2</span>
-        </div>
-
-        {/* Help pill */}
-        <button
-          type="button"
-          className="flex items-center gap-1.5 rounded-full border border-[#DDD7CC] bg-cream-100 px-3 py-1.5 text-[12px] text-[#4D6480] transition-colors hover:border-gold-500 dark:border-navy-600 dark:bg-navy-800 dark:text-gray-300"
-        >
-          <svg className="h-[13px] w-[13px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.8}
-              d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"
-            />
-          </svg>
-          Help
-        </button>
-
         {/* User pill */}
         {user && (
           <Link

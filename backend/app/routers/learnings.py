@@ -23,7 +23,7 @@ from app.schemas.collaboration import (
     TeamLearningStatsResponse,
     TeamLearningUpdateRequest,
 )
-from app.utils.org_utils import user_org_domain
+from app.utils.org_utils import question_in_org, user_org_domain
 
 router = APIRouter(tags=["learnings"])
 
@@ -42,7 +42,6 @@ def _serialize(learning: TeamLearning) -> TeamLearningResponse:
 
 def _can_modify(learning: TeamLearning, user: User) -> bool:
     return learning.user_id == user.id or user.is_admin
-
 
 @router.get("/stats", response_model=TeamLearningStatsResponse)
 async def learning_stats(
@@ -217,12 +216,18 @@ async def create_learning(
     body: TeamLearningCreateRequest,
     user: User = Depends(require_verified_user),
     db: AsyncSession = Depends(get_db),
-) -> TeamLearningResponse:
+) -> TeamLearningResponse | dict:
     """Create a new team learning visible to the user's organization."""
+    org = user_org_domain(user)
+    if body.source_question_id is not None:
+        if not await question_in_org(db, body.source_question_id, org):
+            return {"success": False, "error": "Question not found in your organization", "code": "NOT_FOUND"}  # type: ignore[return-value]
+
     learning = TeamLearning(
         id=uuid.uuid4(),
         user_id=user.id,
-        org_domain=user_org_domain(user),
+        org_domain=org,
+        source_question_id=body.source_question_id,
         title=body.title,
         note=body.note,
         tags=body.tags,

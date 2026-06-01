@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
 import {
   useAnnotations,
   useCreateAnnotation,
@@ -9,6 +8,10 @@ import {
   usePostAnnotationReply,
   type Annotation,
 } from "@/hooks/useCollaboration";
+import {
+  markdownToPlainText,
+  selectionToPlainTextOffsets,
+} from "@/lib/markdownPlainText";
 import { useAuthStore } from "@/stores/authStore";
 
 interface AnnotationPanelProps {
@@ -16,37 +19,41 @@ interface AnnotationPanelProps {
   answerText: string;
 }
 
-function applyHighlights(text: string, annotations: Annotation[]): React.ReactNode {
+function applyHighlights(
+  text: string,
+  annotations: Annotation[],
+  activeId?: string | null,
+): React.ReactNode {
   if (!text || annotations.length === 0) return text;
 
   const sorted = [...annotations].sort((a, b) => a.start_offset - b.start_offset);
   const parts: React.ReactNode[] = [];
   let cursor = 0;
 
-  sorted.forEach((ann, idx) => {
+  for (const ann of sorted) {
     const start = Math.max(0, Math.min(ann.start_offset, text.length));
     const end = Math.max(start, Math.min(ann.end_offset, text.length));
-    if (start > cursor) {
-      parts.push(text.slice(cursor, start));
-    }
+    if (start < cursor) continue;
+    if (start > cursor) parts.push(text.slice(cursor, start));
     parts.push(
       <mark
         key={ann.id}
         id={`ann-${ann.id}`}
-        className="rounded bg-yellow-200/80 px-0.5 dark:bg-yellow-500/30"
+        className={`rounded px-0.5 ${
+          activeId === ann.id
+            ? "bg-yellow-300 ring-2 ring-gold-500 dark:bg-yellow-500/50"
+            : "bg-yellow-200/90 dark:bg-yellow-500/30"
+        }`}
         title={ann.note ?? ann.selected_text}
       >
         {text.slice(start, end)}
       </mark>,
     );
     cursor = end;
-    if (idx === sorted.length - 1 && cursor < text.length) {
-      parts.push(text.slice(cursor));
-    }
-  });
+  }
 
-  if (cursor === 0) return text;
-  return parts;
+  if (cursor < text.length) parts.push(text.slice(cursor));
+  return parts.length > 0 ? parts : text;
 }
 
 function AnnotationCard({
@@ -54,20 +61,36 @@ function AnnotationCard({
   questionId,
   canDelete,
   onDelete,
+  onFocus,
+  isActive,
 }: {
   annotation: Annotation;
   questionId: string;
   canDelete: boolean;
   onDelete: (id: string) => void;
+  onFocus: (id: string) => void;
+  isActive: boolean;
 }) {
   const [replyText, setReplyText] = useState("");
   const postReply = usePostAnnotationReply(annotation.id, questionId);
 
   return (
-    <div className="rounded-lg border border-cream-300 bg-cream-50 p-3 dark:border-navy-600 dark:bg-navy-900/50">
-      <blockquote className="border-l-2 border-gold-400 pl-2 text-xs italic text-gray-600 dark:text-gray-300">
-        &ldquo;{annotation.selected_text}&rdquo;
-      </blockquote>
+    <div
+      className={`rounded-lg border p-3 transition-colors ${
+        isActive
+          ? "border-gold-400 bg-gold-50 dark:border-gold-600 dark:bg-gold-900/20"
+          : "border-cream-300 bg-cream-50 dark:border-navy-600 dark:bg-navy-900/50"
+      }`}
+    >
+      <button
+        type="button"
+        onClick={() => onFocus(annotation.id)}
+        className="w-full text-left"
+      >
+        <blockquote className="border-l-2 border-gold-400 pl-2 text-xs italic text-gray-600 dark:text-gray-300">
+          &ldquo;{annotation.selected_text}&rdquo;
+        </blockquote>
+      </button>
       {annotation.note && (
         <p className="mt-2 text-sm text-[#1A2B40] dark:text-gray-200">{annotation.note}</p>
       )}
@@ -126,6 +149,7 @@ export function AnnotationPanel({ questionId, answerText }: AnnotationPanelProps
   const deleteAnnotation = useDeleteAnnotation(questionId);
 
   const [note, setNote] = useState("");
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [pendingSelection, setPendingSelection] = useState<{
     text: string;
     start: number;
@@ -133,28 +157,19 @@ export function AnnotationPanel({ questionId, answerText }: AnnotationPanelProps
   } | null>(null);
 
   const annotations = data?.data ?? [];
-
-  const plainText = useMemo(() => answerText.replace(/\*\*|__|#+\s|>\s|-\s|\d+\.\s/g, ""), [answerText]);
+  const plainText = useMemo(() => markdownToPlainText(answerText), [answerText]);
 
   const handleTextSelect = useCallback(() => {
     const sel = window.getSelection();
-    if (!sel || sel.isCollapsed || !answerRef.current) return;
-
-    const selectedText = sel.toString().trim();
-    if (!selectedText) return;
+    if (!sel || sel.isCollapsed || !answerRef.current || sel.rangeCount === 0) return;
 
     const range = sel.getRangeAt(0);
-    if (!answerRef.current.contains(range.commonAncestorContainer)) return;
+    const mapped = selectionToPlainTextOffsets(answerRef.current, range, plainText);
+    if (!mapped) return;
 
-    const preRange = document.createRange();
-    preRange.selectNodeContents(answerRef.current);
-    preRange.setEnd(range.startContainer, range.startOffset);
-    const start = preRange.toString().length;
-    const end = start + selectedText.length;
-
-    setPendingSelection({ text: selectedText, start, end });
+    setPendingSelection({ text: mapped.text, start: mapped.start, end: mapped.end });
     setNote("");
-  }, []);
+  }, [plainText]);
 
   const handleSave = () => {
     if (!pendingSelection) return;
@@ -165,10 +180,15 @@ export function AnnotationPanel({ questionId, answerText }: AnnotationPanelProps
         note: note.trim() || undefined,
         start_offset: pendingSelection.start,
         end_offset: pendingSelection.end,
-        anchor_path: ["detailed-interpretation"],
+        anchor_path: ["plain-text"],
       },
       { onSuccess: () => setPendingSelection(null) },
     );
+  };
+
+  const focusAnnotation = (id: string) => {
+    setActiveId(id);
+    document.getElementById(`ann-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
   const canDelete = (ann: Annotation) =>
@@ -181,22 +201,17 @@ export function AnnotationPanel({ questionId, answerText }: AnnotationPanelProps
           <h3 className="text-[13.5px] font-semibold text-[#1A2B40] dark:text-white">
             Detailed Interpretation
           </h3>
-          <p className="mt-0.5 text-xs text-gray-400">Select text to add a team annotation</p>
+          <p className="mt-0.5 text-xs text-gray-400">
+            Select text to annotate — highlights re-anchor on reload
+          </p>
         </div>
         <div
           ref={answerRef}
           onMouseUp={handleTextSelect}
-          className="prose prose-sm max-w-none px-5 py-4 prose-p:text-[#4D6480] dark:prose-invert"
+          className="whitespace-pre-wrap px-5 py-4 text-sm leading-relaxed text-[#4D6480] dark:text-gray-300"
         >
-          {answerText ? (
-            <>
-              <ReactMarkdown>{answerText}</ReactMarkdown>
-              {annotations.length > 0 && (
-                <div className="mt-4 rounded-lg bg-yellow-50 p-3 text-xs text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-200">
-                  {applyHighlights(plainText, annotations)}
-                </div>
-              )}
-            </>
+          {plainText ? (
+            applyHighlights(plainText, annotations, activeId)
           ) : (
             <p className="text-sm text-gray-400">No answer text available.</p>
           )}
@@ -259,6 +274,8 @@ export function AnnotationPanel({ questionId, answerText }: AnnotationPanelProps
                 questionId={questionId}
                 canDelete={canDelete(ann)}
                 onDelete={(id) => deleteAnnotation.mutate(id)}
+                onFocus={focusAnnotation}
+                isActive={activeId === ann.id}
               />
             ))}
           </div>

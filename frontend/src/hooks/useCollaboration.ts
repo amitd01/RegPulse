@@ -10,6 +10,7 @@ export interface AuthorSummary {
 export interface TeamLearning {
   id: string;
   user_id: string;
+  source_question_id: string | null;
   title: string;
   note: string;
   tags: string[];
@@ -107,7 +108,12 @@ export function useLearningStats() {
 export function useCreateLearning() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: { title: string; note: string; tags: string[] }) => {
+    mutationFn: async (body: {
+      title: string;
+      note: string;
+      tags: string[];
+      source_question_id?: string;
+    }) => {
       const { data } = await api.post("/learnings", body);
       return data as TeamLearning;
     },

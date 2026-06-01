@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Spinner } from "@/components/ui/Spinner";
 import {
@@ -63,6 +64,14 @@ function LearningCard({
           )}
           <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-gray-400">
             {item.author && <span>{item.author.full_name}</span>}
+            {item.source_question_id && (
+              <Link
+                href={`/history/${item.source_question_id}`}
+                className="font-medium text-crimson-600 hover:underline"
+              >
+                View source Q&amp;A
+              </Link>
+            )}
             <span>
               {new Date(item.created_at).toLocaleDateString("en-IN", {
                 day: "numeric",

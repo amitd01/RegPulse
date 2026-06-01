@@ -24,6 +24,7 @@ class TeamLearningCreateRequest(BaseModel):
     title: str = Field(min_length=1, max_length=500)
     note: str = Field(min_length=1, max_length=10000)
     tags: list[str] = Field(default_factory=list, max_length=20)
+    source_question_id: uuid.UUID | None = None
 
 
 class TeamLearningUpdateRequest(BaseModel):
@@ -41,6 +42,7 @@ class TeamLearningResponse(BaseModel):
 
     id: uuid.UUID
     user_id: uuid.UUID
+    source_question_id: uuid.UUID | None = None
     title: str
     note: str
     tags: list[str]

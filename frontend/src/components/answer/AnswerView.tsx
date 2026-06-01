@@ -4,13 +4,14 @@ import { useCallback, useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { CitationCard } from "./CitationCard";
 import { FeedbackSection } from "./FeedbackSection";
+import { SaveToTeamLearningDialog } from "@/components/collaboration/SaveToTeamLearningDialog";
 import { ConfidenceMeter } from "@/components/ui/ConfidenceMeter";
 import { Spinner } from "@/components/ui/Spinner";
 import {
   getActionItemErrorMessage,
   useShareWithTeam,
 } from "@/hooks/useActionItems";
-import { getSaveErrorMessage, useSaveInterpretation } from "@/hooks/useSavedInterpretations";
+import { getSaveErrorMessage, useIsQuestionSaved, useSaveInterpretation } from "@/hooks/useSavedInterpretations";
 import type { CitationItem, FeedbackRecord, RecommendedAction } from "@/types";
 
 function buildSaveName(question?: string, quickAnswer?: string | null): string {
@@ -39,6 +40,8 @@ export interface AnswerViewProps {
   feedbackSubmitted?: boolean;
   existingFeedback?: FeedbackRecord | null;
   extraActions?: React.ReactNode;
+  /** Primary = first turn (full header); followup = compact thread turn */
+  variant?: "primary" | "followup";
 }
 
 function riskStyle(level: string | null) {
@@ -141,13 +144,17 @@ export function AnswerView({
   feedbackSubmitted,
   existingFeedback,
   extraActions,
+  variant = "primary",
 }: AnswerViewProps) {
+  const isFollowup = variant === "followup";
   const saveMutation = useSaveInterpretation();
   const shareMutation = useShareWithTeam();
+  const alreadySaved = useIsQuestionSaved(questionId);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [shareSuccess, setShareSuccess] = useState<string | null>(null);
   const [shareError, setShareError] = useState<string | null>(null);
+  const isSaved = saveSuccess || alreadySaved;
 
   useEffect(() => {
     setSaveSuccess(false);
@@ -157,7 +164,7 @@ export function AnswerView({
   }, [questionId]);
 
   const handleSaveToLibrary = useCallback(() => {
-    if (!questionId || isStreaming || saveMutation.isPending || saveSuccess) return;
+    if (!questionId || isStreaming || saveMutation.isPending || isSaved) return;
 
     setSaveError(null);
     const name = buildSaveName(question, quickAnswer);
@@ -174,7 +181,7 @@ export function AnswerView({
     questionId,
     isStreaming,
     saveMutation,
-    saveSuccess,
+    isSaved,
     question,
     quickAnswer,
     affectedTeams,
@@ -211,6 +218,7 @@ export function AnswerView({
     quickAnswer,
     recommendedActions,
   ]);
+  const [learningDialogOpen, setLearningDialogOpen] = useState(false);
 
   const actionsByTeam = recommendedActions.reduce<Record<string, RecommendedAction[]>>(
     (acc, action) => {
@@ -222,47 +230,90 @@ export function AnswerView({
     {},
   );
 
+  const displayAnswer = answer || (isFollowup ? quickAnswer : "") || "";
+
+  if (isFollowup) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-4">
+        {question && (
+          <div className="flex justify-end">
+            <div className="max-w-[92%] rounded-2xl rounded-br-md border border-cream-300 bg-white px-4 py-3 shadow-sm">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#7A95AD]">
+                Your question
+              </p>
+              <p className="mt-1 text-[14px] leading-relaxed text-[#1A2B40]">{question}</p>
+            </div>
+          </div>
+        )}
+
+        <div className="rounded-xl border border-cream-300 bg-white shadow-sm">
+          <div className="border-b border-cream-200 px-5 py-3">
+            <h3 className="text-[13px] font-semibold text-[#1A2B40]">RegPulse Answer</h3>
+          </div>
+          <div className="px-5 py-4">
+            {displayAnswer ? (
+              <div className="prose prose-sm max-w-none prose-headings:font-semibold prose-headings:text-[#1A2B40] prose-p:text-[#4D6480] prose-li:text-[#4D6480] prose-strong:text-[#1A2B40] prose-a:text-gold-600 prose-a:no-underline hover:prose-a:underline">
+                <ReactMarkdown>{displayAnswer}</ReactMarkdown>
+              </div>
+            ) : isStreaming ? (
+              <StreamingSkeleton />
+            ) : null}
+            {isStreaming && !displayAnswer.trim() && (
+              <div className="mt-4 flex items-center gap-2 text-[12px] text-[#7A95AD]">
+                <Spinner size="sm" />
+                <span>Generating answer…</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-3xl space-y-5">
-      {/* Interpretation results header */}
-      <div className={NAVY_CARD} style={NAVY_GRADIENT}>
-        <div className="mb-1 flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[rgba(201,151,46,0.15)]">
-            <svg className="h-4 w-4 text-gold-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
+
+      {/* Interpretation results header — primary turn only */}
+      {!isFollowup && (
+        <div className={NAVY_CARD} style={NAVY_GRADIENT}>
+          <div className="mb-1 flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[rgba(201,151,46,0.15)]">
+              <svg className="h-4 w-4 text-gold-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#D0DFF0]">
+              Interpretation Results
+            </span>
           </div>
-          <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#D0DFF0]">
-            Interpretation Results
-          </span>
+          <p className="text-[12px] text-[#7A95AD]">AI-generated guidance with full source citations</p>
+
+          {question && (
+            <div className="mt-3 rounded-lg border border-[#253B57] bg-[rgba(255,255,255,0.06)] px-4 py-2.5">
+              <span className="text-[11px] font-medium text-[#7A95AD]">Your Question:</span>
+              <p className="mt-0.5 text-[13px] italic text-[#C8D8E8]">&ldquo;{question}&rdquo;</p>
+            </div>
+          )}
+
+          {(createdAt || modelUsed || latencyMs) && (
+            <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-[#7A95AD]">
+              {createdAt && (
+                <span>
+                  {new Date(createdAt).toLocaleDateString("en-IN", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+              )}
+              {modelUsed && <span>{modelUsed}</span>}
+              {latencyMs && <span>{latencyMs}ms</span>}
+            </div>
+          )}
         </div>
-        <p className="text-[12px] text-[#7A95AD]">AI-generated guidance with full source citations</p>
-
-        {question && (
-          <div className="mt-3 rounded-lg border border-[#253B57] bg-[rgba(255,255,255,0.06)] px-4 py-2.5">
-            <span className="text-[11px] font-medium text-[#7A95AD]">Your Question:</span>
-            <p className="mt-0.5 text-[13px] italic text-[#C8D8E8]">&ldquo;{question}&rdquo;</p>
-          </div>
-        )}
-
-        {(createdAt || modelUsed || latencyMs) && (
-          <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-[#7A95AD]">
-            {createdAt && (
-              <span>
-                {new Date(createdAt).toLocaleDateString("en-IN", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </span>
-            )}
-            {modelUsed && <span>{modelUsed}</span>}
-            {latencyMs && <span>{latencyMs}ms</span>}
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Confidence meter */}
       {(confidenceScore !== null || consultExpert) && (
@@ -412,7 +463,7 @@ export function AnswerView({
       {/* Action buttons */}
       {!isStreaming && answer && (
         <div className="space-y-3">
-          {saveSuccess && (
+          {isSaved && (
             <div
               className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
               role="status"
@@ -421,7 +472,9 @@ export function AnswerView({
                 <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                Saved to your library. View it anytime under Saved Interpretations.
+                {alreadySaved && !saveSuccess
+                  ? "Already saved to your library. View it anytime under Saved Interpretations."
+                  : "Saved to your library. View it anytime under Saved Interpretations."}
               </span>
             </div>
           )}
@@ -470,19 +523,19 @@ export function AnswerView({
             type="button"
             className={btnPrimary}
             onClick={handleSaveToLibrary}
-            disabled={!questionId || saveMutation.isPending || saveSuccess}
+            disabled={!questionId || saveMutation.isPending || isSaved}
           >
             {saveMutation.isPending ? (
               <>
                 <Spinner size="sm" />
                 Saving…
               </>
-            ) : saveSuccess ? (
+            ) : isSaved ? (
               <>
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                Saved
+                {alreadySaved && !saveSuccess ? "Already Saved" : "Saved"}
               </>
             ) : (
               <>
@@ -520,18 +573,18 @@ export function AnswerView({
               </>
             )}
           </button>
-          <button type="button" className={btnSecondary}>
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
-            </svg>
-            Flag for Review
-          </button>
-          <button type="button" className={btnSecondary}>
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Get Clarification
-          </button>
+          {questionId && (
+            <button
+              type="button"
+              onClick={() => setLearningDialogOpen(true)}
+              className={btnSecondary}
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+              Save to Team Learnings
+            </button>
+          )}
           </div>
         </div>
       )}
@@ -555,6 +608,16 @@ export function AnswerView({
           isSubmitting={isFeedbackSubmitting}
           submitted={feedbackSubmitted}
           existingFeedback={existingFeedback}
+        />
+      )}
+
+      {questionId && (
+        <SaveToTeamLearningDialog
+          open={learningDialogOpen}
+          onClose={() => setLearningDialogOpen(false)}
+          questionId={questionId}
+          defaultTitle={question ? question.slice(0, 120) : "Insight from Q&A"}
+          defaultNote={quickAnswer ?? answer.slice(0, 2000)}
         />
       )}
     </div>

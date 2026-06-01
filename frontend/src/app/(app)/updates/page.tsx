@@ -1,36 +1,23 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { listNews, sourceLabel, type NewsListResponse } from "@/lib/api/news";
-import { Badge, impactVariant, statusVariant } from "@/components/ui/Badge";
+import { Badge } from "@/components/ui/Badge";
 import { Pagination } from "@/components/ui/Pagination";
 import { CardListSkeleton } from "@/components/ui/Skeleton";
-import type { CircularListItem, PaginatedResponse } from "@/types";
 
-type Tab = "circulars" | "news";
-type UpdatesFilter = "all" | "week" | "high";
+const SOURCE_OPTIONS = [
+  { value: "", label: "All sources" },
+  { value: "RBI_PRESS", label: "RBI Press" },
+  { value: "BUSINESS_STANDARD", label: "Business Standard" },
+  { value: "LIVEMINT", label: "LiveMint" },
+  { value: "ET_BANKING", label: "ET Banking" },
+] as const;
 
-interface UpdatesFeedResponse extends PaginatedResponse<CircularListItem> {
-  unread_count: number;
-}
-
-function useUpdatesFeed(page: number, filter: UpdatesFilter, enabled: boolean) {
-  return useQuery<UpdatesFeedResponse>({
-    queryKey: ["circulars", "updates", page, filter],
-    queryFn: async () => {
-      const params: Record<string, string | number> = { page, page_size: 20 };
-      params.days = filter === "week" ? 7 : 30;
-      if (filter === "high") params.impact_level = "HIGH";
-      const { data } = await api.get("/circulars/updates", { params });
-      return data;
-    },
-    staleTime: 60_000,
-    enabled,
-  });
-}
+const selectClass =
+  "rounded-lg border border-cream-300 bg-cream-50 px-3 py-2 text-[13px] text-[#1A2B40] shadow-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500/30 dark:border-navy-600 dark:bg-navy-800 dark:text-gray-200";
 
 function useMarkUpdatesSeen() {
   const qc = useQueryClient();
@@ -42,10 +29,21 @@ function useMarkUpdatesSeen() {
   });
 }
 
-function useNews(page: number, enabled: boolean) {
+function useNews(
+  page: number,
+  source: string,
+  onlyLinked: boolean,
+  enabled: boolean,
+) {
   return useQuery<NewsListResponse>({
-    queryKey: ["news", page],
-    queryFn: () => listNews({ page, page_size: 20 }),
+    queryKey: ["news", page, source, onlyLinked],
+    queryFn: () =>
+      listNews({
+        page,
+        page_size: 20,
+        ...(source ? { source } : {}),
+        ...(onlyLinked ? { only_linked: true } : {}),
+      }),
     staleTime: 60_000,
     enabled,
   });
@@ -57,157 +55,75 @@ function stripHtml(input: string | null): string {
 }
 
 export default function UpdatesPage() {
-  const [tab, setTab] = useState<Tab>("circulars");
-  const [filter, setFilter] = useState<UpdatesFilter>("all");
-  const [circPage, setCircPage] = useState(1);
   const [newsPage, setNewsPage] = useState(1);
+  const [sourceFilter, setSourceFilter] = useState("");
+  const [onlyLinked, setOnlyLinked] = useState(false);
 
-  const { data: circData, isLoading: circLoading } = useUpdatesFeed(
-    circPage,
-    filter,
-    tab === "circulars",
+  const { data: newsData, isLoading: newsLoading } = useNews(
+    newsPage,
+    sourceFilter,
+    onlyLinked,
+    true,
   );
-  const { data: newsData, isLoading: newsLoading } = useNews(newsPage, tab === "news");
   const markSeen = useMarkUpdatesSeen();
 
-  // Fire mark-seen once on first mount of the page.
+  const totalPages = newsData ? Math.ceil(newsData.total / newsData.page_size) : 0;
+
   useEffect(() => {
     markSeen.mutate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const handleSourceChange = (value: string) => {
+    setSourceFilter(value);
+    setNewsPage(1);
+  };
+
+  const handleLinkedChange = (checked: boolean) => {
+    setOnlyLinked(checked);
+    setNewsPage(1);
+  };
+
   return (
-    <div className="flex min-h-screen flex-col">
-      <div className="flex-1 px-8 py-8">
-        <h2 className="mb-6 font-serif text-[26px] text-[#1A2B40] dark:text-gray-100">
+    <div className="flex min-h-0 flex-1 flex-col px-8 py-8">
+      <div className="mb-6 flex shrink-0 flex-wrap items-center justify-between gap-4">
+        <h2 className="font-serif text-[26px] text-[#1A2B40] dark:text-gray-100">
           Regulatory Updates
         </h2>
 
-      {/* Tabs */}
-      <div className="mb-6 flex gap-2 border-b border-cream-300 dark:border-navy-700">
-        {(["circulars", "news"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`border-b-2 px-3 pb-2 text-[13.5px] font-medium transition-colors ${
-              tab === t
-                ? "border-navy-900 text-[#1A2B40] dark:border-gold-400 dark:text-gold-400"
-                : "border-transparent text-[#7A95AD] hover:text-[#1A2B40] dark:text-gray-400 dark:hover:text-gray-200"
-            }`}
+        <div className="flex flex-wrap items-center gap-3">
+          <select
+            className={selectClass}
+            value={sourceFilter}
+            onChange={(e) => handleSourceChange(e.target.value)}
+            aria-label="Filter by source"
           >
-            {t === "circulars" ? "Circulars" : "Market News"}
-          </button>
-        ))}
+            {SOURCE_OPTIONS.map((o) => (
+              <option key={o.value || "all"} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+
+          <label className="flex cursor-pointer items-center gap-2 text-[13px] text-[#4D6480] dark:text-gray-400">
+            <input
+              type="checkbox"
+              checked={onlyLinked}
+              onChange={(e) => handleLinkedChange(e.target.checked)}
+              className="h-4 w-4 rounded border-cream-300 text-gold-600 focus:ring-gold-500/30"
+            />
+            Linked to circular
+          </label>
+        </div>
       </div>
 
-      {/* Circulars tab */}
-      {tab === "circulars" && (
-        <>
-          {/* Filter chips */}
-          <div className="mb-4 flex flex-wrap gap-2">
-            {(
-              [
-                { key: "all", label: "All" },
-                { key: "week", label: "This Week" },
-                { key: "high", label: "High Impact" },
-              ] as { key: UpdatesFilter; label: string }[]
-            ).map((f) => (
-              <button
-                key={f.key}
-                onClick={() => {
-                  setFilter(f.key);
-                  setCircPage(1);
-                }}
-                className={`rounded-full border px-3 py-1 text-xs font-medium ${
-                  filter === f.key
-                    ? "border-crimson-600 bg-crimson-50 text-crimson-700 dark:border-crimson-500 dark:bg-crimson-900/40 dark:text-crimson-300"
-                    : "border-gray-200 text-gray-600 hover:border-crimson-300 hover:text-crimson-700 dark:border-gray-700 dark:text-gray-300"
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-
-          {circLoading && <CardListSkeleton rows={6} />}
-
-          {circData && circData.data.length === 0 && (
-            <p className="py-20 text-center text-sm text-gray-500 dark:text-gray-400">
-              No updates yet.
-            </p>
-          )}
-
-          {circData && circData.data.length > 0 && (
-            <div className="space-y-3">
-              {circData.data.map((c) => (
-                <Link
-                  key={c.id}
-                  href={`/library/${c.id}`}
-              className="block rounded-xl border border-cream-300 bg-white p-4 transition-all hover:-translate-y-px hover:border-[#C9972E40] hover:shadow-[0_2px_12px_rgba(0,0,0,0.06)] dark:border-navy-700 dark:bg-navy-800"
-            >
-              <div className="flex flex-wrap items-center gap-2 mb-2">
-                    {c.circular_number && (
-                      <span className="text-[11.5px] font-semibold text-gold-600 dark:text-gold-400">
-                        {c.circular_number}
-                      </span>
-                    )}
-                    <Badge variant={statusVariant(c.status)}>{c.status}</Badge>
-                    {c.impact_level && (
-                      <Badge variant={impactVariant(c.impact_level)}>
-                        {c.impact_level}
-                      </Badge>
-                    )}
-                    <span className="text-xs text-gray-400">
-                      {c.doc_type.replace(/_/g, " ")}
-                    </span>
-                  </div>
-                  <p className="text-sm font-medium text-gray-900 line-clamp-2">
-                    {c.title}
-                  </p>
-                  <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
-                    {c.issued_date && (
-                      <span>
-                        {new Date(c.issued_date).toLocaleDateString("en-IN", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })}
-                      </span>
-                    )}
-                    {c.department && <span>{c.department}</span>}
-                  </div>
-                  {c.tags && c.tags.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {c.tags.slice(0, 3).map((tag) => (
-                        <Badge key={tag}>{tag}</Badge>
-                      ))}
-                    </div>
-                  )}
-                </Link>
-              ))}
-            </div>
-          )}
-
-          {circData && circData.total_pages > 1 && (
-            <div className="mt-6">
-              <Pagination
-                page={circPage}
-                totalPages={circData.total_pages}
-                onPageChange={setCircPage}
-              />
-            </div>
-          )}
-        </>
-      )}
-
-      {/* News tab */}
-      {tab === "news" && (
-        <>
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="min-h-0 flex-1 overflow-y-auto pr-1">
           {newsLoading && <CardListSkeleton rows={6} />}
 
-          {newsData && newsData.items.length === 0 && (
+          {newsData && newsData.items.length === 0 && !newsLoading && (
             <p className="py-20 text-center text-sm text-gray-500 dark:text-gray-400">
-              No news ingested yet.
+              No updates match your filters.
             </p>
           )}
 
@@ -232,11 +148,11 @@ export default function UpdatesPage() {
                       </span>
                     )}
                   </div>
-                  <p className="text-sm font-medium text-gray-900 line-clamp-2">
+                  <p className="line-clamp-2 text-sm font-medium text-gray-900 dark:text-gray-100">
                     {item.title}
                   </p>
                   {item.summary && (
-                    <p className="mt-1 text-xs text-gray-600 line-clamp-2">
+                    <p className="mt-1 line-clamp-2 text-xs text-gray-600 dark:text-gray-400">
                       {stripHtml(item.summary)}
                     </p>
                   )}
@@ -255,19 +171,18 @@ export default function UpdatesPage() {
               ))}
             </div>
           )}
+        </div>
 
-          {newsData && newsData.total > 20 && (
-            <div className="mt-6">
-              <Pagination
-                page={newsPage}
-                totalPages={Math.ceil(newsData.total / 20)}
-                onPageChange={setNewsPage}
-              />
-            </div>
-          )}
-        </>
-      )}
-
+        {newsData && totalPages > 1 && (
+          <div className="mt-4 shrink-0 border-t border-cream-300 pt-4 dark:border-navy-700">
+            <Pagination
+              page={newsPage}
+              totalPages={totalPages}
+              onPageChange={setNewsPage}
+              className="justify-start"
+            />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -37,11 +37,140 @@ from app.schemas.questions import (
 )
 from app.services.email_service import EmailService
 from app.services.llm_service import LLMService
-from app.services.rag_service import RAGService
+from app.services.rag_service import RAGService, RetrievedChunk
 from app.utils.credit_utils import deduct_credit
+from app.utils.org_utils import question_in_org, user_org_domain
 
 router = APIRouter(tags=["questions"])
 logger = structlog.get_logger("regpulse.questions")
+
+_MAX_CONVERSATION_TURNS = 5
+
+
+def _chunks_from_stored(stored: list | dict | None) -> list[RetrievedChunk]:
+    """Rehydrate RetrievedChunk objects from a question's chunks_used JSONB."""
+    if not stored or not isinstance(stored, list):
+        return []
+    chunks: list[RetrievedChunk] = []
+    for item in stored:
+        if not isinstance(item, dict):
+            continue
+        chunk_id = item.get("chunk_id")
+        if not chunk_id:
+            continue
+        chunks.append(
+            RetrievedChunk(
+                chunk_id=str(chunk_id),
+                document_id=str(item.get("document_id", "")),
+                chunk_index=int(item.get("chunk_index", 0)),
+                chunk_text=str(item.get("chunk_text", "")),
+                token_count=int(item.get("token_count", 0)),
+                circular_number=item.get("circular_number"),
+                title=str(item.get("title", "RBI Circular")),
+                rbi_url=str(item.get("rbi_url", "")),
+            )
+        )
+    return chunks
+
+
+def _merge_chunks(*chunk_lists: list[RetrievedChunk]) -> list[RetrievedChunk]:
+    """Deduplicate chunks by chunk_id, preserving first-seen order."""
+    seen: set[str] = set()
+    merged: list[RetrievedChunk] = []
+    for chunk_list in chunk_lists:
+        for chunk in chunk_list:
+            if chunk.chunk_id in seen:
+                continue
+            seen.add(chunk.chunk_id)
+            merged.append(chunk)
+    return merged
+
+
+async def _load_parent_thread_chunks(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    parent_question_id: uuid.UUID,
+    max_turns: int = _MAX_CONVERSATION_TURNS,
+) -> list[RetrievedChunk]:
+    """Collect chunks_used from the parent chain for follow-up retrieval continuity."""
+    collected: list[RetrievedChunk] = []
+    current_id: uuid.UUID | None = parent_question_id
+
+    for _ in range(max_turns):
+        if current_id is None:
+            break
+        stmt = select(Question).where(
+            Question.id == current_id,
+            Question.user_id == user_id,
+            Question.streaming_completed.is_(True),
+        )
+        row = (await db.execute(stmt)).scalar_one_or_none()
+        if row is None:
+            break
+        collected = _merge_chunks(_chunks_from_stored(row.chunks_used), collected)
+        current_id = row.parent_question_id
+
+    return collected
+
+
+async def _load_conversation_history(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    parent_question_id: uuid.UUID,
+    max_turns: int = _MAX_CONVERSATION_TURNS,
+) -> list[tuple[str, str]]:
+    """Walk the parent chain and return (question, answer) pairs oldest-first."""
+    history: list[tuple[str, str]] = []
+    current_id: uuid.UUID | None = parent_question_id
+
+    for _ in range(max_turns):
+        if current_id is None:
+            break
+        stmt = select(Question).where(
+            Question.id == current_id,
+            Question.user_id == user_id,
+            Question.streaming_completed.is_(True),
+        )
+        row = (await db.execute(stmt)).scalar_one_or_none()
+        if row is None:
+            break
+        if row.answer_text:
+            history.append((row.question_text, row.answer_text))
+        current_id = row.parent_question_id
+
+    history.reverse()
+    return history
+
+
+async def _resolve_parent_question(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    parent_question_id: uuid.UUID | None,
+) -> tuple[uuid.UUID | None, list[tuple[str, str]], list[RetrievedChunk]]:
+    """Validate parent ownership and return (parent_id, history, parent thread chunks)."""
+    if parent_question_id is None:
+        return None, [], []
+
+    from app.exceptions import RegPulseException
+
+    class InvalidParentQuestionError(RegPulseException):
+        http_status = 400
+        error_code = "INVALID_PARENT_QUESTION"
+
+    stmt = select(Question).where(
+        Question.id == parent_question_id,
+        Question.user_id == user_id,
+        Question.streaming_completed.is_(True),
+    )
+    parent = (await db.execute(stmt)).scalar_one_or_none()
+    if parent is None or not parent.answer_text:
+        raise InvalidParentQuestionError(
+            "Parent question not found or not ready for follow-up"
+        )
+
+    history = await _load_conversation_history(db, user_id, parent_question_id)
+    parent_chunks = await _load_parent_thread_chunks(db, user_id, parent_question_id)
+    return parent_question_id, history, parent_chunks
 
 
 async def _maybe_embed_question(request: Request, text: str) -> list[float] | None:
@@ -86,9 +215,13 @@ async def ask_question(
     llm = build_llm_service(request)
 
     question_text = body.question.strip()
+    parent_question_id, conversation_history, parent_thread_chunks = await _resolve_parent_question(
+        db, user.id, body.parent_question_id
+    )
+    is_follow_up = parent_question_id is not None
 
-    # 1. Check answer cache
-    cached = await rag.check_cache(question_text)
+    # 1. Check answer cache (skip for follow-ups — context differs from standalone cache)
+    cached = None if parent_question_id else await rag.check_cache(question_text)
     if cached:
         logger.info("question_cache_hit")
         accept = request.headers.get("accept", "")
@@ -110,14 +243,21 @@ async def ask_question(
             credit_balance=user.credit_balance,  # No deduction for cache hit
         )
 
-    # 2. Retrieve relevant chunks
-    chunks = await rag.retrieve(question_text)
+    # 2. Retrieve relevant chunks (boost query with parent context for follow-ups)
+    retrieval_query = question_text
+    if is_follow_up and conversation_history:
+        retrieval_query = f"{conversation_history[-1][0]} {question_text}"
+    fresh_chunks = await rag.retrieve(retrieval_query)
+    chunks = (
+        _merge_chunks(parent_thread_chunks, fresh_chunks) if is_follow_up else fresh_chunks
+    )
 
-    if not chunks:
+    if not chunks and not (is_follow_up and conversation_history):
         # No relevant chunks found — return no-answer, no credit charge
         no_answer = Question(
             id=uuid.uuid4(),
             user_id=user.id,
+            parent_question_id=parent_question_id,
             question_text=question_text,
             answer_text="I couldn't find relevant RBI circulars to answer this question.",
             quick_answer="No relevant circulars found.",
@@ -148,6 +288,9 @@ async def ask_question(
                 db=db,
                 user=user,
                 start_time=start_time,
+                parent_question_id=parent_question_id,
+                conversation_history=conversation_history,
+                is_follow_up=is_follow_up,
             ),
             media_type="text/event-stream",
             headers={
@@ -158,7 +301,12 @@ async def ask_question(
         )
 
     # 4. Non-streaming: call LLM directly
-    llm_response, model_used = await llm.generate(question_text, chunks)
+    llm_response, model_used = await llm.generate(
+        question_text,
+        chunks,
+        conversation_history=conversation_history or None,
+        is_follow_up=is_follow_up,
+    )
     latency_ms = int((time.perf_counter() - start_time) * 1000)
 
     # 4b. Embed the question so /questions/suggestions can ANN-search it.
@@ -170,6 +318,7 @@ async def ask_question(
     question = Question(
         id=uuid.uuid4(),
         user_id=user.id,
+        parent_question_id=parent_question_id,
         question_text=question_text,
         question_embedding=question_embedding,
         answer_text=llm_response.get("detailed_interpretation"),
@@ -270,6 +419,9 @@ async def _stream_response(
     db: AsyncSession,
     user: User,
     start_time: float,
+    parent_question_id: uuid.UUID | None = None,
+    conversation_history: list[tuple[str, str]] | None = None,
+    is_follow_up: bool = False,
 ):
     """SSE generator for streaming responses.
 
@@ -288,7 +440,12 @@ async def _stream_response(
     # Failure here → emit event:error (no answer was shown yet).
     # -----------------------------------------------------------------------
     try:
-        async for event_type, data in llm.generate_stream(question_text, chunks):
+        async for event_type, data in llm.generate_stream(
+            question_text,
+            chunks,
+            conversation_history=conversation_history or None,
+            is_follow_up=is_follow_up,
+        ):
             if event_type == "token":
                 token_data = json.loads(data)
                 full_text += token_data.get("token", "")
@@ -332,6 +489,7 @@ async def _stream_response(
         question = Question(
             id=uuid.uuid4(),
             user_id=user.id,
+            parent_question_id=parent_question_id,
             question_text=question_text,
             question_embedding=question_embedding,
             answer_text=answer_text,
@@ -516,19 +674,19 @@ async def get_question(
     user: User = Depends(require_verified_user),
     db: AsyncSession = Depends(get_db),
 ) -> QuestionResponse:
-    """Get question detail. Only accessible by the question's owner."""
+    """Get question detail. Owner or same-org teammates (team collaboration)."""
     stmt = (
         select(Question)
         .options(selectinload(Question.interpretation_feedback))
-        .where(
-            Question.id == question_id,
-            Question.user_id == user.id,
-        )
+        .where(Question.id == question_id)
     )
     result = await db.execute(stmt)
     question = result.scalar_one_or_none()
 
-    if question is None:
+    if question is None or (
+        question.user_id != user.id
+        and not await question_in_org(db, question_id, user_org_domain(user))
+    ):
         from app.exceptions import RegPulseException
 
         class QuestionNotFoundError(RegPulseException):

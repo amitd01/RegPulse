@@ -29,6 +29,9 @@ class TeamLearning(Base):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     org_domain: Mapped[str] = mapped_column(String(255), nullable=False)
+    source_question_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("questions.id", ondelete="SET NULL")
+    )
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     note: Mapped[str] = mapped_column(Text, nullable=False)
     tags: Mapped[dict | None] = mapped_column(JSONB, server_default="'[]'::jsonb")
