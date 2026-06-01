@@ -337,7 +337,7 @@ export function AppSidebar() {
                 Credits
               </span>
               <span className="text-[12px] font-semibold text-gold-400">
-                {creditBalance} / 500
+                {creditBalance}
               </span>
             </div>
             <div className="h-[5px] overflow-hidden rounded-full bg-white/[0.06]">
