@@ -2,7 +2,7 @@
 
 
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { AnswerView } from "@/components/answer/AnswerView";
 
@@ -23,18 +23,6 @@ import type { CitationItem, RecommendedAction } from "@/types";
 // Types
 
 // ─────────────────────────────────────────────────────────────────────────────
-
-
-
-interface Suggestion {
-
-  id: string;
-
-  question_text: string;
-
-  quick_answer_preview: string | null;
-
-}
 
 
 
@@ -168,10 +156,6 @@ export default function AskPage() {
 
   const [turns, setTurns] = useState<ConversationTurn[]>([]);
 
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-
-  const [showSuggestions, setShowSuggestions] = useState(false);
-
   const [feedbackByTurn, setFeedbackByTurn] = useState<Record<string, boolean>>({});
 
   const [submittingFeedbackTurn, setSubmittingFeedbackTurn] = useState<string | null>(null);
@@ -180,69 +164,9 @@ export default function AskPage() {
 
   const abortRef = useRef<AbortController | null>(null);
 
-  const suggestionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const answerRef = useRef<HTMLDivElement>(null);
 
   const threadEndRef = useRef<HTMLDivElement>(null);
-
-
-
-  const suggestionQuery = turns.length > 0 ? followUp : question;
-
-
-
-  useEffect(() => {
-
-    if (suggestionTimer.current) clearTimeout(suggestionTimer.current);
-
-    const trimmed = suggestionQuery.trim();
-
-    if (trimmed.length < 5) {
-
-      setSuggestions([]);
-
-      return;
-
-    }
-
-    suggestionTimer.current = setTimeout(async () => {
-
-      try {
-
-        const { data } = await api.get("/questions/suggestions", {
-
-          params: { q: trimmed, limit: 5 },
-
-        });
-
-        setSuggestions(data.data || []);
-
-      } catch {
-
-        setSuggestions([]);
-
-      }
-
-    }, 300);
-
-    return () => {
-
-      if (suggestionTimer.current) clearTimeout(suggestionTimer.current);
-
-    };
-
-  }, [suggestionQuery]);
-
-
-
-  const suggestionList = useMemo(
-
-    () => (showSuggestions ? suggestions : []),
-
-    [showSuggestions, suggestions],
-
-  );
 
 
 
@@ -1064,10 +988,6 @@ export default function AskPage() {
 
                   onKeyDown={handleKeyDown}
 
-                  onFocus={() => setShowSuggestions(true)}
-
-                  onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-
                   placeholder="e.g. What are the revised KYC norms for digital lending NBFCs under the latest RBI master direction?"
 
                   rows={4}
@@ -1077,70 +997,6 @@ export default function AskPage() {
                   className="w-full resize-none border-none bg-transparent text-[14.5px] leading-relaxed text-[#1A2B40] placeholder-[#B0A898] focus:outline-none"
 
                 />
-
-
-
-                {suggestionList.length > 0 && (
-
-                  <ul className="absolute left-0 right-0 top-full z-20 mt-1 max-h-64 overflow-auto rounded-xl border border-cream-300 bg-white shadow-lg">
-
-                    {suggestionList.map((s) => (
-
-                      <li key={s.id}>
-
-                        <button
-
-                          type="button"
-
-                          onMouseDown={(e) => e.preventDefault()}
-
-                          onClick={() => {
-
-                            setQuestion(s.question_text);
-
-                            setShowSuggestions(false);
-
-                          }}
-
-                          className="block w-full px-4 py-3 text-left transition-colors hover:bg-cream-100"
-
-                        >
-
-                          <div className="flex items-start gap-2">
-
-                            <svg className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-gold-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-
-                            </svg>
-
-                            <div>
-
-                              <div className="text-sm text-[#1A2B40] line-clamp-1">{s.question_text}</div>
-
-                              {s.quick_answer_preview && (
-
-                                <div className="mt-0.5 text-xs text-[#7A95AD] line-clamp-1">
-
-                                  {s.quick_answer_preview}
-
-                                </div>
-
-                              )}
-
-                            </div>
-
-                          </div>
-
-                        </button>
-
-                      </li>
-
-                    ))}
-
-                  </ul>
-
-                )}
 
               </div>
 

@@ -24,6 +24,7 @@ export function useCircularList(filters: CircularFilters) {
       };
       if (filters.doc_type) params.doc_type = filters.doc_type;
       if (filters.status) params.status = filters.status;
+      if (filters.regulator) params.regulator = filters.regulator;
       if (filters.impact_level) params.impact_level = filters.impact_level;
       if (filters.department) params.department = filters.department;
       if (filters.date_from) params.date_from = filters.date_from;
@@ -57,6 +58,7 @@ export function useCircularSearch(
       };
       if (filters.doc_type) params.doc_type = filters.doc_type;
       if (filters.status) params.status = filters.status;
+      if (filters.regulator) params.regulator = filters.regulator;
       if (filters.impact_level) params.impact_level = filters.impact_level;
       if (filters.department) params.department = filters.department;
       if (filters.date_from) params.date_from = filters.date_from;

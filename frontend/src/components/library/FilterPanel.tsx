@@ -4,11 +4,9 @@ import { cn } from "@/lib/cn";
 import type { CircularFilters } from "@/types";
 
 const DOC_TYPE_OPTIONS = [
-  { value: "CIRCULAR", label: "Circular" },
   { value: "MASTER_DIRECTION", label: "Master Direction" },
   { value: "NOTIFICATION", label: "Notification" },
   { value: "PRESS_RELEASE", label: "Press Release" },
-  { value: "GUIDELINE", label: "Guideline" },
 ];
 
 const STATUS_OPTIONS = [
@@ -51,6 +49,7 @@ export function FilterPanel({
   const hasActiveFilters =
     filters.doc_type ||
     filters.status ||
+    filters.regulator ||
     filters.impact_level ||
     filters.department ||
     filters.date_from ||
@@ -72,7 +71,11 @@ export function FilterPanel({
           <label className="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">
             Regulatory Body
           </label>
-          <select className={selectClass} value="" onChange={() => {}}>
+          <select
+            className={selectClass}
+            value={filters.regulator || ""}
+            onChange={(e) => onFilterChange("regulator", e.target.value)}
+          >
             <option value="">All Regulators</option>
             {REGULATORY_BODY_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>

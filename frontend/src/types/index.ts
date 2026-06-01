@@ -181,6 +181,7 @@ export interface CircularFilters {
   query?: string;
   doc_type?: string;
   status?: string;
+  regulator?: string;
   impact_level?: string;
   department?: string;
   date_from?: string;
