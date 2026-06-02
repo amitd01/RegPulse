@@ -8,6 +8,7 @@ import { listNews } from "@/lib/api/news";
 import { cn } from "@/lib/cn";
 import { Spinner } from "@/components/ui/Spinner";
 import { useAuthStore } from "@/stores/authStore";
+import { bandFor } from "@/components/ui/ConfidenceMeter";
 import type { PaginatedResponse, QuestionSummary } from "@/types";
 
 const PLAN_CREDIT_LIMIT = 500;
@@ -27,10 +28,27 @@ interface ActionStats {
 
 function useRecentQuestions() {
   return useQuery<PaginatedResponse<QuestionSummary>>({
-    queryKey: ["questions", "recent"],
+    queryKey: ["questions", "recent", "roots"],
     queryFn: async () => {
-      const { data } = await api.get("/questions", { params: { page: 1, page_size: 5 } });
-      return data;
+      const { data } = await api.get<PaginatedResponse<QuestionSummary>>("/questions", {
+        params: { page: 1, page_size: 5, roots_only: true },
+      });
+      // Main questions only (no follow-ups in a conversation thread)
+      const mains = data.data.filter((q) => !q.parent_question_id);
+      return { ...data, data: mains };
+    },
+    staleTime: 30_000,
+  });
+}
+
+function useQuestionsTotal() {
+  return useQuery<number>({
+    queryKey: ["questions", "total"],
+    queryFn: async () => {
+      const { data } = await api.get<PaginatedResponse<QuestionSummary>>("/questions", {
+        params: { page: 1, page_size: 1 },
+      });
+      return data.total;
     },
     staleTime: 30_000,
   });
@@ -80,16 +98,20 @@ function formatRenewDate(iso: string | null | undefined): string {
   });
 }
 
-function riskTagClass(level: string | null): string {
-  switch (level?.toUpperCase()) {
-    case "HIGH":
-      return "bg-[#FEE2E2] text-[#DC2626]";
-    case "MEDIUM":
-      return "bg-[#FEF3C7] text-[#B45309]";
-    case "LOW":
+function confidenceTagClass(
+  score: number | null,
+  consultExpert: boolean,
+): string {
+  const band = bandFor(score, consultExpert);
+  switch (band) {
+    case "high":
       return "bg-[#DCFCE7] text-[#16A34A]";
+    case "medium":
+      return "bg-[#FEF3C7] text-[#B45309]";
+    case "low":
+      return "bg-[#FFEDD5] text-[#C2410C]";
     default:
-      return "bg-[#EEF3FF] text-[#3B5BDB]";
+      return "bg-[#FEE2E2] text-[#DC2626]";
   }
 }
 
@@ -139,6 +161,7 @@ function CountUp({ value }: { value: number }) {
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const { data: recent, isLoading: questionsLoading } = useRecentQuestions();
+  const { data: questionsTotalCount } = useQuestionsTotal();
   const { data: news, isLoading: newsLoading } = useLatestNews();
   const { data: actions, isLoading: actionsLoading } = usePendingActions();
   const { data: actionStats } = useActionStats();
@@ -147,7 +170,7 @@ export default function DashboardPage() {
   const creditBalance = user?.credit_balance ?? 0;
   const creditPct = Math.min(100, Math.round((creditBalance / PLAN_CREDIT_LIMIT) * 100));
   const openActions = (actionStats?.pending ?? 0) + (actionStats?.in_progress ?? 0);
-  const questionsTotal = recent?.total ?? 0;
+  const questionsTotal = questionsTotalCount ?? 0;
 
   const todayLabel = useMemo(
     () =>
@@ -293,7 +316,7 @@ export default function DashboardPage() {
           {recent?.data.map((q, i) => (
             <Link
               key={q.id}
-              href={`/history/${q.id}`}
+              href={`/ask?thread=${q.id}`}
               className="group flex items-start gap-3.5 border-b border-[#F5F1EB] px-6 py-3 transition-colors last:border-b-0 hover:bg-[#FAFAF7] dark:border-navy-800 dark:hover:bg-navy-800/50"
             >
               <span className="mt-px flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-[7px] border border-[#E4DDD2] bg-[#F5F2EB] text-[11px] font-semibold text-[#7A95AD]">
@@ -304,14 +327,16 @@ export default function DashboardPage() {
                   {q.question_text}
                 </p>
                 <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                  {q.risk_level && (
+                  {(q.confidence_score !== null || q.consult_expert) && (
                     <span
                       className={cn(
                         "rounded-[5px] px-2 py-0.5 text-[10px] font-semibold tracking-wide",
-                        riskTagClass(q.risk_level),
+                        confidenceTagClass(q.confidence_score, q.consult_expert),
                       )}
                     >
-                      {q.risk_level.toUpperCase()}
+                      {q.consult_expert
+                        ? "Consult expert"
+                        : `${Math.round((q.confidence_score ?? 0) * 100)}%`}
                     </span>
                   )}
                   <span className="text-[11px] text-[#7A95AD]">

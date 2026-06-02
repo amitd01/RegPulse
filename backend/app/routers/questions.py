@@ -34,6 +34,7 @@ from app.schemas.questions import (
     QuestionSuggestionItem,
     QuestionSuggestionListResponse,
     QuestionSummary,
+    QuestionThreadResponse,
 )
 from app.services.email_service import EmailService
 from app.services.llm_service import LLMService
@@ -171,6 +172,64 @@ async def _resolve_parent_question(
     history = await _load_conversation_history(db, user_id, parent_question_id)
     parent_chunks = await _load_parent_thread_chunks(db, user_id, parent_question_id)
     return parent_question_id, history, parent_chunks
+
+
+async def _resolve_thread_root_id(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    question_id: uuid.UUID,
+) -> uuid.UUID | None:
+    """Walk parent_question_id chain to the conversation root."""
+    current_id = question_id
+    while True:
+        stmt = select(Question.id, Question.parent_question_id, Question.user_id).where(
+            Question.id == current_id
+        )
+        result = await db.execute(stmt)
+        row = result.one_or_none()
+        if row is None or row.user_id != user_id:
+            return None
+        if row.parent_question_id is None:
+            return row.id
+        current_id = row.parent_question_id
+
+
+async def _load_thread_questions(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    root_id: uuid.UUID,
+) -> list[Question]:
+    """Load the root question and linear follow-ups in chronological order."""
+    stmt = (
+        select(Question)
+        .options(selectinload(Question.interpretation_feedback))
+        .where(Question.id == root_id, Question.user_id == user_id)
+    )
+    result = await db.execute(stmt)
+    root = result.scalar_one_or_none()
+    if root is None:
+        return []
+
+    thread = [root]
+    parent_id = root.id
+    while True:
+        child_stmt = (
+            select(Question)
+            .options(selectinload(Question.interpretation_feedback))
+            .where(
+                Question.user_id == user_id,
+                Question.parent_question_id == parent_id,
+            )
+            .order_by(Question.created_at)
+            .limit(1)
+        )
+        child_result = await db.execute(child_stmt)
+        child = child_result.scalar_one_or_none()
+        if child is None:
+            break
+        thread.append(child)
+        parent_id = child.id
+    return thread
 
 
 async def _maybe_embed_question(request: Request, text: str) -> list[float] | None:
@@ -575,18 +634,26 @@ async def _stream_response(
 async def list_questions(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
+    roots_only: bool = Query(
+        default=False,
+        description="When true, return only conversation starters (no follow-ups).",
+    ),
     user: User = Depends(require_verified_user),
     db: AsyncSession = Depends(get_db),
 ) -> QuestionListResponse:
     """Get paginated question history for the current user."""
-    count_stmt = select(func.count(Question.id)).where(Question.user_id == user.id)
+    filters = [Question.user_id == user.id]
+    if roots_only:
+        filters.append(Question.parent_question_id.is_(None))
+
+    count_stmt = select(func.count(Question.id)).where(*filters)
     total_result = await db.execute(count_stmt)
     total = total_result.scalar() or 0
 
     stmt = (
         select(Question)
         .options(selectinload(Question.interpretation_feedback))
-        .where(Question.user_id == user.id)
+        .where(*filters)
         .order_by(desc(Question.created_at))
         .offset((page - 1) * page_size)
         .limit(page_size)
@@ -661,6 +728,35 @@ async def question_suggestions(
         for row in rows
     ]
     return QuestionSuggestionListResponse(data=items)
+
+
+# ---------------------------------------------------------------------------
+# GET /questions/{id}/thread — full conversation (root + follow-ups)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/{question_id}/thread", response_model=QuestionThreadResponse)
+async def get_question_thread(
+    question_id: uuid.UUID,
+    user: User = Depends(require_verified_user),
+    db: AsyncSession = Depends(get_db),
+) -> QuestionThreadResponse:
+    """Return all questions in a conversation thread, oldest first."""
+    root_id = await _resolve_thread_root_id(db, user.id, question_id)
+    if root_id is None:
+        from app.exceptions import RegPulseException
+
+        class QuestionNotFoundError(RegPulseException):
+            http_status = 404
+            error_code = "QUESTION_NOT_FOUND"
+
+        raise QuestionNotFoundError("Question not found")
+
+    thread = await _load_thread_questions(db, user.id, root_id)
+    return QuestionThreadResponse(
+        root_question_id=root_id,
+        data=[QuestionDetail.model_validate(q) for q in thread],
+    )
 
 
 # ---------------------------------------------------------------------------

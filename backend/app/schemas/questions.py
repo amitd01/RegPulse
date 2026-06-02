@@ -56,6 +56,7 @@ class QuestionSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    parent_question_id: uuid.UUID | None = None
     question_text: str
     quick_answer: str | None = None
     risk_level: str | None = None
@@ -91,6 +92,12 @@ class QuestionListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class QuestionThreadResponse(BaseModel):
+    success: bool = True
+    root_question_id: uuid.UUID
+    data: list[QuestionDetail]
 
 
 class QuestionSuggestionItem(BaseModel):

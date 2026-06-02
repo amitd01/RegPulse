@@ -2,7 +2,8 @@
 
 
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { AnswerView } from "@/components/answer/AnswerView";
 
@@ -14,7 +15,8 @@ import { trackEvent } from "@/lib/analytics";
 
 import api from "@/lib/api";
 
-import type { CitationItem, RecommendedAction } from "@/types";
+import { Spinner } from "@/components/ui/Spinner";
+import type { CitationItem, QuestionDetail, QuestionThreadResponse, RecommendedAction } from "@/types";
 
 
 
@@ -118,6 +120,50 @@ function newTurn(questionText: string): ConversationTurn {
 
 
 
+function turnFromDetail(q: QuestionDetail): ConversationTurn {
+
+  return {
+
+    clientId: q.id,
+
+    questionText: q.question_text,
+
+    state: {
+
+      status: "done",
+
+      answer: q.answer_text ?? "",
+
+      quickAnswer: q.quick_answer,
+
+      riskLevel: q.risk_level,
+
+      confidenceScore: q.confidence_score,
+
+      consultExpert: q.consult_expert,
+
+      citations: q.citations ?? [],
+
+      affectedTeams: q.affected_teams ?? [],
+
+      recommendedActions: q.recommended_actions ?? [],
+
+      questionId: q.id,
+
+      creditBalance: null,
+
+      errorMessage: null,
+
+    },
+
+    feedbackSubmitted: q.feedback_record != null,
+
+  };
+
+}
+
+
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Suggested question card
@@ -148,7 +194,15 @@ const SUGGESTED_QUESTIONS = [
 
 
 
-export default function AskPage() {
+function AskPageContent() {
+
+  const router = useRouter();
+
+  const searchParams = useSearchParams();
+
+  const threadParam = searchParams.get("thread");
+
+  const loadedThreadRef = useRef<string | null>(null);
 
   const [question, setQuestion] = useState("");
 
@@ -227,6 +281,86 @@ export default function AskPage() {
     }
 
   }, []);
+
+
+
+  useEffect(() => {
+
+    if (!threadParam) {
+
+      if (loadedThreadRef.current !== null) {
+
+        loadedThreadRef.current = null;
+
+        setTurns([]);
+
+        setFollowUp("");
+
+      }
+
+      return;
+
+    }
+
+    if (loadedThreadRef.current === threadParam) return;
+
+    loadedThreadRef.current = threadParam;
+
+    let cancelled = false;
+
+
+
+    abortRef.current?.abort();
+
+    stopFlushInterval();
+
+    tokenBufferRef.current = "";
+
+
+
+    (async () => {
+
+      try {
+
+        const { data } = await api.get<QuestionThreadResponse>(
+
+          `/questions/${threadParam}/thread`,
+
+        );
+
+        if (cancelled) return;
+
+        setTurns(data.data.map(turnFromDetail));
+
+        setFeedbackByTurn({});
+
+        setQuestion("");
+
+        setFollowUp("");
+
+      } catch {
+
+        if (!cancelled) {
+
+          loadedThreadRef.current = null;
+
+          router.replace("/ask");
+
+        }
+
+      }
+
+    })();
+
+
+
+    return () => {
+
+      cancelled = true;
+
+    };
+
+  }, [threadParam, router, stopFlushInterval]);
 
 
 
@@ -920,6 +1054,8 @@ export default function AskPage() {
 
     tokenBufferRef.current = "";
 
+    loadedThreadRef.current = null;
+
     setTurns([]);
 
     setQuestion("");
@@ -928,7 +1064,9 @@ export default function AskPage() {
 
     setFeedbackByTurn({});
 
-  }, [stopFlushInterval]);
+    router.replace("/ask");
+
+  }, [router, stopFlushInterval]);
 
 
 
@@ -1351,6 +1489,34 @@ export default function AskPage() {
       </div>
 
     </div>
+
+  );
+
+}
+
+
+
+export default function AskPage() {
+
+  return (
+
+    <Suspense
+
+      fallback={
+
+        <div className="flex h-full items-center justify-center">
+
+          <Spinner size="lg" />
+
+        </div>
+
+      }
+
+    >
+
+      <AskPageContent />
+
+    </Suspense>
 
   );
 
