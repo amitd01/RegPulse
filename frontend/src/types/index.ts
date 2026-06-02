@@ -71,6 +71,8 @@ export interface FeedbackRecord {
 
 export interface QuestionSummary {
   id: string;
+  /** Null for the first question in a conversation; set for follow-ups. */
+  parent_question_id?: string | null;
   question_text: string;
   quick_answer: string | null;
   risk_level: string | null;
@@ -93,6 +95,12 @@ export interface QuestionDetail extends QuestionSummary {
   streaming_completed: boolean;
   latency_ms: number | null;
   feedback_record: FeedbackRecord | null;
+}
+
+export interface QuestionThreadResponse {
+  success: boolean;
+  root_question_id: string;
+  data: QuestionDetail[];
 }
 
 // --- Action item types ---
