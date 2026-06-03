@@ -2,13 +2,16 @@
 
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
+import toast from "react-hot-toast";
 import { bandFor } from "@/components/ui/ConfidenceMeter";
 import { Pagination } from "@/components/ui/Pagination";
 import { CardListSkeleton } from "@/components/ui/Skeleton";
 import { useQuestionHistory } from "@/hooks/useQuestions";
 import { cn } from "@/lib/cn";
+import { exportQuestionsToExcel, fetchAllQuestions } from "@/lib/exportHistoryExcel";
+import { filterQuestionHistory, type HistoryFilterTab } from "@/lib/historyFilters";
 
-type FilterTab = "all" | "high_confidence" | "consult_export" | "this_week";
+type FilterTab = HistoryFilterTab;
 
 const FILTER_TABS: { id: FilterTab; label: string }[] = [
   { id: "all", label: "All" },
@@ -68,6 +71,7 @@ export default function HistoryPage() {
   const [page, setPage] = useState(1);
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
   const [search, setSearch] = useState("");
+  const [exportLoading, setExportLoading] = useState(false);
 
   const { data, isLoading, isError } = useQuestionHistory(page, PAGE_SIZE);
 
@@ -82,29 +86,26 @@ export default function HistoryPage() {
 
   const filtered = useMemo(() => {
     if (!data) return [];
-    let items = data.data;
-
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      items = items.filter(
-        (i) =>
-          i.question_text.toLowerCase().includes(q) ||
-          (i.quick_answer ?? "").toLowerCase().includes(q),
-      );
-    }
-
-    if (activeTab === "high_confidence") {
-      items = items.filter((i) => !i.consult_expert && (i.confidence_score ?? 0) >= 0.8);
-    } else if (activeTab === "consult_export") {
-      items = items.filter((i) => i.consult_expert);
-    } else if (activeTab === "this_week") {
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      items = items.filter((i) => new Date(i.created_at) >= weekAgo);
-    }
-
-    return items;
+    return filterQuestionHistory(data.data, activeTab, search);
   }, [data, activeTab, search]);
+
+  const handleExport = useCallback(async () => {
+    setExportLoading(true);
+    try {
+      const all = await fetchAllQuestions();
+      const toExport = filterQuestionHistory(all, activeTab, search);
+      if (toExport.length === 0) {
+        toast.error("No questions to export.");
+        return;
+      }
+      exportQuestionsToExcel(toExport);
+      toast.success(`Exported ${toExport.length} questions to Excel.`);
+    } catch {
+      toast.error("Export failed. Please try again.");
+    } finally {
+      setExportLoading(false);
+    }
+  }, [activeTab, search]);
 
   return (
     <div className="flex h-full flex-col">
@@ -152,11 +153,16 @@ export default function HistoryPage() {
                 className="w-52 rounded-lg border border-cream-300 bg-cream-100 py-1.5 pl-9 pr-4 text-[13px] text-[#1A2B40] placeholder-[#7A95AD] focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500/30 dark:border-navy-600 dark:bg-navy-800 dark:text-gray-100"
               />
             </div>
-            <button className="inline-flex items-center gap-2 rounded-lg bg-[linear-gradient(135deg,#1B3A5C,#0F1C2E)] px-4 py-1.5 text-[13px] font-medium text-white shadow-sm transition-all hover:shadow-md">
+            <button
+              type="button"
+              onClick={() => void handleExport()}
+              disabled={exportLoading || isLoading}
+              className="inline-flex items-center gap-2 rounded-lg bg-[linear-gradient(135deg,#1B3A5C,#0F1C2E)] px-4 py-1.5 text-[13px] font-medium text-white shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+            >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
-              Export
+              {exportLoading ? "Exporting…" : "Export"}
             </button>
           </div>
         </div>

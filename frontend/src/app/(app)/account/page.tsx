@@ -558,7 +558,7 @@ export default function AccountPage() {
                 </div>
                 <div className="text-[14px] font-semibold text-[#1A2B40] mb-1.5">No payments yet</div>
                 <div className="text-[12.5px] text-[#7A95AD] max-w-[260px] leading-relaxed">
-                  You're on the free plan. When you upgrade, invoices will appear here automatically.
+                  You are on the free plan. When you upgrade, invoices will appear here automatically.
                 </div>
               </div>
             )}
