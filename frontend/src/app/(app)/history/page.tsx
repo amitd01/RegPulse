@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { bandFor } from "@/components/ui/ConfidenceMeter";
+import { Pagination } from "@/components/ui/Pagination";
 import { CardListSkeleton } from "@/components/ui/Skeleton";
 import { useQuestionHistory } from "@/hooks/useQuestions";
 import { cn } from "@/lib/cn";
@@ -61,13 +62,23 @@ function ConfidencePill({
   );
 }
 
+const PAGE_SIZE = 10;
+
 export default function HistoryPage() {
   const [page, setPage] = useState(1);
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
   const [search, setSearch] = useState("");
-  const pageSize = 50;
 
-  const { data, isLoading, isError } = useQuestionHistory(page, pageSize);
+  const { data, isLoading, isError } = useQuestionHistory(page, PAGE_SIZE);
+
+  const handlePageChange = useCallback((nextPage: number) => {
+    setPage(nextPage);
+  }, []);
+
+  const totalPages = data
+    ? (data.total_pages ?? Math.max(1, Math.ceil(data.total / PAGE_SIZE)))
+    : 0;
+  const showPagination = !!data && data.total > PAGE_SIZE;
 
   const filtered = useMemo(() => {
     if (!data) return [];
@@ -104,7 +115,10 @@ export default function HistoryPage() {
             {FILTER_TABS.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  setPage(1);
+                }}
                 className={cn(
                   "rounded-full px-4 py-1.5 text-[13px] font-medium transition-colors",
                   activeTab === tab.id
@@ -119,7 +133,7 @@ export default function HistoryPage() {
           <div className="flex items-center gap-2">
             {data && (
               <p className="text-[13px] text-[#7A95AD]">
-                <span className="font-medium text-[#1A2B40]">{filtered.length}</span> results
+                <span className="font-medium text-[#1A2B40]">{data.total}</span> results
               </p>
             )}
             {/* Search */}
@@ -131,7 +145,10 @@ export default function HistoryPage() {
                 type="text"
                 placeholder="Search history..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
                 className="w-52 rounded-lg border border-cream-300 bg-cream-100 py-1.5 pl-9 pr-4 text-[13px] text-[#1A2B40] placeholder-[#7A95AD] focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500/30 dark:border-navy-600 dark:bg-navy-800 dark:text-gray-100"
               />
             </div>
@@ -146,7 +163,8 @@ export default function HistoryPage() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-8 py-6">
+      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="min-h-0 flex-1 overflow-y-auto px-8 py-6">
         {isLoading && <CardListSkeleton rows={6} />}
 
         {isError && (
@@ -298,27 +316,18 @@ export default function HistoryPage() {
           </div>
         )}
 
-        {data && Math.ceil(data.total / pageSize) > 1 && (
-          <div className="mt-6 flex justify-center gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="rounded-lg border border-cream-300 bg-white px-3 py-1.5 text-[13px] text-[#4D6480] transition-colors hover:border-gold-500 disabled:opacity-40"
-            >
-              Previous
-            </button>
-            <span className="rounded-lg border border-cream-300 bg-white px-3 py-1.5 text-[13px] text-[#4D6480]">
-              Page {page} of {Math.ceil(data.total / pageSize)}
-            </span>
-            <button
-              onClick={() => setPage((p) => Math.min(Math.ceil(data.total / pageSize), p + 1))}
-              disabled={page === Math.ceil(data.total / pageSize)}
-              className="rounded-lg border border-cream-300 bg-white px-3 py-1.5 text-[13px] text-[#4D6480] transition-colors hover:border-gold-500 disabled:opacity-40"
-            >
-              Next
-            </button>
-          </div>
-        )}
+      </div>
+
+      {showPagination && (
+        <div className="shrink-0 border-t border-cream-300 px-8 py-4 dark:border-navy-700">
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            className="justify-start"
+          />
+        </div>
+      )}
       </div>
     </div>
   );

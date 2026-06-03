@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import uuid
 from datetime import UTC, datetime
 
@@ -58,6 +59,7 @@ async def list_flagged_questions(
         total=total,
         page=page,
         page_size=page_size,
+        total_pages=max(1, math.ceil(total / page_size)),
     )
 
 

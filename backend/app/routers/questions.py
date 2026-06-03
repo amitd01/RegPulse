@@ -9,6 +9,7 @@ PATCH /questions/{id}/feedback — submit feedback
 from __future__ import annotations
 
 import json
+import math
 import time
 import uuid
 
@@ -666,6 +667,7 @@ async def list_questions(
         total=total,
         page=page,
         page_size=page_size,
+        total_pages=max(1, math.ceil(total / page_size)),
     )
 
 

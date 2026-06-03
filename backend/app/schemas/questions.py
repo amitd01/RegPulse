@@ -92,6 +92,7 @@ class QuestionListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+    total_pages: int
 
 
 class QuestionThreadResponse(BaseModel):
