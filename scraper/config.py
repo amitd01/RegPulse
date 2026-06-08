@@ -54,6 +54,13 @@ class ScraperSettings(BaseSettings):
     # --- Sprint 3: Knowledge graph ---
     KG_EXTRACTION_ENABLED: bool = True
 
+    # --- GCS PDF storage ---
+    # Set GCS_BUCKET_NAME to enable uploading raw PDFs to Cloud Storage.
+    # Auth via Application Default Credentials (ADC); set
+    # GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json for local dev.
+    GCS_BUCKET_NAME: str | None = None
+    GCS_PDF_PREFIX: str = "circulars"
+
     # ------------------------------------------------------------------
     # Validators
     # ------------------------------------------------------------------

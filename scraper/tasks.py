@@ -258,8 +258,37 @@ def process_document(
             return {"status": "skipped", "reason": "duplicate", "url": url}
 
     try:
-        # Step 1: Download + extract text
+        doc_id = str(uuid.uuid4())
+
+        # Step 1: Download raw PDF bytes → upload to GCS (non-fatal) → extract text
         pdf_extractor = PDFExtractor()
+        gcs_pdf_path: str | None = None
+
+        settings = get_scraper_settings()
+        if settings.GCS_BUCKET_NAME:
+            pdf_bytes_for_gcs = None
+            try:
+                pdf_bytes_for_gcs = _run_async(pdf_extractor.download(url))
+            except Exception as dl_exc:
+                logger.warning(
+                    "process_document_gcs_download_failed",
+                    url=url,
+                    error=str(dl_exc),
+                )
+
+            if pdf_bytes_for_gcs is not None:
+                try:
+                    from scraper.storage.gcs_uploader import build_object_name, upload_pdf
+
+                    object_name = build_object_name(settings.GCS_PDF_PREFIX, doc_id)
+                    gcs_pdf_path = upload_pdf(pdf_bytes_for_gcs, object_name, settings.GCS_BUCKET_NAME)
+                except Exception as gcs_exc:
+                    logger.warning(
+                        "process_document_gcs_upload_failed",
+                        url=url,
+                        error=str(gcs_exc),
+                    )
+
         extracted = _run_async(pdf_extractor.extract(url))
 
         logger.info(
@@ -361,7 +390,6 @@ def process_document(
         )
 
         # Step 6a: Save circular_documents row (committed immediately — independent of chunks)
-        doc_id = str(uuid.uuid4())
         logger.info(
             "process_document_inserting_circular",
             url=url,
@@ -380,12 +408,12 @@ def process_document(
                         id, circular_number, title, doc_type, department,
                         issued_date, effective_date, rbi_url, status,
                         impact_level, action_deadline, affected_teams, tags,
-                        pending_admin_review, scraper_run_id
+                        pending_admin_review, scraper_run_id, gcs_pdf_path
                     ) VALUES (
                         :id, :circular_number, :title, :doc_type, :department,
                         :issued_date, :effective_date, :rbi_url, 'ACTIVE',
                         :impact_level, :action_deadline, :affected_teams, :tags,
-                        TRUE, :scraper_run_id
+                        TRUE, :scraper_run_id, :gcs_pdf_path
                     )
                 """),
                 {
@@ -402,6 +430,7 @@ def process_document(
                     "affected_teams": json.dumps(metadata.affected_teams),
                     "tags": json.dumps([]),
                     "scraper_run_id": scraper_run_id,
+                    "gcs_pdf_path": gcs_pdf_path,
                 },
             )
             db.commit()
@@ -554,20 +583,60 @@ def process_document(
 
 @shared_task(bind=True, soft_time_limit=300, name="scraper.tasks.generate_summary")
 def generate_summary(self, document_id: str) -> dict:  # noqa: ANN001
-    """Generate AI summary for a circular document using Claude Haiku.
+    """Generate AI summary for a circular. Checks fixture before calling Anthropic.
 
-    Minimal inline implementation — fetches chunks, concatenates up to 4,000 chars,
-    calls Haiku for a 3-sentence summary, saves ai_summary, sets pending_admin_review=TRUE.
-    Full SummaryService class replaces this in REG-169 (Prompt 42).
+    Priority order:
+    1. If fixture has an entry for this rbi_url → apply it directly (no API call).
+    2. Otherwise → call Anthropic Haiku as before.
     """
     import anthropic
 
     from scraper.config import get_scraper_settings
+    from scraper.fixtures.loader import get_enrichment
 
     logger.info("generate_summary_started", document_id=document_id)
 
     try:
-        # Fetch chunk texts ordered by chunk_index
+        # Fetch rbi_url and chunks together
+        with get_db_session() as db:
+            doc_row = db.execute(
+                text("SELECT rbi_url FROM circular_documents WHERE id = :doc_id"),
+                {"doc_id": document_id},
+            ).fetchone()
+
+            if not doc_row:
+                return {"status": "skipped", "reason": "document_not_found", "document_id": document_id}
+
+            rbi_url = doc_row[0]
+
+        # --- Fixture-first lookup ---
+        fixture_entry = get_enrichment(rbi_url) if rbi_url else None
+        if fixture_entry:
+            with get_db_session() as db:
+                db.execute(
+                    text("""
+                        UPDATE circular_documents
+                        SET ai_summary = :summary,
+                            tags = :tags,
+                            pending_admin_review = TRUE,
+                            updated_at = now()
+                        WHERE id = :doc_id
+                    """),
+                    {
+                        "summary": fixture_entry["ai_summary"],
+                        "tags": json.dumps(fixture_entry["tags"]),
+                        "doc_id": document_id,
+                    },
+                )
+                db.commit()
+            logger.info(
+                "generate_summary_from_fixture",
+                document_id=document_id,
+                rbi_url=rbi_url,
+            )
+            return {"status": "success", "source": "fixture", "document_id": document_id}
+
+        # --- Fallback: call Anthropic ---
         with get_db_session() as db:
             rows = db.execute(
                 text(
@@ -581,7 +650,6 @@ def generate_summary(self, document_id: str) -> dict:  # noqa: ANN001
             logger.warning("generate_summary_no_chunks", document_id=document_id)
             return {"status": "skipped", "reason": "no_chunks", "document_id": document_id}
 
-        # Concatenate chunks up to 4,000 chars
         combined = ""
         for row in rows:
             if len(combined) + len(row[0]) > 4000:
@@ -591,10 +659,11 @@ def generate_summary(self, document_id: str) -> dict:  # noqa: ANN001
                 break
             combined += " " + row[0] if combined else row[0]
 
-        # Call Claude Haiku
         settings = get_scraper_settings()
         client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
-        response = client.messages.create(
+
+        # Summary
+        summary_response = client.messages.create(
             model=settings.LLM_SUMMARY_MODEL,
             max_tokens=300,
             system=(
@@ -604,26 +673,57 @@ def generate_summary(self, document_id: str) -> dict:  # noqa: ANN001
             ),
             messages=[{"role": "user", "content": combined}],
         )
-        summary_text = response.content[0].text.strip()
+        summary_text = summary_response.content[0].text.strip()
 
-        # Save summary and mark for admin review
+        # Tags (new — previously missing from this task)
+        tags_response = client.messages.create(
+            model=settings.LLM_SUMMARY_MODEL,
+            max_tokens=100,
+            system=(
+                "You are a regulatory taxonomy specialist. "
+                "Given an RBI circular text, return a JSON array of 3-6 classification tags. "
+                "Return ONLY the JSON array."
+            ),
+            messages=[{"role": "user", "content": combined[:3000]}],
+        )
+        try:
+            tags = json.loads(tags_response.content[0].text.strip())
+            if not isinstance(tags, list):
+                tags = []
+        except json.JSONDecodeError:
+            tags = []
+
         with get_db_session() as db:
             db.execute(
-                text(
-                    "UPDATE circular_documents SET ai_summary = :summary, "
-                    "pending_admin_review = TRUE, updated_at = now() "
-                    "WHERE id = :doc_id"
-                ),
-                {"summary": summary_text, "doc_id": document_id},
+                text("""
+                    UPDATE circular_documents
+                    SET ai_summary = :summary,
+                        tags = :tags,
+                        pending_admin_review = TRUE,
+                        updated_at = now()
+                    WHERE id = :doc_id
+                """),
+                {
+                    "summary": summary_text,
+                    "tags": json.dumps(tags),
+                    "doc_id": document_id,
+                },
             )
             db.commit()
 
         logger.info(
             "generate_summary_completed",
             document_id=document_id,
+            source="anthropic",
             summary_length=len(summary_text),
+            tags=tags,
         )
-        return {"status": "success", "document_id": document_id, "summary": summary_text}
+        return {
+            "status": "success",
+            "source": "anthropic",
+            "document_id": document_id,
+            "summary": summary_text,
+        }
 
     except SoftTimeLimitExceeded:
         logger.error("generate_summary_timeout", document_id=document_id)
@@ -633,6 +733,7 @@ def generate_summary(self, document_id: str) -> dict:  # noqa: ANN001
             "generate_summary_failed", document_id=document_id, error=str(exc), exc_info=True
         )
         return {"status": "failed", "document_id": document_id, "error": str(exc)}
+
 
 
 @shared_task(bind=True, soft_time_limit=300, name="scraper.tasks.send_staleness_alerts")
@@ -1258,6 +1359,21 @@ def process_uploaded_pdf(
             _update_upload_status("FAILED", error_message="PDF bytes not found in Redis (expired?)")
             return {"status": "failed", "upload_id": upload_id, "error": "bytes_not_found"}
 
+        # Upload raw PDF to GCS before processing (non-fatal)
+        gcs_pdf_path: str | None = None
+        if settings.GCS_BUCKET_NAME:
+            try:
+                from scraper.storage.gcs_uploader import build_object_name, upload_pdf
+
+                object_name = build_object_name("uploads", upload_id)
+                gcs_pdf_path = upload_pdf(pdf_bytes, object_name, settings.GCS_BUCKET_NAME)
+            except Exception as gcs_exc:
+                logger.warning(
+                    "process_uploaded_pdf_gcs_upload_failed",
+                    upload_id=upload_id,
+                    error=str(gcs_exc),
+                )
+
         _update_upload_status("PROCESSING")
 
         # Step 1: Extract text from PDF bytes
@@ -1314,12 +1430,13 @@ def process_uploaded_pdf(
                         id, circular_number, title, doc_type, department,
                         issued_date, effective_date, rbi_url, status,
                         impact_level, action_deadline, affected_teams, tags,
-                        pending_admin_review, scraper_run_id, upload_source
+                        pending_admin_review, scraper_run_id, upload_source,
+                        gcs_pdf_path
                     ) VALUES (
                         :id, :circular_number, :title, :doc_type, :department,
                         :issued_date, :effective_date, :rbi_url, 'ACTIVE',
                         :impact_level, :action_deadline, :affected_teams, :tags,
-                        TRUE, NULL, 'manual_upload'
+                        TRUE, NULL, 'manual_upload', :gcs_pdf_path
                     )
                 """),
                 {
@@ -1335,6 +1452,7 @@ def process_uploaded_pdf(
                     "action_deadline": metadata.action_deadline,
                     "affected_teams": json.dumps(metadata.affected_teams),
                     "tags": json.dumps([]),
+                    "gcs_pdf_path": gcs_pdf_path,
                 },
             )
 
@@ -1765,4 +1883,110 @@ def update_existing_circulars(self):  # noqa: ANN001, ANN201
             error=str(exc),
             exc_info=True,
         )
+        raise
+
+
+@shared_task(
+    bind=True,
+    soft_time_limit=3600,
+    max_retries=1,
+    name="scraper.tasks.apply_enrichment_fixture",
+)
+def apply_enrichment_fixture(self) -> dict:  # noqa: ANN001
+    """Import ai_enrichment.jsonl fixture into circular_documents.
+
+    Idempotent: only updates rows where ai_summary IS NULL or tags = '[]'.
+    Keyed by rbi_url — environment-portable.
+    Run once after deployment to any new environment.
+    """
+    from scraper.fixtures.loader import load_fixture
+
+    logger.info("apply_enrichment_fixture_started")
+
+    fixture = load_fixture()
+    if not fixture:
+        logger.warning("apply_enrichment_fixture_empty_fixture")
+        return {"status": "skipped", "reason": "empty_fixture"}
+
+    updated = 0
+    skipped = 0
+    missing = 0
+
+    try:
+        for rbi_url, entry in fixture.items():
+            with get_db_session() as db:
+                # Check if this URL exists and needs enrichment
+                row = db.execute(
+                    text("""
+                        SELECT id, ai_summary, tags
+                        FROM circular_documents
+                        WHERE rbi_url = :rbi_url
+                    """),
+                    {"rbi_url": rbi_url},
+                ).fetchone()
+
+                if row is None:
+                    missing += 1
+                    logger.debug(
+                        "fixture_url_not_in_db",
+                        rbi_url=rbi_url,
+                    )
+                    continue
+
+                existing_summary = row[1]
+                existing_tags = row[2]
+
+                if (
+                    existing_summary
+                    and existing_tags
+                    and existing_tags not in ("[]", None, "")
+                ):
+                    skipped += 1
+                    continue  # already enriched — don't overwrite
+
+                db.execute(
+                    text("""
+                        UPDATE circular_documents
+                        SET
+                            ai_summary = :summary,
+                            tags       = :tags,
+                            updated_at = now()
+                        WHERE rbi_url = :rbi_url
+                          AND (ai_summary IS NULL OR tags IS NULL OR tags = '[]')
+                    """),
+                    {
+                        "summary": entry["ai_summary"],
+                        "tags": json.dumps(entry["tags"]),
+                        "rbi_url": rbi_url,
+                    },
+                )
+                db.commit()
+                updated += 1
+
+        logger.info(
+            "apply_enrichment_fixture_completed",
+            total_in_fixture=len(fixture),
+            updated=updated,
+            skipped_already_enriched=skipped,
+            missing_in_db=missing,
+        )
+
+        _audit_log(
+            action="apply_enrichment_fixture",
+            target_table="circular_documents",
+            new_value={"updated": updated, "skipped": skipped, "missing": missing},
+        )
+
+        return {
+            "status": "success",
+            "updated": updated,
+            "skipped": skipped,
+            "missing_in_db": missing,
+        }
+
+    except SoftTimeLimitExceeded:
+        logger.error("apply_enrichment_fixture_timeout")
+        raise
+    except Exception as exc:
+        logger.error("apply_enrichment_fixture_failed", error=str(exc), exc_info=True)
         raise
