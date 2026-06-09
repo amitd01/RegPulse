@@ -244,7 +244,7 @@ app.add_middleware(
     CORSMiddlewareExcludingWebhook,
     allow_origins=[
         "http://localhost:3000",
-        "http://34.66.63.185:3000",
+        "http://136.113.40.120:3000",
     ],
     allow_credentials=True,
     allow_methods=["*"],
