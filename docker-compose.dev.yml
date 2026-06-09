@@ -108,12 +108,14 @@ services:
 
     volumes:
       - ./scraper:/scraper
+      - ./secrets/gcs_key.json:/secrets/gcs_key.json:ro
 
     environment:
       DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       REDIS_URL: redis://redis:6379/1
       PYTHONPATH: /
       PYTHONUNBUFFERED: 1
+      GOOGLE_APPLICATION_CREDENTIALS: /secrets/gcs_key.json
 
 
     depends_on:
@@ -135,6 +137,7 @@ services:
 
     volumes:
       - ./scraper:/scraper
+      - ./secrets/gcs_key.json:/secrets/gcs_key.json:ro
 
     container_name: regpulse-celery-beat
 
@@ -150,6 +153,7 @@ services:
       REDIS_URL: redis://redis:6379/1
       PYTHONPATH: /
       PYTHONUNBUFFERED: 1
+      GOOGLE_APPLICATION_CREDENTIALS: /secrets/gcs_key.json
 
     depends_on:
       postgres:
