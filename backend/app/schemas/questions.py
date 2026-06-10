@@ -12,6 +12,7 @@ class CitationItem(BaseModel):
     circular_number: str
     verbatim_quote: str
     section_reference: str | None = None
+    circular_id: str | None = None
 
 
 class RecommendedAction(BaseModel):

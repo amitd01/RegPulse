@@ -11,7 +11,9 @@ interface CitationCardProps {
 
 export function CitationCard({ citation, index }: CitationCardProps) {
   const [expanded, setExpanded] = useState(false);
-  const librarySearchUrl = `/library?query=${encodeURIComponent(citation.circular_number)}`;
+  const librarySearchUrl = citation.circular_id
+    ? `/library/${citation.circular_id}`
+    : `/library?query=${encodeURIComponent(citation.circular_number)}`;
 
   return (
     <div className="overflow-hidden rounded-xl border border-cream-300 bg-white shadow-sm transition-all hover:border-[#C9972E40] hover:shadow-[0_2px_12px_rgba(0,0,0,0.06)]">

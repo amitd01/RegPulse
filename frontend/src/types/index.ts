@@ -47,6 +47,7 @@ export interface CitationItem {
   circular_number: string;
   verbatim_quote: string;
   section_reference: string | null;
+  circular_id?: string | null;
 }
 
 export interface RecommendedAction {

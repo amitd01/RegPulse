@@ -167,8 +167,14 @@ def _build_user_message(
 def _validate_citations(
     response: dict,
     valid_circular_numbers: set[str],
+    circular_id_map: dict[str, str] | None = None,
 ) -> dict:
-    """Strip citations referencing circular numbers not in retrieved chunks."""
+    """Strip citations referencing circular numbers not in retrieved chunks.
+
+    If circular_id_map (circular_number → document UUID) is provided, injects
+    circular_id into each valid citation so the frontend can deep-link to the
+    document detail page.
+    """
     citations = response.get("citations", [])
     if not isinstance(citations, list):
         response["citations"] = []
@@ -178,6 +184,8 @@ def _validate_citations(
     stripped_count = 0
     for c in citations:
         if isinstance(c, dict) and c.get("circular_number") in valid_circular_numbers:
+            if circular_id_map:
+                c = {**c, "circular_id": circular_id_map.get(c["circular_number"])}
             valid.append(c)
         else:
             stripped_count += 1
@@ -358,6 +366,7 @@ class LLMService:
             return _consult_expert_response(), "none (insufficient context)"
 
         valid_circulars = {c.circular_number for c in chunks if c.circular_number}
+        circular_id_map = {c.circular_number: c.document_id for c in chunks if c.circular_number}
         user_message = _build_user_message(question, chunks, conversation_history)
         system_prompt = _system_prompt(is_follow_up)
 
@@ -389,7 +398,7 @@ class LLMService:
 
         # Parse and validate
         parsed = _parse_llm_response(raw_response)
-        validated = _validate_citations(parsed, valid_circulars)
+        validated = _validate_citations(parsed, valid_circulars, circular_id_map)
 
         # Compute confidence score
         if is_follow_up:
@@ -461,6 +470,7 @@ class LLMService:
             return
 
         valid_circulars = {c.circular_number for c in chunks if c.circular_number}
+        circular_id_map = {c.circular_number: c.document_id for c in chunks if c.circular_number}
         user_message = _build_user_message(question, chunks, conversation_history)
         system_prompt = _system_prompt(is_follow_up)
 
@@ -498,7 +508,7 @@ class LLMService:
         # Parse structured data from complete response
         try:
             parsed = _parse_llm_response(full_response)
-            validated = _validate_citations(parsed, valid_circulars)
+            validated = _validate_citations(parsed, valid_circulars, circular_id_map)
 
             # Compute confidence and apply fallback
             if is_follow_up:
